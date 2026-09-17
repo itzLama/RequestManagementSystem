@@ -8,9 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "request_types")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RequestType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,11 +34,4 @@ public class RequestType {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    protected RequestType() {}
-
-    public Long getId() { return id; }
-    public String getTypeName() { return typeName; }
-    public String getDescription() { return description; }
-    public boolean isActive() { return active; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
 }

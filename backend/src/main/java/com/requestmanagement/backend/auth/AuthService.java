@@ -2,18 +2,16 @@ package com.requestmanagement.backend.auth;
 
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
-
-    public AuthService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
 
     public User getActiveUser(Long userId) {
         User user = userRepository.findById(userId)

@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,24 +31,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
     private final CsrfTokenRepository csrfTokenRepository;
-
-    public AuthController(
-            AuthService authService,
-            AuthenticationManager authenticationManager,
-            SecurityContextRepository securityContextRepository,
-            CsrfTokenRepository csrfTokenRepository
-    ) {
-        this.authService = authService;
-        this.authenticationManager = authenticationManager;
-        this.securityContextRepository = securityContextRepository;
-        this.csrfTokenRepository = csrfTokenRepository;
-    }
 
     @PostMapping("/login")
     public AuthUserResponse login(

@@ -16,9 +16,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "status_history")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StatusHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,13 +52,4 @@ public class StatusHistory {
     @Column(name = "changed_at", nullable = false)
     private LocalDateTime changedAt;
 
-    protected StatusHistory() {}
-
-    public Long getId() { return id; }
-    public Request getRequest() { return request; }
-    public RequestStatus getOldStatus() { return oldStatus; }
-    public RequestStatus getNewStatus() { return newStatus; }
-    public User getChangedBy() { return changedBy; }
-    public String getChangeNote() { return changeNote; }
-    public LocalDateTime getChangedAt() { return changedAt; }
 }
