@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import type { AuthenticatedUser } from "@/components/layout/layout-config";
+import { apiFetch, refreshCsrfToken } from "@/lib/api-client";
 
 type ErrorResponse = {
   detail?: string;
@@ -25,10 +26,9 @@ export default function LoginPage() {
     const password = String(formData.get("password") ?? "");
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -41,6 +41,7 @@ export default function LoginPage() {
       }
 
       const user: AuthenticatedUser = await response.json();
+      await refreshCsrfToken();
       router.replace(user.role === "ADMIN" ? "/dashboard" : "/my-requests");
     } catch {
       setErrorMessage("Unable to connect to the server. Please try again.");

@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api-client";
 import { Header } from "./Header";
 import {
   type AuthenticatedUser,
@@ -29,8 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
     async function loadCurrentUser() {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
+        const response = await apiFetch("/api/auth/me", {
           signal: controller.signal,
         });
 

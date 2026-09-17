@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api-client";
 import type { NavigationIcon, NavigationItem } from "./layout-config";
 
 type SidebarProps = {
@@ -60,9 +61,8 @@ export function Sidebar({ navigation }: SidebarProps) {
 
   async function handleLogout() {
     try {
-      await fetch("/api/auth/logout", {
+      await apiFetch("/api/auth/logout", {
         method: "POST",
-        credentials: "include",
       });
     } finally {
       router.replace("/login");

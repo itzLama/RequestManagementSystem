@@ -2,18 +2,18 @@ package com.requestmanagement.backend.util;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
-    private final BCryptPasswordEncoder passwordEncoder =
-            new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
-    public DataSeeder(JdbcTemplate jdbcTemplate) {
+    public DataSeeder(JdbcTemplate jdbcTemplate, PasswordEncoder passwordEncoder) {
         this.jdbcTemplate = jdbcTemplate;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
