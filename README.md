@@ -4,7 +4,7 @@
 
 Masar is an internal service request management system developed as part of an IT internship project. It is intended to help employees submit and track internal service requests while allowing administrators to manage requests, assignments, statuses, comments, and reporting.
 
-The current repository contains the Week 3 application foundation. Some request-management pages and business features are placeholders for future implementation.
+The current repository contains the Week 3 application foundation and the completed Week 4 requester workflow.
 
 ## Main Users
 
@@ -32,6 +32,7 @@ The current repository contains the Week 3 application foundation. Some request-
 ### Frontend Styling and Development
 
 - Tailwind CSS 4
+- lucide-react 1.47.0
 - ESLint 9
 
 ### Build and Local Infrastructure
@@ -119,6 +120,7 @@ Flyway manages the database schema and initial development data:
 
 - `V1__create_initial_schema.sql` creates the five application tables.
 - `V2__insert_initial_data.sql` inserts the initial users, request types, requests, comments, and status history.
+- `V3__hash_seed_user_passwords.sql` establishes BCrypt password hashes for the known development seed users.
 
 The backend has Hibernate schema generation disabled with:
 
@@ -215,7 +217,7 @@ These are sample application credentials, not infrastructure or production crede
 
 ## Current Core Features
 
-The following foundation functionality is currently implemented:
+The following functionality is currently implemented:
 
 - Shared login page for administrators and requesters
 - Authentication against users stored in PostgreSQL
@@ -235,12 +237,23 @@ The following foundation functionality is currently implemented:
   - Requests
   - Comments
   - Status history
+- Create Request form
+- Request form validation and useful error handling
+- Active request types loaded from the backend database
+- Requester-only My Requests listing
+- Server-side pagination and newest-first request ordering
+- Request Details page with request metadata
+- Status Timeline based on persisted status history
+- Public requester-visible comments and Add Comment functionality
+- Request ownership enforcement
+- Requester identity derived from Spring Security rather than client-provided user IDs
+- Internal comments excluded from requester responses
 
-The request list, request creation form, request administration, assignments, status updates, comments, and reporting workflows are not yet implemented. Their current pages are Week 3 layout placeholders.
+Administrator request management, assignment and administrator status updates, and dashboard/reporting functionality are not yet implemented.
 
 ## Week 3 Foundation Status
 
-The current Week 3 foundation includes:
+The completed Week 3 foundation includes:
 
 - Repository and project setup
 - Base frontend layout and navigation
@@ -251,6 +264,29 @@ The current Week 3 foundation includes:
 - Spring Security authentication and authorization foundations
 - Session and CSRF handling
 - Lombok integration
+
+## Week 4 Requester Workflow Status
+
+The completed Week 4 requester workflow includes:
+
+- Create Request workflow with validation
+- Request Types API integration
+- My Requests with server-side pagination
+- Request Details with request metadata
+- Persisted status-history timeline
+- Requester-visible comments and Add Comment
+- Request ownership and requester-only authorization
+- Integration tests for the Week 4 backend flows
+
+## Testing
+
+The backend includes integration tests for authentication and the Week 4 requester workflows.
+
+Run the backend tests from the `backend` directory:
+
+```powershell
+.\mvnw.cmd test
+```
 
 ## Notes
 
