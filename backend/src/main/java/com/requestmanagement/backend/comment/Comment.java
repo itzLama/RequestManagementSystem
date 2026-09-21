@@ -47,4 +47,14 @@ public class Comment {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    public static Comment create(Request request, User author, String text) {
+        Comment comment = new Comment();
+        comment.request = request;
+        comment.user = author;
+        comment.commentText = text;
+        comment.internal = false;
+        comment.createdAt = LocalDateTime.now();
+        comment.updatedAt = comment.createdAt;
+        return comment;
+    }
 }

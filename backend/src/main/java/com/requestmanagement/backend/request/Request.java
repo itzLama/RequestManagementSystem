@@ -61,4 +61,18 @@ public class Request {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    public static Request create(String title, String description, RequestType type,
+                                 RequestPriority priority, User creator) {
+        Request request = new Request();
+        request.title = title;
+        request.description = description;
+        request.type = type;
+        request.priority = priority;
+        request.status = RequestStatus.NEW;
+        request.createdBy = creator;
+        request.assignedTo = null;
+        request.createdAt = LocalDateTime.now();
+        request.updatedAt = request.createdAt;
+        return request;
+    }
 }

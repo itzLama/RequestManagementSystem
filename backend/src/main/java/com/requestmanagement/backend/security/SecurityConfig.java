@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -71,6 +72,10 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/csrf", "/api/auth/login", "/error").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/requests").hasRole("REQUESTER")
+                        .requestMatchers(HttpMethod.GET, "/api/requests/mine").hasRole("REQUESTER")
+                        .requestMatchers(HttpMethod.GET, "/api/requests/{id}").hasRole("REQUESTER")
+                        .requestMatchers(HttpMethod.POST, "/api/requests/{id}/comments").hasRole("REQUESTER")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
