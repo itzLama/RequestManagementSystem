@@ -4,12 +4,12 @@
 
 Masar is an internal service request management system developed as part of an IT internship project. It is intended to help employees submit and track internal service requests while allowing administrators to manage requests, assignments, statuses, comments, and reporting.
 
-The current repository contains the Week 3 application foundation and the completed Week 4 requester workflow.
+The current repository contains the completed Week 3 foundation, Week 4 requester workflow, and Week 5 administrator request-management workflow.
 
 ## Main Users
 
-- **Requester:** Intended to submit and track internal service requests.
-- **Administrator:** Intended to manage requests, assignments, statuses, comments, and reporting.
+- **Requester:** Submits and tracks personal internal service requests.
+- **Administrator:** Manages requests, assignments, statuses, public comments, and internal notes.
 
 ## Tech Stack
 
@@ -242,14 +242,27 @@ The following functionality is currently implemented:
 - Active request types loaded from the backend database
 - Requester-only My Requests listing
 - Server-side pagination and newest-first request ordering
-- Request Details page with request metadata
+- Requester and Admin Kanban Board and Table views
+- Kanban columns for New, In Progress, Waiting User, Completed, and Rejected
+- Request Details dialogs from Board and Table views
+- Direct Request Details routes retained for fallback access
+- Request Details with request metadata
 - Status Timeline based on persisted status history
 - Public requester-visible comments and Add Comment functionality
 - Request ownership enforcement
 - Requester identity derived from Spring Security rather than client-provided user IDs
 - Internal comments excluded from requester responses
+- Admin request list with title search and status, type, and priority filters
+- Server-side pagination for the Admin Table View
+- Admin status updates through Completed and Rejected
+- Owner assignment and unassignment by Admin
+- Any active user may be selected as an owner
+- Admin public comments and Admin-only internal notes
+- Request creation and update timestamps in Admin Request Details
+- Persisted status history for status changes
+- Automatic reopening to In Progress when a Requester comments on a Completed or Rejected request
 
-Administrator request management, assignment and administrator status updates, and dashboard/reporting functionality are not yet implemented.
+Dashboard reporting remains outside the currently implemented scope.
 
 ## Week 3 Foundation Status
 
@@ -278,9 +291,26 @@ The completed Week 4 requester workflow includes:
 - Request ownership and requester-only authorization
 - Integration tests for the Week 4 backend flows
 
+## Week 5 Administrator Workflow Status
+
+The completed Week 5 workflow includes:
+
+- Admin request list with title search and status, type, and priority filters
+- Server-side pagination and deterministic newest-first ordering
+- Admin status updates through Completed and Rejected
+- Owner assignment and unassignment, with all active users available as owners
+- Public comments and separate Admin-only internal notes
+- Persisted status history for status changes
+- Requester and Admin Kanban Board and Table views, with Kanban as the default
+- Request Details dialogs with direct detail routes retained as fallbacks
+- Automatic reopening of Completed or Rejected requests when the Requester adds a public comment
+- Role, ownership, session, and CSRF enforcement for the completed workflows
+
 ## Testing
 
-The backend includes integration tests for authentication and the Week 4 requester workflows.
+The backend currently contains 33 passing integration tests covering authentication, requester workflows, administrator listing and filtering, Board endpoints, status and assignment changes, comments and internal notes, authorization, and request reopening.
+
+Frontend ESLint and the production build with TypeScript checks also pass.
 
 Run the backend tests from the `backend` directory:
 
