@@ -75,4 +75,10 @@ public class Request {
         request.updatedAt = request.createdAt;
         return request;
     }
+
+    public void updateWorkflow(RequestStatus newStatus, User newAssignee) {
+        status = newStatus;
+        assignedTo = newAssignee;
+        updatedAt = LocalDateTime.now();
+    }
 }

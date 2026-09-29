@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/requests")
@@ -31,6 +32,67 @@ public class RequestController {
 
     private final RequestService requestService;
     private final CommentService commentService;
+
+    @GetMapping("/admin/assignees")
+    public List<AssigneeResponse> assignees() {
+        return requestService.assignees();
+    }
+
+    @GetMapping("/admin/{id}")
+    public AdminRequestDetailsResponse adminDetails(@PathVariable Long id) {
+        return requestService.adminDetails(id);
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/admin/{id}")
+    public AdminRequestDetailsResponse updateAdminWorkflow(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminUpdateRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return requestService.updateAdminWorkflow(id, principal.userId(), input);
+    }
+
+    @PostMapping("/admin/{id}/comments")
+    public ResponseEntity<CommentResponse> addAdminComment(
+            @PathVariable Long id,
+            @Valid @RequestBody AddCommentRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(commentService.addAdmin(id, principal.userId(), input, false));
+    }
+
+    @PostMapping("/admin/{id}/internal-notes")
+    public ResponseEntity<CommentResponse> addInternalNote(
+            @PathVariable Long id,
+            @Valid @RequestBody AddCommentRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(commentService.addAdmin(id, principal.userId(), input, true));
+    }
+
+    @GetMapping("/admin/board")
+    public List<AdminRequestResponse> boardAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) RequestStatus status,
+            @RequestParam(required = false) Long typeId,
+            @RequestParam(required = false) RequestPriority priority
+    ) {
+        return requestService.boardAll(search, status, typeId, priority);
+    }
+
+    @GetMapping("/admin")
+    public AdminRequestsPageResponse listAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) RequestStatus status,
+            @RequestParam(required = false) Long typeId,
+            @RequestParam(required = false) RequestPriority priority,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
+    ) {
+        return requestService.listAll(search, status, typeId, priority, page, size);
+    }
 
     @GetMapping("/{id}")
     public RequestDetailsResponse details(@PathVariable Long id,
@@ -52,6 +114,11 @@ public class RequestController {
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
     ) {
         return requestService.listMine(principal.userId(), page, size);
+    }
+
+    @GetMapping("/mine/board")
+    public List<MyRequestResponse> boardMine(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return requestService.boardMine(principal.userId());
     }
 
     @PostMapping

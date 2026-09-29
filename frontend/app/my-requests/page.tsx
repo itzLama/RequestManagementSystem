@@ -1,8 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
+import { RequestKanbanBoard } from "@/components/RequestKanbanBoard";
+import { RequestDetailsDialog } from "@/components/RequestDetailsDialog";
+import { RequestViewToggle, type RequestView } from "@/components/RequestViewToggle";
+import { RequesterRequestDetails } from "@/components/requester/RequesterRequestDetails";
 import { apiFetch } from "@/lib/api-client";
 
 type MyRequest = {
@@ -42,10 +46,9 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
 }
 
-function RequestActions({ requestId }: { requestId: number }) {
-  const router = useRouter();
+function RequestActions({ onOpen }: { onOpen: () => void }) {
   return (
-      <button type="button" onClick={() => router.push(`/my-requests/${requestId}`)} aria-label="View request details" className="flex h-9 w-9 items-center justify-center rounded-[9px] text-secondary hover:bg-nav-hover hover:text-foreground">
+      <button type="button" onClick={onOpen} aria-label="View request details" className="flex h-9 w-9 items-center justify-center rounded-[9px] text-secondary hover:bg-nav-hover hover:text-foreground">
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="currentColor">
           <circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" />
         </svg>
@@ -55,11 +58,16 @@ function RequestActions({ requestId }: { requestId: number }) {
 
 export default function MyRequestsPage() {
   const router = useRouter();
+  const [view, setView] = useState<RequestView>("board");
+  const [boardRequests, setBoardRequests] = useState<MyRequest[]>([]);
   const [requestedPage, setRequestedPage] = useState(0);
   const [reload, setReload] = useState(0);
   const [result, setResult] = useState<MyRequestsPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
+  const closeDetails = useCallback(() => setSelectedRequestId(null), []);
+  const refreshRequests = useCallback(() => setReload((value) => value + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -68,7 +76,10 @@ export default function MyRequestsPage() {
       setLoading(true);
       setError("");
       try {
-        const response = await apiFetch(`/api/requests/mine?page=${requestedPage}&size=10`, {
+        const endpoint = view === "board"
+          ? "/api/requests/mine/board"
+          : `/api/requests/mine?page=${requestedPage}&size=10`;
+        const response = await apiFetch(endpoint, {
           signal: controller.signal,
           cache: "no-store",
         });
@@ -79,8 +90,11 @@ export default function MyRequestsPage() {
         if (!response.ok) {
           throw new Error("Unable to load your requests. Please try again.");
         }
-        const data: MyRequestsPage = await response.json();
-        setResult(data);
+        if (view === "board") {
+          setBoardRequests(await response.json());
+        } else {
+          setResult(await response.json());
+        }
       } catch (cause) {
         if (controller.signal.aborted) return;
         setError(cause instanceof Error ? cause.message : "Unable to load your requests. Please try again.");
@@ -91,25 +105,30 @@ export default function MyRequestsPage() {
 
     loadRequests();
     return () => controller.abort();
-  }, [requestedPage, reload, router]);
+  }, [requestedPage, reload, router, view]);
 
   return (
-    <section className="w-full rounded-xl border border-divider bg-surface">
+    <div className="space-y-5">
+      <div className="flex justify-end"><RequestViewToggle view={view} onChange={setView} /></div>
+      <section className={view === "table" ? "w-full rounded-xl border border-divider bg-surface" : "w-full"}>
       {loading && <p role="status" className="px-6 py-10 text-sm text-secondary sm:px-8">Loading your requests...</p>}
       {!loading && error && (
         <div role="alert" className="px-6 py-10 text-sm text-[#B42318] sm:px-8">
           {error} <button type="button" onClick={() => setReload((value) => value + 1)} className="font-medium underline">Retry</button>
         </div>
       )}
-      {!loading && !error && result && result.content.length > 0 && (
+      {!loading && !error && view === "board" && (
+        <RequestKanbanBoard requests={boardRequests} onRequestClick={setSelectedRequestId} />
+      )}
+      {!loading && !error && view === "table" && result && result.content.length > 0 && (
         <div className="px-8 pb-6 pt-8 text-sm text-secondary">
           Showing {result.content.length} {result.content.length === 1 ? "request" : "requests"} on this page
         </div>
       )}
-      {!loading && !error && result && result.content.length === 0 && (
+      {!loading && !error && view === "table" && result && result.content.length === 0 && (
         <p className="px-8 pb-10 pt-3 text-sm text-secondary">You have no requests yet.</p>
       )}
-      {!loading && !error && result && result.content.length > 0 && (
+      {!loading && !error && view === "table" && result && result.content.length > 0 && (
         <div className="overflow-x-auto px-6 pb-5 sm:px-8">
             <table className="w-full min-w-[850px] border-collapse text-left text-sm">
               <thead className="bg-background text-xs font-medium text-secondary">
@@ -132,18 +151,22 @@ export default function MyRequestsPage() {
                     <td className="px-5 py-5">{priorityLabels[request.priority]}</td>
                     <td className="px-5 py-5">{statusLabels[request.status]}</td>
                     <td className="whitespace-nowrap px-5 py-5">{formatDate(request.createdAt)}</td>
-                    <td className="px-5 py-3 text-center"><RequestActions requestId={request.id} /></td>
+                    <td className="px-5 py-3 text-center"><RequestActions onOpen={() => setSelectedRequestId(request.id)} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
         </div>
       )}
-      {!loading && !error && result && (
+      {!loading && !error && view === "table" && result && (
         <div className="border-t border-divider px-6 py-5 sm:px-8">
           <Pagination page={result.page} totalPages={result.totalPages} onPageChange={setRequestedPage} />
         </div>
       )}
-    </section>
+      </section>
+      {selectedRequestId !== null && <RequestDetailsDialog title={`Request #${selectedRequestId}`} onClose={closeDetails}>
+        <RequesterRequestDetails requestId={String(selectedRequestId)} onRequestUpdated={refreshRequests} />
+      </RequestDetailsDialog>}
+    </div>
   );
 }

@@ -59,6 +59,9 @@ const DEFAULT_PAGE_HEADER: PageHeader = {
 };
 
 export function getPageHeader(pathname: string): PageHeader {
+  if (pathname.startsWith("/requests/")) {
+    return { title: `Request #${pathname.slice("/requests/".length)}`, subtitle: "Manage request details and activity" };
+  }
   if (pathname.startsWith("/my-requests/")) {
     return { title: `Request #${pathname.slice("/my-requests/".length)}`, subtitle: "View request details and activity" };
   }

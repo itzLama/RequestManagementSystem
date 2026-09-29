@@ -52,4 +52,16 @@ public class StatusHistory {
     @Column(name = "changed_at", nullable = false)
     private LocalDateTime changedAt;
 
+    public static StatusHistory create(Request request, RequestStatus oldStatus,
+                                       RequestStatus newStatus, User changedBy, String note) {
+        StatusHistory history = new StatusHistory();
+        history.request = request;
+        history.oldStatus = oldStatus;
+        history.newStatus = newStatus;
+        history.changedBy = changedBy;
+        history.changeNote = note;
+        history.changedAt = LocalDateTime.now();
+        return history;
+    }
+
 }

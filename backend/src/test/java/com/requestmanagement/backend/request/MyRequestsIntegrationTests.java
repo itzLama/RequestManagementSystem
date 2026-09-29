@@ -87,6 +87,22 @@ class MyRequestsIntegrationTests {
     }
 
     @Test
+    void requesterBoardReturnsAllAndOnlyOwnedRequestsNewestFirst() throws Exception {
+        Long requesterId = addRequester("board.requester@example.com");
+        LocalDateTime base = LocalDateTime.now().plusDays(2);
+        Long newestId = null;
+        for (int index = 0; index < 12; index++) {
+            newestId = addRequest(requesterId, "Board request " + index, base.plusMinutes(index));
+        }
+
+        mockMvc.perform(get("/api/requests/mine/board").session(login("board.requester@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(12))
+                .andExpect(jsonPath("$[0].id").value(newestId))
+                .andExpect(jsonPath("$[0].title").value("Board request 11"));
+    }
+
+    @Test
     void emptyRequesterGetsEmptyPageAndDefaults() throws Exception {
         addRequester("empty.requester@example.com");
         mockMvc.perform(get("/api/requests/mine").session(login("empty.requester@example.com")))

@@ -7,4 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CommentRepository extends JpaRepository<Comment, Long> {
     @EntityGraph(attributePaths = "user")
     List<Comment> findByRequest_IdAndInternalFalseOrderByCreatedAtAscIdAsc(Long requestId);
+
+    @EntityGraph(attributePaths = "user")
+    List<Comment> findByRequest_IdAndInternalTrueOrderByCreatedAtAscIdAsc(Long requestId);
 }

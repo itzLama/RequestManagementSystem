@@ -48,11 +48,15 @@ public class Comment {
     private LocalDateTime updatedAt;
 
     public static Comment create(Request request, User author, String text) {
+        return create(request, author, text, false);
+    }
+
+    public static Comment create(Request request, User author, String text, boolean internal) {
         Comment comment = new Comment();
         comment.request = request;
         comment.user = author;
         comment.commentText = text;
-        comment.internal = false;
+        comment.internal = internal;
         comment.createdAt = LocalDateTime.now();
         comment.updatedAt = comment.createdAt;
         return comment;

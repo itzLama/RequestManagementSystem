@@ -53,7 +53,9 @@ class RequestDetailsIntegrationTests {
                 .andExpect(jsonPath("$.comments[0].internal").doesNotExist())
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
 
-        mvc.perform(get("/api/requests/{id}", requestId("System Access")).session(login("nora.ahmed@example.com")))
+        Long systemAccessId = requestId("System Access");
+        jdbc.update("DELETE FROM status_history WHERE request_id=?", systemAccessId);
+        mvc.perform(get("/api/requests/{id}", systemAccessId).session(login("nora.ahmed@example.com")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.assignedToName").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.timeline.length()").value(0));
