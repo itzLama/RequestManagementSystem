@@ -1,24 +1,22 @@
-type Status = "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED";
-type Priority = "LOW" | "MEDIUM" | "HIGH";
+import { REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 
 export type KanbanRequest = {
   id: number;
   title: string;
   typeName: string;
-  priority: Priority;
-  status: Status;
+  priority: RequestPriority;
+  status: RequestStatus;
   requesterName?: string;
 };
 
-const columns: { status: Status; label: string }[] = [
-  { status: "NEW", label: "New" },
-  { status: "IN_PROGRESS", label: "In Progress" },
-  { status: "WAITING_USER", label: "Waiting User" },
-  { status: "COMPLETED", label: "Completed" },
-  { status: "REJECTED", label: "Rejected" },
+const columns: { status: RequestStatus; label: string }[] = [
+  { status: "NEW", label: REQUEST_STATUS_LABELS.NEW },
+  { status: "IN_PROGRESS", label: REQUEST_STATUS_LABELS.IN_PROGRESS },
+  { status: "WAITING_USER", label: REQUEST_STATUS_LABELS.WAITING_USER },
+  { status: "COMPLETED", label: REQUEST_STATUS_LABELS.COMPLETED },
+  { status: "REJECTED", label: REQUEST_STATUS_LABELS.REJECTED },
 ];
-const priorityLabels: Record<Priority, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
-const priorityClasses: Record<Priority, string> = {
+const priorityClasses: Record<RequestPriority, string> = {
   LOW: "bg-[#F2F3F5] text-secondary",
   MEDIUM: "bg-[#FFF5DB] text-[#9A6700]",
   HIGH: "bg-[#FDECEF] text-[#C33C54]",
@@ -42,7 +40,7 @@ export function RequestKanbanBoard({ requests, onRequestClick }: { requests: Kan
               {request.requesterName && <p className="mt-3 truncate text-xs text-foreground">{request.requesterName}</p>}
               <div className="mt-3 flex items-end justify-between gap-2">
                 <span className="line-clamp-2 text-xs leading-4 text-secondary">{request.typeName}</span>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[request.priority]}`}>{priorityLabels[request.priority]}</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[request.priority]}`}>{REQUEST_PRIORITY_LABELS[request.priority]}</span>
               </div>
             </button>)}
           </div>

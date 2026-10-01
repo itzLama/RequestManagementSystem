@@ -98,6 +98,30 @@ class AdminRequestWorkflowIntegrationTests {
     }
 
     @Test
+    void adminCannotReopenCompletedOrRejectedRequests() throws Exception {
+        Session admin = login("sara.saad@example.com");
+        for (String terminalStatus : new String[] { "COMPLETED", "REJECTED" }) {
+            Long id = jdbc.queryForObject("""
+                    INSERT INTO requests(title,description,type_id,priority,status,created_by)
+                    VALUES (?, 'Terminal reopen test', (SELECT type_id FROM request_types LIMIT 1),
+                            'MEDIUM', ?, 2)
+                    RETURNING request_id
+                    """, Long.class, "No reopen " + terminalStatus, terminalStatus);
+
+            mvc.perform(patch("/api/requests/admin/{id}", id).session(admin.session()).cookie(admin.csrf())
+                            .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                            .content("{\"status\":\"IN_PROGRESS\",\"assignedToId\":null}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("Completed or rejected requests cannot be reopened."));
+
+            assertThat(jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id))
+                    .isEqualTo(terminalStatus);
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Long.class, id))
+                    .isZero();
+        }
+    }
+
+    @Test
     void allActiveUsersAreAssignableWhileInvalidInactiveAndRequesterActionsAreRejected() throws Exception {
         Session admin = login("sara.saad@example.com");
         mvc.perform(get("/api/requests/admin/assignees").session(admin.session()))
@@ -125,9 +149,10 @@ class AdminRequestWorkflowIntegrationTests {
         Long histories = jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Long.class, id);
         for (Long invalidId : new Long[] { 999999999L, inactive }) {
             mvc.perform(patch("/api/requests/admin/{id}", id).session(admin.session()).cookie(admin.csrf())
-                            .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                    .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
                             .content("{\"status\":\"COMPLETED\",\"assignedToId\":" + invalidId + "}"))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").isString());
         }
         assertThat(jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id)).isEqualTo(originalStatus);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Long.class, id)).isEqualTo(histories);
@@ -155,6 +180,33 @@ class AdminRequestWorkflowIntegrationTests {
         Session requester = login("nora.ahmed@example.com");
         mvc.perform(post("/api/requests/admin/{id}/internal-notes", id).session(requester.session()).cookie(requester.csrf()).header("X-XSRF-TOKEN", requester.csrf().getValue()).contentType("application/json").content("{\"text\":\"No\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void malformedWorkflowInputUnknownRequestsAndUnauthenticatedAssigneesAreHandledConsistently() throws Exception {
+        Session admin = login("sara.saad@example.com");
+        Long id = requestId();
+
+        for (String body : new String[] {
+                "{}",
+                "{\"status\":\"NOT_A_STATUS\"}",
+                "{\"status\":\"NEW\",\"assignedToId\":\"not-a-number\"}"
+        }) {
+            mvc.perform(patch("/api/requests/admin/{id}", id).session(admin.session()).cookie(admin.csrf())
+                            .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").isString());
+        }
+
+        mvc.perform(get("/api/requests/admin/not-a-number").session(admin.session()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value for 'id'."));
+        mvc.perform(get("/api/requests/admin/{id}", 999999999L).session(admin.session()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Request not found."));
+        mvc.perform(get("/api/requests/admin/assignees"))
+                .andExpect(status().isUnauthorized());
     }
 
     private Long requestId() { return jdbc.queryForObject("SELECT request_id FROM requests WHERE title='Laptop Issue' ORDER BY request_id LIMIT 1", Long.class); }

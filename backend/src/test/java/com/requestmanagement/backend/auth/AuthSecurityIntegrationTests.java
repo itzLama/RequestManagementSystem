@@ -6,9 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,6 +28,9 @@ class AuthSecurityIntegrationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     void adminLoginRestoresSessionAndLogoutInvalidatesIt() throws Exception {
@@ -83,6 +88,28 @@ class AuthSecurityIntegrationTests {
         login("sara.saad@example.com", "wrong-password", csrf)
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Invalid email or password."));
+    }
+
+    @Test
+    @Transactional
+    void invalidLoginInputAndInactiveAccountsReturnSafeConsistentErrors() throws Exception {
+        Csrf csrf = getCsrfToken(null);
+        for (String body : new String[] {
+                "{\"email\":\"\",\"password\":\"Password123\"}",
+                "{\"email\":\"sara.saad@example.com\",\"password\":\"\"}",
+                "{\"email\":\"not-an-email\",\"password\":\"Password123\"}"
+        }) {
+            mockMvc.perform(post("/api/auth/login")
+                            .cookie(csrf.cookie()).header("X-XSRF-TOKEN", csrf.token())
+                            .contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").isString());
+        }
+
+        jdbc.update("UPDATE users SET is_active=false WHERE email='nora.ahmed@example.com'");
+        login("nora.ahmed@example.com", "Password123", csrf)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("This account is inactive."));
     }
 
     @Test

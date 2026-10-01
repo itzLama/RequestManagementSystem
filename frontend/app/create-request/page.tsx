@@ -3,19 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
+import { REQUEST_PRIORITY_LABELS, type RequestPriority } from "@/lib/request-display";
 
 type RequestType = { id: number; name: string };
-type Priority = "LOW" | "MEDIUM" | "HIGH";
 type Field = "title" | "typeId" | "priority" | "description";
 type FieldErrors = Partial<Record<Field, string>>;
 type CreateResponse = { id: number };
-type ErrorResponse = { message?: string; detail?: string };
 
-const priorities: { value: Priority; label: string }[] = [
-  { value: "LOW", label: "Low" },
-  { value: "MEDIUM", label: "Medium" },
-  { value: "HIGH", label: "High" },
+const priorities: { value: RequestPriority; label: string }[] = [
+  { value: "LOW", label: REQUEST_PRIORITY_LABELS.LOW },
+  { value: "MEDIUM", label: REQUEST_PRIORITY_LABELS.MEDIUM },
+  { value: "HIGH", label: REQUEST_PRIORITY_LABELS.HIGH },
 ];
 
 const inputClass = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm text-foreground outline-none focus:border-accent";
@@ -30,7 +29,7 @@ export default function CreateRequestPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [typeId, setTypeId] = useState("");
-  const [priority, setPriority] = useState<Priority | "">("");
+  const [priority, setPriority] = useState<RequestPriority | "">("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -70,8 +69,9 @@ export default function CreateRequestPage() {
 
   function validate(): FieldErrors {
     const errors: FieldErrors = {};
-    if (!title.trim()) errors.title = "Request title is required.";
-    else if (title.length > 200) errors.title = "Request title must be at most 200 characters.";
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) errors.title = "Request title is required.";
+    else if (trimmedTitle.length > 200) errors.title = "Request title must be at most 200 characters.";
     if (!typeId) errors.typeId = "Request type is required.";
     if (!priority) errors.priority = "Priority is required.";
     if (!description.trim()) errors.description = "Description is required.";
@@ -103,8 +103,7 @@ export default function CreateRequestPage() {
         return;
       }
       if (!response.ok) {
-        const error: ErrorResponse = await response.json().catch(() => ({}));
-        setSubmitError(error.message ?? error.detail ?? "Unable to submit your request. Please try again.");
+        setSubmitError(await getApiErrorMessage(response, "Unable to submit your request. Please try again."));
         return;
       }
       const created: CreateResponse = await response.json();
@@ -155,7 +154,7 @@ export default function CreateRequestPage() {
 
           <div className="min-w-0">
             <label className={labelClass} htmlFor="request-priority">Priority</label>
-            <select id="request-priority" value={priority} onChange={(event) => { setPriority(event.target.value as Priority | ""); setFieldErrors((current) => ({ ...current, priority: undefined })); }} aria-invalid={Boolean(fieldErrors.priority)} aria-describedby={fieldErrors.priority ? "priority-error" : undefined} className={inputClass}>
+            <select id="request-priority" value={priority} onChange={(event) => { setPriority(event.target.value as RequestPriority | ""); setFieldErrors((current) => ({ ...current, priority: undefined })); }} aria-invalid={Boolean(fieldErrors.priority)} aria-describedby={fieldErrors.priority ? "priority-error" : undefined} className={inputClass}>
               <option value="">Select priority</option>
               {priorities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>

@@ -4,12 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import type { AuthenticatedUser } from "@/components/layout/layout-config";
-import { apiFetch, refreshCsrfToken } from "@/lib/api-client";
-
-type ErrorResponse = {
-  detail?: string;
-  message?: string;
-};
+import { apiFetch, getApiErrorMessage, refreshCsrfToken } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,10 +28,7 @@ export default function LoginPage() {
       });
 
       if (!response.ok) {
-        const error: ErrorResponse = await response.json().catch(() => ({}));
-        setErrorMessage(
-          error.detail ?? error.message ?? "Unable to sign in. Please try again.",
-        );
+        setErrorMessage(await getApiErrorMessage(response, "Unable to sign in. Please try again."));
         return;
       }
 

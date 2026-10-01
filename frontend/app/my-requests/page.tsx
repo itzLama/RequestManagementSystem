@@ -8,13 +8,14 @@ import { RequestDetailsDialog } from "@/components/RequestDetailsDialog";
 import { RequestViewToggle, type RequestView } from "@/components/RequestViewToggle";
 import { RequesterRequestDetails } from "@/components/requester/RequesterRequestDetails";
 import { apiFetch } from "@/lib/api-client";
+import { formatRequestDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 
 type MyRequest = {
   id: number;
   title: string;
   typeName: string;
-  priority: "LOW" | "MEDIUM" | "HIGH";
-  status: "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED";
+  priority: RequestPriority;
+  status: RequestStatus;
   createdAt: string;
 };
 
@@ -27,24 +28,6 @@ type MyRequestsPage = {
   first: boolean;
   last: boolean;
 };
-
-const priorityLabels: Record<MyRequest["priority"], string> = {
-  LOW: "Low",
-  MEDIUM: "Medium",
-  HIGH: "High",
-};
-
-const statusLabels: Record<MyRequest["status"], string> = {
-  NEW: "New",
-  IN_PROGRESS: "In Progress",
-  WAITING_USER: "Waiting for User",
-  COMPLETED: "Completed",
-  REJECTED: "Rejected",
-};
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
-}
 
 function RequestActions({ onOpen }: { onOpen: () => void }) {
   return (
@@ -117,7 +100,14 @@ export default function MyRequestsPage() {
           {error} <button type="button" onClick={() => setReload((value) => value + 1)} className="font-medium underline">Retry</button>
         </div>
       )}
-      {!loading && !error && view === "board" && (
+      {!loading && !error && view === "board" && boardRequests.length === 0 && (
+        <div className="rounded-xl border border-divider bg-surface px-6 py-12 text-center">
+          <h2 className="text-lg font-semibold text-foreground">You have no requests yet</h2>
+          <p className="mt-2 text-sm text-secondary">Create your first service request to start tracking it here.</p>
+          <button type="button" onClick={() => router.push("/create-request")} className="mt-5 inline-flex h-11 items-center rounded-[9px] bg-accent px-5 text-sm font-medium text-white">Create Request</button>
+        </div>
+      )}
+      {!loading && !error && view === "board" && boardRequests.length > 0 && (
         <RequestKanbanBoard requests={boardRequests} onRequestClick={setSelectedRequestId} />
       )}
       {!loading && !error && view === "table" && result && result.content.length > 0 && (
@@ -148,9 +138,9 @@ export default function MyRequestsPage() {
                     <td className="px-4 py-5 font-medium">{result.totalElements - (result.page * result.size + index)}</td>
                     <td className="max-w-56 truncate px-5 py-5">{request.title}</td>
                     <td className="px-5 py-5">{request.typeName}</td>
-                    <td className="px-5 py-5">{priorityLabels[request.priority]}</td>
-                    <td className="px-5 py-5">{statusLabels[request.status]}</td>
-                    <td className="whitespace-nowrap px-5 py-5">{formatDate(request.createdAt)}</td>
+                    <td className="px-5 py-5">{REQUEST_PRIORITY_LABELS[request.priority]}</td>
+                    <td className="px-5 py-5">{REQUEST_STATUS_LABELS[request.status]}</td>
+                    <td className="whitespace-nowrap px-5 py-5">{formatRequestDate(request.createdAt)}</td>
                     <td className="px-5 py-3 text-center"><RequestActions onOpen={() => setSelectedRequestId(request.id)} /></td>
                   </tr>
                 ))}

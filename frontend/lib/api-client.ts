@@ -63,3 +63,10 @@ export async function apiFetch(
     credentials: "include",
   });
 }
+
+export async function getApiErrorMessage(response: Response, fallback: string) {
+  const body: { message?: unknown; detail?: unknown } = await response.json().catch(() => ({}));
+  if (typeof body.message === "string" && body.message.trim()) return body.message;
+  if (typeof body.detail === "string" && body.detail.trim()) return body.detail;
+  return fallback;
+}

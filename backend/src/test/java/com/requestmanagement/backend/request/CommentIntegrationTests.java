@@ -110,7 +110,8 @@ class CommentIntegrationTests {
         for (String body : new String[] { "{\"text\":\"   \"}", "{\"text\":\"\"}" }) {
             mvc.perform(post("/api/requests/{id}/comments", id).session(nora.session()).cookie(nora.csrf())
                             .header("X-XSRF-TOKEN", nora.csrf().getValue()).contentType("application/json").content(body))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").isString());
         }
         Long otherRequest = addOtherRequest();
         for (Long target : new Long[] { 999999999L, otherRequest }) {
@@ -127,6 +128,27 @@ class CommentIntegrationTests {
         mvc.perform(post("/api/requests/{id}/comments", id).session(admin.session()).cookie(admin.csrf())
                         .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json").content("{\"text\":\"Hello\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void oversizedRequesterAndAdminEntriesReturnConsistentValidationErrors() throws Exception {
+        Long id = requestId("Laptop Issue");
+        String body = "{\"text\":\"" + "a".repeat(10001) + "\"}";
+        Session requester = login("nora.ahmed@example.com");
+        mvc.perform(post("/api/requests/{id}/comments", id).session(requester.session())
+                        .cookie(requester.csrf()).header("X-XSRF-TOKEN", requester.csrf().getValue())
+                        .contentType("application/json").content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Comment must be at most 10000 characters."));
+
+        Session admin = login("sara.saad@example.com");
+        for (String endpoint : new String[] { "comments", "internal-notes" }) {
+            mvc.perform(post("/api/requests/admin/{id}/{endpoint}", id, endpoint).session(admin.session())
+                            .cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                            .contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("Comment must be at most 10000 characters."));
+        }
     }
 
     private Long requestId(String title) {

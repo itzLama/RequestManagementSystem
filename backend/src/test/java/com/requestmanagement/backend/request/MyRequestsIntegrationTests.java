@@ -124,7 +124,8 @@ class MyRequestsIntegrationTests {
         MockHttpSession session = login("nora.ahmed@example.com");
         for (String query : new String[] { "page=-1", "size=0", "size=51", "page=abc" }) {
             mockMvc.perform(get("/api/requests/mine?" + query).session(session))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").isString());
         }
     }
 

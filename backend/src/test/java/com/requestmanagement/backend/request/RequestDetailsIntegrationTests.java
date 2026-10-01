@@ -27,7 +27,22 @@ class RequestDetailsIntegrationTests {
     @Test
     void detailsContainOnlyOwnVisiblePersistedData() throws Exception {
         Long id = requestId("Laptop Issue");
+        jdbc.update("""
+                UPDATE requests
+                SET description = 'The laptop is unable to connect to the office Wi-Fi.',
+                    type_id = (SELECT type_id FROM request_types WHERE type_name = 'IT & Technical Support'),
+                    priority = 'MEDIUM',
+                    status = 'IN_PROGRESS',
+                    created_by = (SELECT user_id FROM users WHERE email = 'nora.ahmed@example.com'),
+                    assigned_to = (SELECT user_id FROM users WHERE email = 'nouf.khaled@example.com')
+                WHERE request_id = ?
+                """, id);
+        jdbc.update("DELETE FROM status_history WHERE request_id = ?", id);
+        jdbc.update("DELETE FROM comments WHERE request_id = ?", id);
+        jdbc.update("INSERT INTO status_history (request_id, old_status, new_status, changed_by, change_note) VALUES (?, 'NEW', 'IN_PROGRESS', (SELECT user_id FROM users WHERE email='sara.saad@example.com'), 'Request reviewed and assigned.')", id);
         jdbc.update("INSERT INTO status_history (request_id, old_status, new_status, changed_by, change_note, changed_at) VALUES (?, 'IN_PROGRESS', 'WAITING_USER', (SELECT user_id FROM users WHERE email='sara.saad@example.com'), 'Waiting for answer', CURRENT_TIMESTAMP + INTERVAL '1 day')", id);
+        jdbc.update("INSERT INTO comments (request_id, user_id, comment_text, is_internal, created_at, updated_at) VALUES (?, (SELECT user_id FROM users WHERE email='sara.saad@example.com'), 'When did the issue start?', false, CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days')", id);
+        jdbc.update("INSERT INTO comments (request_id, user_id, comment_text, is_internal, created_at, updated_at) VALUES (?, (SELECT user_id FROM users WHERE email='nora.ahmed@example.com'), 'It started this morning when I tried to connect to the office Wi-Fi.', false, CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day')", id);
         jdbc.update("INSERT INTO comments (request_id, user_id, comment_text, is_internal) VALUES (?, (SELECT user_id FROM users WHERE email='sara.saad@example.com'), 'Private note', true)", id);
         jdbc.update("INSERT INTO comments (request_id, user_id, comment_text, is_internal, created_at, updated_at) VALUES (?, (SELECT user_id FROM users WHERE email='nora.ahmed@example.com'), 'Later public note', false, CURRENT_TIMESTAMP + INTERVAL '1 day', CURRENT_TIMESTAMP + INTERVAL '1 day')", id);
         mvc.perform(get("/api/requests/{id}", id).session(login("nora.ahmed@example.com")))
@@ -54,6 +69,7 @@ class RequestDetailsIntegrationTests {
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
 
         Long systemAccessId = requestId("System Access");
+        jdbc.update("UPDATE requests SET created_by = (SELECT user_id FROM users WHERE email='nora.ahmed@example.com'), assigned_to = NULL WHERE request_id = ?", systemAccessId);
         jdbc.update("DELETE FROM status_history WHERE request_id=?", systemAccessId);
         mvc.perform(get("/api/requests/{id}", systemAccessId).session(login("nora.ahmed@example.com")))
                 .andExpect(status().isOk())

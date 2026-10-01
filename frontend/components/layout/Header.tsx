@@ -5,6 +5,8 @@ type HeaderProps = PageHeader & {
 };
 
 export function Header({ title, subtitle, user }: HeaderProps) {
+  const initial = user.fullName?.trim().charAt(0).toUpperCase() || "?";
+
   return (
     <header className="flex h-[88px] shrink-0 items-center justify-between border-b border-divider bg-surface px-8">
       <div className="min-w-0">
@@ -13,7 +15,9 @@ export function Header({ title, subtitle, user }: HeaderProps) {
       </div>
 
       <div className="ml-8 flex shrink-0 items-center border-l border-divider pl-7">
-        <div aria-hidden="true" className="h-11 w-11 rounded-full bg-avatar" />
+        <div aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-avatar text-sm font-semibold text-secondary">
+          {initial}
+        </div>
         <div className="ml-3 min-w-[112px]">
           <p className="text-sm font-semibold text-foreground">{user.fullName}</p>
           <p className="mt-0.5 text-[11px] text-secondary">

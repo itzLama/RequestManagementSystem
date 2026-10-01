@@ -20,6 +20,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const [reloadUser, setReloadUser] = useState(0);
 
   useEffect(() => {
     if (pathname === "/login") {
@@ -29,15 +32,18 @@ export function AppLayout({ children }: AppLayoutProps) {
     const controller = new AbortController();
 
     async function loadCurrentUser() {
+      setLoadingUser(true);
+      setAuthError("");
       try {
         const response = await apiFetch("/api/auth/me", {
           signal: controller.signal,
         });
 
-        if (!response.ok) {
+        if (response.status === 401) {
           router.replace("/login");
           return;
         }
+        if (!response.ok) throw new Error("Unable to restore your session. Please try again.");
 
         const currentUser: AuthenticatedUser = await response.json();
         setUser(currentUser);
@@ -46,21 +52,31 @@ export function AppLayout({ children }: AppLayoutProps) {
           return;
         }
 
-        router.replace("/login");
+        setAuthError("Unable to connect to the server. Please try again.");
+      } finally {
+        if (!controller.signal.aborted) setLoadingUser(false);
       }
     }
 
     loadCurrentUser();
 
     return () => controller.abort();
-  }, [pathname, router]);
+  }, [pathname, reloadUser, router]);
 
   if (pathname === "/login") {
     return children;
   }
 
+  if (loadingUser && !user) {
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Loading your workspace...</p></div>;
+  }
+
+  if (authError && !user) {
+    return <div className="flex min-h-screen items-center justify-center bg-background"><div role="alert" className="rounded-xl border border-divider bg-surface px-6 py-5 text-center"><p className="text-sm text-[#B42318]">{authError}</p><button type="button" onClick={() => setReloadUser((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></div></div>;
+  }
+
   if (!user) {
-    return <div className="min-h-screen bg-background" />;
+    return null;
   }
 
   const pageHeader = getPageHeader(pathname);
