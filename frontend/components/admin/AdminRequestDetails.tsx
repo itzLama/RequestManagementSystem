@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
 import { formatRequestDateTime, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 
-type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "REQUESTER"; createdAt: string };
+type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
 type Timeline = { oldStatus: RequestStatus | null; newStatus: RequestStatus; changedByName: string; changeNote: string | null; changedAt: string };
 type Details = { id: number; title: string; status: RequestStatus; requesterName: string; requesterEmail: string; typeName: string; priority: RequestPriority; assignedToId: number | null; assignedToName: string | null; description: string; createdAt: string; updatedAt: string; timeline: Timeline[]; comments: Comment[]; internalNotes: Comment[] };
 type Assignee = { id: number; fullName: string };
@@ -15,7 +15,7 @@ const card = "rounded-xl border border-divider bg-surface p-6";
 const control = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent";
 
 function Conversation({ title, emptyMessage, items }: { title: string; emptyMessage: string; items: Comment[] }) {
-  return <div><h2 className="text-lg font-semibold">{title}</h2><div className="mt-4 divide-y divide-divider">{items.length === 0 && <p className="py-4 text-sm text-secondary">{emptyMessage}</p>}{items.map((item) => <article key={item.id} className="flex gap-3 py-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.authorName.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-semibold">{item.authorName} <span className="font-normal text-secondary">({item.authorRole === "ADMIN" ? "Admin" : "Requester"})</span></p><time className="text-xs text-secondary">{formatRequestDateTime(item.createdAt)}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.text}</p></div></article>)}</div></div>;
+  return <div><h2 className="text-lg font-semibold">{title}</h2><div className="mt-4 divide-y divide-divider">{items.length === 0 && <p className="py-4 text-sm text-secondary">{emptyMessage}</p>}{items.map((item) => <article key={item.id} className="flex gap-3 py-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.authorName.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-semibold">{item.authorName} <span className="font-normal text-secondary">({item.authorRole === "ADMIN" ? "Admin" : "Employee"})</span></p><time className="text-xs text-secondary">{formatRequestDateTime(item.createdAt)}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.text}</p></div></article>)}</div></div>;
 }
 
 function Composer({ placeholder, submitting, error, onSubmit }: { placeholder: string; submitting: boolean; error: string; onSubmit: (text: string) => Promise<boolean> }) {

@@ -1,4 +1,4 @@
-export type UserRole = "ADMIN" | "REQUESTER";
+export type UserRole = "ADMIN" | "EMPLOYEE";
 
 export type AuthenticatedUser = {
   userId: number;
@@ -6,7 +6,7 @@ export type AuthenticatedUser = {
   role: UserRole;
 };
 
-export type NavigationIcon = "create" | "dashboard" | "home" | "requests";
+export type NavigationIcon = "create" | "dashboard" | "employees" | "home" | "requests";
 
 export type NavigationItem = {
   label: string;
@@ -23,8 +23,9 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavigationItem[]> = {
   ADMIN: [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
     { label: "Requests", href: "/requests", icon: "requests" },
+    { label: "Employees", href: "/employees", icon: "employees" },
   ],
-  REQUESTER: [
+  EMPLOYEE: [
     { label: "My Requests", href: "/my-requests", icon: "requests" },
     { label: "Create Request", href: "/create-request", icon: "create" },
   ],
@@ -42,6 +43,10 @@ const PAGE_HEADERS: Record<string, PageHeader> = {
   "/requests": {
     title: "Requests",
     subtitle: "Manage and review all service requests",
+  },
+  "/employees": {
+    title: "Employees",
+    subtitle: "Manage employee accounts and access",
   },
   "/my-requests": {
     title: "My Requests",

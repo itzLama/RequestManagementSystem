@@ -21,7 +21,7 @@ export function Header({ title, subtitle, user }: HeaderProps) {
         <div className="ml-3 min-w-[112px]">
           <p className="text-sm font-semibold text-foreground">{user.fullName}</p>
           <p className="mt-0.5 text-[11px] text-secondary">
-            {user.role === "ADMIN" ? "Admin" : "Requester"}
+            {user.role === "ADMIN" ? "Admin" : "Employee"}
           </p>
         </div>
       </div>

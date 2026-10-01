@@ -35,7 +35,7 @@ class CommentIntegrationTests {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.text").value("Hello there"))
                 .andExpect(jsonPath("$.authorName").value("Nora Ahmed"))
-                .andExpect(jsonPath("$.authorRole").value("REQUESTER"))
+                .andExpect(jsonPath("$.authorRole").value("EMPLOYEE"))
                 .andExpect(jsonPath("$.createdAt").isString())
                 .andExpect(jsonPath("$.internal").doesNotExist()).andReturn();
         Long commentId = ((Number) com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.id")).longValue();

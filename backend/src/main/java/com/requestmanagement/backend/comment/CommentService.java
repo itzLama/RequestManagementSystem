@@ -33,7 +33,8 @@ public class CommentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment must be at most 10000 characters.");
         }
         User author = userRepository.findById(authorId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required."));
+                .filter(User::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "This account is inactive."));
         CommentResponse response = CommentResponse.from(commentRepository.save(Comment.create(request, author, text)));
         RequestStatus previousStatus = request.getStatus();
         if (previousStatus == RequestStatus.COMPLETED || previousStatus == RequestStatus.REJECTED) {

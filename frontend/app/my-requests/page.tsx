@@ -6,7 +6,7 @@ import { Pagination } from "@/components/Pagination";
 import { RequestKanbanBoard } from "@/components/RequestKanbanBoard";
 import { RequestDetailsDialog } from "@/components/RequestDetailsDialog";
 import { RequestViewToggle, type RequestView } from "@/components/RequestViewToggle";
-import { RequesterRequestDetails } from "@/components/requester/RequesterRequestDetails";
+import { EmployeeRequestDetails } from "@/components/employee/EmployeeRequestDetails";
 import { apiFetch } from "@/lib/api-client";
 import { formatRequestDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 
@@ -155,7 +155,7 @@ export default function MyRequestsPage() {
       )}
       </section>
       {selectedRequestId !== null && <RequestDetailsDialog title={`Request #${selectedRequestId}`} onClose={closeDetails}>
-        <RequesterRequestDetails requestId={String(selectedRequestId)} onRequestUpdated={refreshRequests} />
+        <EmployeeRequestDetails requestId={String(selectedRequestId)} onRequestUpdated={refreshRequests} />
       </RequestDetailsDialog>}
     </div>
   );

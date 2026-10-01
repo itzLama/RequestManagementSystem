@@ -132,7 +132,7 @@ class MyRequestsIntegrationTests {
     private Long addRequester(String email) {
         return jdbcTemplate.queryForObject("""
                 INSERT INTO users (full_name, email, password_hash, role)
-                VALUES ('Test Requester', ?, (SELECT password_hash FROM users WHERE email = 'nora.ahmed@example.com'), 'REQUESTER')
+                VALUES ('Test Requester', ?, (SELECT password_hash FROM users WHERE email = 'nora.ahmed@example.com'), 'EMPLOYEE')
                 RETURNING user_id
                 """, Long.class, email);
     }

@@ -39,6 +39,15 @@ function NavigationIconGraphic({ icon }: { icon: NavigationIcon }) {
     );
   }
 
+  if (icon === "employees") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
+        <circle cx="9" cy="8" r="3" />
+        <path strokeLinecap="round" d="M3.5 19c.5-3.3 2.3-5 5.5-5s5 1.7 5.5 5M16 7.5a2.5 2.5 0 0 1 0 5M16.5 15c2.3.4 3.6 1.7 4 4" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
       <path strokeLinecap="round" d="M9 7h11M9 12h11M9 17h11" />

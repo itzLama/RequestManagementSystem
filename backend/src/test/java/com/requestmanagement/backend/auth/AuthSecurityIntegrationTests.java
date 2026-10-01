@@ -47,7 +47,7 @@ class AuthSecurityIntegrationTests {
         assertThat(context.getAuthentication().getAuthorities())
                 .extracting("authority")
                 .contains("ROLE_ADMIN")
-                .doesNotContain("ROLE_REQUESTER");
+                .doesNotContain("ROLE_EMPLOYEE");
 
         mockMvc.perform(get("/api/auth/me").session(session))
                 .andExpect(status().isOk())
@@ -71,14 +71,14 @@ class AuthSecurityIntegrationTests {
         Csrf csrf = getCsrfToken(null);
         MvcResult login = login("nora.ahmed@example.com", "Password123", csrf)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.role").value("REQUESTER"))
+                .andExpect(jsonPath("$.role").value("EMPLOYEE"))
                 .andReturn();
 
         MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
         SecurityContext context = (SecurityContext) session.getAttribute("SPRING_SECURITY_CONTEXT");
         assertThat(context.getAuthentication().getAuthorities())
                 .extracting("authority")
-                .contains("ROLE_REQUESTER")
+                .contains("ROLE_EMPLOYEE")
                 .doesNotContain("ROLE_ADMIN");
     }
 

@@ -22,7 +22,7 @@ public class User {
 
     public enum Role {
         ADMIN,
-        REQUESTER
+        EMPLOYEE
     }
 
     @Id
@@ -51,5 +51,31 @@ public class User {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public static User createEmployee(String fullName, String email, String passwordHash) {
+        User employee = new User();
+        LocalDateTime now = LocalDateTime.now();
+        employee.fullName = fullName;
+        employee.email = email;
+        employee.passwordHash = passwordHash;
+        employee.role = Role.EMPLOYEE;
+        employee.active = true;
+        employee.createdAt = now;
+        employee.updatedAt = now;
+        return employee;
+    }
+
+    public void updateEmployeeProfile(String fullName, String email) {
+        this.fullName = fullName;
+        this.email = email;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void deactivate() {
+        if (active) {
+            active = false;
+            updatedAt = LocalDateTime.now();
+        }
+    }
 
 }

@@ -8,7 +8,7 @@ The current repository contains the completed Week 3 foundation, Week 4 requeste
 
 ## Main Users
 
-- **Requester:** Submits and tracks personal internal service requests.
+- **Employee:** Submits and tracks personal internal service requests.
 - **Administrator:** Manages requests, assignments, statuses, public comments, and internal notes.
 
 ## Tech Stack
@@ -121,6 +121,7 @@ Flyway manages the database schema and initial development data:
 - `V1__create_initial_schema.sql` creates the five application tables.
 - `V2__insert_initial_data.sql` inserts the initial users, request types, requests, comments, and status history.
 - `V3__hash_seed_user_passwords.sql` establishes BCrypt password hashes for the known development seed users.
+- `V4__rename_requester_role_to_employee.sql` migrates the authenticated requester role to Employee without changing user identities or relationships.
 
 The backend has Hibernate schema generation disabled with:
 
@@ -210,7 +211,7 @@ The following accounts come from the Flyway development seed data. They are for 
 | Name | Email | Role | Password |
 |---|---|---|---|
 | Sara Saad | `sara.saad@example.com` | Administrator | `Password123` |
-| Nora Ahmed | `nora.ahmed@example.com` | Requester | `Password123` |
+| Nora Ahmed | `nora.ahmed@example.com` | Employee | `Password123` |
 | Nouf Khaled | `nouf.khaled@example.com` | Administrator | `Password123` |
 
 These are sample application credentials, not infrastructure or production credentials.
@@ -219,7 +220,7 @@ These are sample application credentials, not infrastructure or production crede
 
 The following functionality is currently implemented:
 
-- Shared login page for administrators and requesters
+- Shared login page for administrators and employees
 - Authentication against users stored in PostgreSQL
 - BCrypt password verification
 - Rejection of invalid credentials and inactive users
@@ -240,9 +241,9 @@ The following functionality is currently implemented:
 - Create Request form
 - Request form validation and useful error handling
 - Active request types loaded from the backend database
-- Requester-only My Requests listing
+- Employee-only My Requests listing
 - Server-side pagination and newest-first request ordering
-- Requester and Admin Kanban Board and Table views
+- Employee and Admin Kanban Board and Table views
 - Kanban columns for New, In Progress, Waiting User, Completed, and Rejected
 - Request Details dialogs from Board and Table views
 - Direct Request Details routes retained for fallback access
@@ -250,7 +251,7 @@ The following functionality is currently implemented:
 - Status Timeline based on persisted status history
 - Public requester-visible comments and Add Comment functionality
 - Request ownership enforcement
-- Requester identity derived from Spring Security rather than client-provided user IDs
+- Employee identity derived from Spring Security rather than client-provided user IDs
 - Internal comments excluded from requester responses
 - Admin request list with title search and status, type, and priority filters
 - Server-side pagination for the Admin Table View
@@ -258,9 +259,11 @@ The following functionality is currently implemented:
 - Owner assignment and unassignment by Admin
 - Any active user may be selected as an owner
 - Admin public comments and Admin-only internal notes
+- Admin Employee Management for listing, viewing, creating, editing, and deactivating Employee accounts
+- Employee deactivation preserves historical relationships; permanent Employee deletion is not implemented
 - Request creation and update timestamps in Admin Request Details
 - Persisted status history for status changes
-- Automatic reopening to In Progress when a Requester comments on a Completed or Rejected request
+- Automatic reopening to In Progress when an Employee comments on their Completed or Rejected request
 
 Dashboard reporting remains outside the currently implemented scope.
 
@@ -278,7 +281,7 @@ The completed Week 3 foundation includes:
 - Session and CSRF handling
 - Lombok integration
 
-## Week 4 Requester Workflow Status
+## Week 4 Employee Request Workflow Status
 
 The completed Week 4 requester workflow includes:
 
@@ -301,14 +304,14 @@ The completed Week 5 workflow includes:
 - Owner assignment and unassignment, with all active users available as owners
 - Public comments and separate Admin-only internal notes
 - Persisted status history for status changes
-- Requester and Admin Kanban Board and Table views, with Kanban as the default
+- Employee and Admin Kanban Board and Table views, with Kanban as the default
 - Request Details dialogs with direct detail routes retained as fallbacks
-- Automatic reopening of Completed or Rejected requests when the Requester adds a public comment
+- Automatic reopening of Completed or Rejected requests when the Employee adds a public comment
 - Role, ownership, session, and CSRF enforcement for the completed workflows
 
 ## Testing
 
-The backend currently contains 33 passing integration tests covering authentication, requester workflows, administrator listing and filtering, Board endpoints, status and assignment changes, comments and internal notes, authorization, and request reopening.
+The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, authorization, and request reopening.
 
 Frontend ESLint and the production build with TypeScript checks also pass.
 

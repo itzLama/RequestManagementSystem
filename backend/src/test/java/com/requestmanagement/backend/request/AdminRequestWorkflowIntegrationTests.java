@@ -142,7 +142,7 @@ class AdminRequestWorkflowIntegrationTests {
         Long inactive = jdbc.queryForObject("""
                 INSERT INTO users(full_name,email,password_hash,role,is_active)
                 VALUES ('Inactive Employee','inactive.employee@example.com',
-                        (SELECT password_hash FROM users WHERE email='nora.ahmed@example.com'),'REQUESTER',false)
+                        (SELECT password_hash FROM users WHERE email='nora.ahmed@example.com'),'EMPLOYEE',false)
                 RETURNING user_id
                 """, Long.class);
         String originalStatus = jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id);

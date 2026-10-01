@@ -63,7 +63,7 @@ class RequestDetailsIntegrationTests {
                 .andExpect(jsonPath("$.comments.length()").value(3))
                 .andExpect(jsonPath("$.comments[0].authorName").value("Sara Saad"))
                 .andExpect(jsonPath("$.comments[0].authorRole").value("ADMIN"))
-                .andExpect(jsonPath("$.comments[1].authorRole").value("REQUESTER"))
+                .andExpect(jsonPath("$.comments[1].authorRole").value("EMPLOYEE"))
                 .andExpect(jsonPath("$.comments[2].text").value("Later public note"))
                 .andExpect(jsonPath("$.comments[0].internal").doesNotExist())
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
