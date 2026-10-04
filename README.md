@@ -122,6 +122,7 @@ Flyway manages the database schema and initial development data:
 - `V2__insert_initial_data.sql` inserts the initial users, request types, requests, comments, and status history.
 - `V3__hash_seed_user_passwords.sql` establishes BCrypt password hashes for the known development seed users.
 - `V4__rename_requester_role_to_employee.sql` migrates the authenticated requester role to Employee without changing user identities or relationships.
+- `V5__create_projects_and_memberships.sql` creates Projects and explicit ProjectMembership records with restrictive foreign keys and duplicate-membership protection.
 
 The backend has Hibernate schema generation disabled with:
 
@@ -238,6 +239,8 @@ The following functionality is currently implemented:
   - Requests
   - Comments
   - Status history
+  - Projects
+  - Project memberships
 - Create Request form
 - Request form validation and useful error handling
 - Active request types loaded from the backend database
@@ -261,6 +264,10 @@ The following functionality is currently implemented:
 - Admin public comments and Admin-only internal notes
 - Admin Employee Management for listing, viewing, creating, editing, and deactivating Employee accounts
 - Employee deactivation preserves historical relationships; permanent Employee deletion is not implemented
+- Admin Project Management for creating, listing, viewing, editing, and archiving Projects
+- Project Team Management using explicit memberships with existing active Employees
+- Archived Projects and retained teams remain viewable but read-only
+- Project archive is final; project reactivation and hard deletion are not implemented
 - Request creation and update timestamps in Admin Request Details
 - Persisted status history for status changes
 - Automatic reopening to In Progress when an Employee comments on their Completed or Rejected request
@@ -314,6 +321,16 @@ The completed Week 5 workflow includes:
 The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, authorization, and request reopening.
 
 Frontend ESLint and the production build with TypeScript checks also pass.
+
+## Technology and Library Choices
+
+- **Flyway** owns forward-only database changes, avoiding application-managed or manual schema updates.
+- **Spring Data JPA** maps Projects and ProjectMemberships and supplies repository persistence and derived queries without custom JDBC infrastructure.
+- **Spring Security** enforces ADMIN-only project management while preserving the existing session and CSRF model.
+- **Jakarta Bean Validation** validates project and membership request DTOs using the application's existing validation/error pipeline.
+- **Next.js, React, Tailwind CSS, and lucide-react** provide routing, stateful UI, Masar-consistent styling, and maintained icons without introducing another UI framework.
+
+Phase 2 required no new dependency because the existing stack already supplies the necessary persistence, validation, authorization, routing, and presentation capabilities.
 
 Run the backend tests from the `backend` directory:
 

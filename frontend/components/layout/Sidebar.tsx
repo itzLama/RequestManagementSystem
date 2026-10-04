@@ -48,6 +48,15 @@ function NavigationIconGraphic({ icon }: { icon: NavigationIcon }) {
     );
   }
 
+  if (icon === "projects") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 7.5h6l2-2h9v13h-17v-11Z" />
+        <path strokeLinecap="round" d="M8 11h8M8 15h5" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
       <path strokeLinecap="round" d="M9 7h11M9 12h11M9 17h11" />

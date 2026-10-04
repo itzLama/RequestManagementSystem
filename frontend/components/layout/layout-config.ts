@@ -6,7 +6,7 @@ export type AuthenticatedUser = {
   role: UserRole;
 };
 
-export type NavigationIcon = "create" | "dashboard" | "employees" | "home" | "requests";
+export type NavigationIcon = "create" | "dashboard" | "employees" | "home" | "projects" | "requests";
 
 export type NavigationItem = {
   label: string;
@@ -24,6 +24,7 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavigationItem[]> = {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
     { label: "Requests", href: "/requests", icon: "requests" },
     { label: "Employees", href: "/employees", icon: "employees" },
+    { label: "Projects", href: "/projects", icon: "projects" },
   ],
   EMPLOYEE: [
     { label: "My Requests", href: "/my-requests", icon: "requests" },
@@ -48,6 +49,10 @@ const PAGE_HEADERS: Record<string, PageHeader> = {
     title: "Employees",
     subtitle: "Manage employee accounts and access",
   },
+  "/projects": {
+    title: "Projects",
+    subtitle: "Manage projects and project teams",
+  },
   "/my-requests": {
     title: "My Requests",
     subtitle: "View and track your service requests",
@@ -64,6 +69,9 @@ const DEFAULT_PAGE_HEADER: PageHeader = {
 };
 
 export function getPageHeader(pathname: string): PageHeader {
+  if (pathname.startsWith("/projects/")) {
+    return { title: "Project Details", subtitle: "Manage project information and team membership" };
+  }
   if (pathname.startsWith("/requests/")) {
     return { title: `Request #${pathname.slice("/requests/".length)}`, subtitle: "Manage request details and activity" };
   }
