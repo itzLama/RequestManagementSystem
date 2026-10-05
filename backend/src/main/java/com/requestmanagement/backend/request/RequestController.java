@@ -116,6 +116,47 @@ public class RequestController {
         return requestService.boardMine(principal.userId());
     }
 
+    @GetMapping("/assigned")
+    public MyRequestsPageResponse listAssigned(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
+    ) {
+        return requestService.listAssigned(principal.userId(), page, size);
+    }
+
+    @GetMapping("/assigned/board")
+    public List<MyRequestResponse> boardAssigned(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return requestService.boardAssigned(principal.userId());
+    }
+
+    @GetMapping("/assigned/{id}")
+    public RequestDetailsResponse assignedDetails(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return requestService.assignedDetails(id, principal.userId());
+    }
+
+    @PostMapping("/assigned/{id}/comments")
+    public ResponseEntity<CommentResponse> addAssignedComment(
+            @PathVariable Long id,
+            @Valid @RequestBody AddCommentRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(commentService.addAssigned(id, principal.userId(), input));
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/assigned/{id}/status")
+    public RequestDetailsResponse updateAssignedStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateRequestStatusRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return requestService.updateAssignedStatus(id, principal.userId(), input);
+    }
+
     @PostMapping
     public ResponseEntity<CreateRequestResponse> create(
             @Valid @RequestBody CreateRequestRequest input,

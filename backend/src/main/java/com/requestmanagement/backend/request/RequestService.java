@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -35,29 +36,63 @@ public class RequestService {
 
     @Transactional(readOnly = true)
     public RequestDetailsResponse details(Long requestId, Long creatorId) {
-        Request request = requestRepository.findByIdAndCreatedBy_Id(requestId, creatorId)
+        requireActiveEmployee(creatorId);
+        Request request = requestRepository.findByIdAndCreatedBy_IdAndProjectIsNull(requestId, creatorId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found."));
-        var timeline = statusHistoryRepository.findByRequest_IdOrderByChangedAtAscIdAsc(requestId).stream()
-                .map(RequestDetailsResponse.TimelineEntry::from).toList();
-        var comments = commentRepository.findByRequest_IdAndInternalFalseOrderByCreatedAtAscIdAsc(requestId).stream()
-                .map(CommentResponse::from).toList();
-        return RequestDetailsResponse.from(request, timeline, comments);
+        return employeeDetails(request);
     }
 
     @Transactional(readOnly = true)
     public MyRequestsPageResponse listMine(Long creatorId, int page, int size) {
+        requireActiveEmployee(creatorId);
         PageRequest pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
-        Page<MyRequestResponse> results = requestRepository.findByCreatedBy_Id(creatorId, pageable)
+        Page<MyRequestResponse> results = requestRepository.findByCreatedBy_IdAndProjectIsNull(creatorId, pageable)
                 .map(MyRequestResponse::from);
         return MyRequestsPageResponse.from(results);
     }
 
     @Transactional(readOnly = true)
     public List<MyRequestResponse> boardMine(Long creatorId) {
-        return requestRepository.findByCreatedBy_IdOrderByCreatedAtDescIdDesc(creatorId).stream()
+        requireActiveEmployee(creatorId);
+        return requestRepository.findByCreatedBy_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(creatorId).stream()
                 .map(MyRequestResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public MyRequestsPageResponse listAssigned(Long assigneeId, int page, int size) {
+        requireActiveEmployee(assigneeId);
+        PageRequest pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+        Page<MyRequestResponse> results = requestRepository
+                .findByAssignedTo_IdAndProjectIsNull(assigneeId, pageable)
+                .map(MyRequestResponse::from);
+        return MyRequestsPageResponse.from(results);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MyRequestResponse> boardAssigned(Long assigneeId) {
+        requireActiveEmployee(assigneeId);
+        return requestRepository
+                .findByAssignedTo_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(assigneeId)
+                .stream().map(MyRequestResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RequestDetailsResponse assignedDetails(Long requestId, Long assigneeId) {
+        requireActiveEmployee(assigneeId);
+        return employeeDetails(findAssignedGeneralRequest(requestId, assigneeId));
+    }
+
+    @Transactional
+    public RequestDetailsResponse updateAssignedStatus(
+            Long requestId, Long assigneeId, UpdateRequestStatusRequest input
+    ) {
+        User employee = requireActiveEmployee(assigneeId);
+        Request request = findAssignedGeneralRequest(requestId, assigneeId);
+        changeStatus(request, input.status(), employee, input.changeNote());
+        return employeeDetails(request);
     }
 
     @Transactional(readOnly = true)
@@ -118,12 +153,6 @@ public class RequestService {
     ) {
         Request request = findAdminRequest(requestId);
         User admin = requireActiveAdmin(adminId);
-        RequestStatus oldStatus = request.getStatus();
-        if ((oldStatus == RequestStatus.COMPLETED || oldStatus == RequestStatus.REJECTED)
-                && input.status() != oldStatus) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Completed or rejected requests cannot be reopened.");
-        }
         User assignee = null;
         if (input.assignedToId() != null) {
             assignee = userRepository.findById(input.assignedToId())
@@ -131,15 +160,36 @@ public class RequestService {
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.BAD_REQUEST, "Assignee must be an active user."));
         }
-        request.updateWorkflow(input.status(), assignee);
+        changeStatus(request, input.status(), admin, input.changeNote());
+        Long currentAssigneeId = request.getAssignedTo() == null ? null : request.getAssignedTo().getId();
+        Long newAssigneeId = assignee == null ? null : assignee.getId();
+        if (!Objects.equals(currentAssigneeId, newAssigneeId)) request.assignTo(assignee);
         requestRepository.save(request);
-        if (oldStatus != input.status()) {
-            String note = input.changeNote() == null || input.changeNote().isBlank()
-                    ? "Status changed from " + oldStatus + " to " + input.status() + "."
-                    : input.changeNote().trim();
-            statusHistoryRepository.save(StatusHistory.create(request, oldStatus, input.status(), admin, note));
-        }
         return adminDetails(requestId);
+    }
+
+    private void changeStatus(Request request, RequestStatus newStatus, User actor, String changeNote) {
+        RequestStatus oldStatus = request.getStatus();
+        if (oldStatus == newStatus) return;
+        request.changeStatus(newStatus);
+        requestRepository.save(request);
+        String note = changeNote == null || changeNote.isBlank()
+                ? "Status changed from " + oldStatus + " to " + newStatus + "."
+                : changeNote.trim();
+        statusHistoryRepository.save(StatusHistory.create(request, oldStatus, newStatus, actor, note));
+    }
+
+    private RequestDetailsResponse employeeDetails(Request request) {
+        var timeline = statusHistoryRepository.findByRequest_IdOrderByChangedAtAscIdAsc(request.getId()).stream()
+                .map(RequestDetailsResponse.TimelineEntry::from).toList();
+        var comments = commentRepository.findByRequest_IdAndInternalFalseOrderByCreatedAtAscIdAsc(request.getId()).stream()
+                .map(CommentResponse::from).toList();
+        return RequestDetailsResponse.from(request, timeline, comments);
+    }
+
+    private Request findAssignedGeneralRequest(Long requestId, Long assigneeId) {
+        return requestRepository.findByIdAndAssignedTo_IdAndProjectIsNull(requestId, assigneeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found."));
     }
 
     private Request findAdminRequest(Long requestId) {
@@ -152,6 +202,12 @@ public class RequestService {
                 .filter(User::isActive)
                 .filter(user -> user.getRole() == User.Role.ADMIN)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator access is required."));
+    }
+
+    private User requireActiveEmployee(Long userId) {
+        return userRepository.findByIdAndRole(userId, User.Role.EMPLOYEE)
+                .filter(User::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Active Employee access is required."));
     }
 
     private Specification<Request> adminFilters(

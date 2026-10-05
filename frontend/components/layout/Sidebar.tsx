@@ -57,6 +57,15 @@ function NavigationIconGraphic({ icon }: { icon: NavigationIcon }) {
     );
   }
 
+  if (icon === "tasks") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m8 12 2.2 2.2L16 8.5" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
       <path strokeLinecap="round" d="M9 7h11M9 12h11M9 17h11" />

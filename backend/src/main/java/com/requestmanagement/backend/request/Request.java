@@ -90,8 +90,12 @@ public class Request {
         return request;
     }
 
-    public void updateWorkflow(RequestStatus newStatus, User newAssignee) {
+    public void changeStatus(RequestStatus newStatus) {
         status = newStatus;
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void assignTo(User newAssignee) {
         assignedTo = newAssignee;
         updatedAt = LocalDateTime.now();
     }

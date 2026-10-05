@@ -246,6 +246,7 @@ The following functionality is currently implemented:
 - Request form validation and useful error handling
 - Active request types loaded from the backend database
 - Employee-only My Requests listing
+- Employee Assigned Tasks for currently assigned General Requests, kept separate from My Requests
 - Server-side pagination and newest-first request ordering
 - Employee and Admin Kanban Board and Table views
 - Kanban columns for New, In Progress, Waiting User, Completed, and Rejected
@@ -274,7 +275,10 @@ The following functionality is currently implemented:
 - The existing Employee Create Request workflow remains General-only; Project Request creation and public Guest Submission are not implemented yet
 - Request creation and update timestamps in Admin Request Details
 - Persisted status history for status changes
-- Automatic reopening to In Progress when an Employee comments on their Completed or Rejected request
+- Explicit status changes may move freely among New, In Progress, Waiting User, Completed, and Rejected
+- Every real explicit status change creates StatusHistory; comments never change request status
+- Assigned Employees may view, comment on, and explicitly change the status of their currently assigned General Requests
+- Project Boards, drag-and-drop, Project Request collaboration, and public Guest Submission are not implemented yet
 
 Dashboard reporting remains outside the currently implemented scope.
 
@@ -317,12 +321,12 @@ The completed Week 5 workflow includes:
 - Persisted status history for status changes
 - Employee and Admin Kanban Board and Table views, with Kanban as the default
 - Request Details dialogs with direct detail routes retained as fallbacks
-- Automatic reopening of Completed or Rejected requests when the Employee adds a public comment
+- Explicit reopening through authorized status changes; comments remain status-neutral
 - Role, ownership, session, and CSRF enforcement for the completed workflows
 
 ## Testing
 
-The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, authorization, and request reopening.
+The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, Assigned Tasks authorization, comments, and explicit request reopening.
 
 Frontend ESLint and the production build with TypeScript checks also pass.
 

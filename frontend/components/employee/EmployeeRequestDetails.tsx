@@ -5,32 +5,26 @@ import type { LucideIcon } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
-import { formatRequestDateTime, formatTimelineDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { formatRequestDateTime, formatTimelineDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 
 type TimelineEntry = { oldStatus: RequestStatus | null; newStatus: RequestStatus; changedByName: string; changeNote: string | null; changedAt: string };
 type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
 type Details = { id: number; title: string; status: RequestStatus; requesterName: string; typeName: string; priority: RequestPriority; assignedToName: string | null; description: string; createdAt: string; timeline: TimelineEntry[]; comments: Comment[] };
 
 function StatusTimeline({ details }: { details: Details }) {
-  const progressLevel = details.status === "NEW" ? 0 : details.status === "IN_PROGRESS" || details.status === "WAITING_USER" ? 1 : 2;
-  const findLatestHistory = (status: RequestStatus) => [...details.timeline].reverse().find((entry) => entry.newStatus === status);
-  const inProgressHistory = details.status === "WAITING_USER" ? findLatestHistory("WAITING_USER") : findLatestHistory("IN_PROGRESS");
-  const finalStatus: RequestStatus = details.status === "REJECTED" ? "REJECTED" : "COMPLETED";
-  const finalHistory = findLatestHistory(finalStatus);
-  const inProgressNote = inProgressHistory?.changeNote?.trim() || (details.status === "WAITING_USER" && inProgressHistory ? "Waiting for user response" : null);
-  const stages = [
-    { status: "NEW" as RequestStatus, timestamp: details.createdAt, note: "Request created", reached: true },
-    { status: "IN_PROGRESS" as RequestStatus, timestamp: progressLevel >= 1 ? inProgressHistory?.changedAt ?? null : null, note: progressLevel >= 1 ? inProgressNote : null, reached: progressLevel >= 1 },
-    { status: finalStatus, timestamp: progressLevel >= 2 ? finalHistory?.changedAt ?? null : null, note: progressLevel >= 2 ? finalHistory?.changeNote ?? null : null, reached: progressLevel >= 2 },
+  const events = [
+    { label: "New", timestamp: details.createdAt, note: "Request created", actor: null },
+    ...details.timeline.map((entry) => ({
+      label: `${entry.oldStatus ? `${REQUEST_STATUS_LABELS[entry.oldStatus]} → ` : ""}${REQUEST_STATUS_LABELS[entry.newStatus]}`,
+      timestamp: entry.changedAt,
+      note: entry.changeNote,
+      actor: entry.changedByName,
+    })),
   ];
-
-  return <ol aria-label="Status progress" className="flex h-full min-h-64 flex-col">
-    {stages.map((stage, index) => <li key={stage.status} className={index < stages.length - 1 ? "flex min-h-0 flex-1 flex-col" : "flex-none"}>
-      <div className="grid h-16 shrink-0 grid-cols-[16px_minmax(0,1fr)] gap-4">
-        <div aria-hidden="true" className="flex h-full flex-col items-center"><span className={`block h-4 w-4 shrink-0 rounded-full ${stage.reached ? "border-[3px] border-[#4D7FE6] bg-[#4D7FE6]" : "border-2 border-[#C9CFDA] bg-white"}`} />{index < stages.length - 1 && <span className={`w-0.5 flex-1 ${stages[index + 1].reached ? "bg-[#4D7FE6]" : "bg-[#D4D9E3]"}`} />}</div>
-        <div className="min-w-0 pb-0.5"><p className={`text-sm font-semibold leading-5 ${stage.reached ? "text-foreground" : "text-secondary"}`}>{REQUEST_STATUS_LABELS[stage.status]}</p>{stage.timestamp && <time className="mt-1 block text-xs leading-5 text-secondary">{formatTimelineDate(stage.timestamp)}</time>}{stage.note && <p className="mt-0.5 break-words text-xs leading-5 text-secondary">{stage.note}</p>}</div>
-      </div>
-      {index < stages.length - 1 && <div aria-hidden="true" className={`ml-[7px] min-h-8 w-0.5 flex-1 ${stages[index + 1].reached ? "bg-[#4D7FE6]" : "bg-[#D4D9E3]"}`} />}
+  return <ol aria-label="Status activity" className="space-y-0">
+    {events.map((event, index) => <li key={`${event.timestamp}-${index}`} className="grid grid-cols-[16px_minmax(0,1fr)] gap-4">
+      <div aria-hidden="true" className="flex flex-col items-center"><span className="block h-4 w-4 shrink-0 rounded-full border-[3px] border-[#4D7FE6] bg-[#4D7FE6]" />{index < events.length - 1 && <span className="min-h-10 w-0.5 flex-1 bg-[#AFC4F2]" />}</div>
+      <div className={index < events.length - 1 ? "pb-6" : "pb-1"}><p className="text-sm font-semibold text-foreground">{event.label}</p><time className="mt-1 block text-xs text-secondary">{formatTimelineDate(event.timestamp)}</time>{event.note && <p className="mt-1 break-words text-xs leading-5 text-secondary">{event.note}</p>}{event.actor && <p className="mt-1 text-xs text-secondary">Changed by {event.actor}</p>}</div>
     </li>)}
   </ol>;
 }
@@ -39,7 +33,7 @@ function Info({ icon: Icon, label, value }: { icon: LucideIcon; label: string; v
   return <div className="flex items-start gap-3"><Icon aria-hidden="true" size={19} strokeWidth={1.8} className="mt-0.5 shrink-0 text-accent" /><div className="min-w-0"><dt className="text-xs font-medium text-secondary">{label}</dt><dd className="mt-1 text-sm font-semibold text-foreground">{value}</dd></div></div>;
 }
 
-export function EmployeeRequestDetails({ requestId, onRequestUpdated }: { requestId: string; onRequestUpdated?: () => void }) {
+export function EmployeeRequestDetails({ requestId, mode = "creator", onRequestUpdated }: { requestId: string; mode?: "creator" | "assigned"; onRequestUpdated?: () => void }) {
   const router = useRouter();
   const [details, setDetails] = useState<Details | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,24 +43,29 @@ export function EmployeeRequestDetails({ requestId, onRequestUpdated }: { reques
   const [text, setText] = useState("");
   const [commentError, setCommentError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<RequestStatus>("NEW");
+  const [changeNote, setChangeNote] = useState("");
+  const [statusError, setStatusError] = useState("");
+  const [statusBusy, setStatusBusy] = useState(false);
+  const baseEndpoint = mode === "assigned" ? "/api/requests/assigned" : "/api/requests";
 
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
       setLoading(true); setError(""); setNotFound(false);
       try {
-        const response = await apiFetch(`/api/requests/${encodeURIComponent(requestId)}`, { signal: controller.signal, cache: "no-store" });
+        const response = await apiFetch(`${baseEndpoint}/${encodeURIComponent(requestId)}`, { signal: controller.signal, cache: "no-store" });
         if (response.status === 401) { router.replace("/login"); return; }
         if (response.status === 404) { setNotFound(true); return; }
         if (!response.ok) throw new Error("Unable to load request details. Please try again.");
-        setDetails(await response.json());
+        const loaded: Details = await response.json(); setDetails(loaded); setSelectedStatus(loaded.status);
       } catch (cause) {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to load request details. Please try again.");
       } finally { if (!controller.signal.aborted) setLoading(false); }
     }
     load();
     return () => controller.abort();
-  }, [requestId, reload, router]);
+  }, [baseEndpoint, requestId, reload, router]);
 
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,7 +75,7 @@ export function EmployeeRequestDetails({ requestId, onRequestUpdated }: { reques
     if (trimmed.length > 10000) { setCommentError("Comment must be at most 10000 characters."); return; }
     setSubmitting(true); setCommentError("");
     try {
-      const response = await apiFetch(`/api/requests/${encodeURIComponent(requestId)}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: trimmed }) });
+      const response = await apiFetch(`${baseEndpoint}/${encodeURIComponent(requestId)}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: trimmed }) });
       if (response.status === 401) { router.replace("/login"); return; }
       if (response.status === 404) { setNotFound(true); setDetails(null); return; }
       if (!response.ok) { setCommentError(await getApiErrorMessage(response, "Unable to add your comment. Please try again.")); return; }
@@ -87,6 +86,20 @@ export function EmployeeRequestDetails({ requestId, onRequestUpdated }: { reques
       setReload((value) => value + 1);
     } catch { setCommentError("Unable to connect to the server. Please try again."); }
     finally { setSubmitting(false); }
+  }
+
+  async function changeStatus(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (mode !== "assigned" || statusBusy) return;
+    setStatusBusy(true); setStatusError("");
+    try {
+      const response = await apiFetch(`${baseEndpoint}/${encodeURIComponent(requestId)}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: selectedStatus, changeNote: changeNote.trim() || null }) });
+      if (response.status === 401) { router.replace("/login"); return; }
+      if (response.status === 404) { setNotFound(true); setDetails(null); return; }
+      if (!response.ok) { setStatusError(await getApiErrorMessage(response, "Unable to change status. Please try again.")); return; }
+      const updated: Details = await response.json(); setDetails(updated); setSelectedStatus(updated.status); setChangeNote(""); onRequestUpdated?.();
+    } catch { setStatusError("Unable to connect to the server. Please try again."); }
+    finally { setStatusBusy(false); }
   }
 
   const card = "min-w-0 rounded-xl border border-divider bg-surface p-6 sm:p-8";
@@ -105,6 +118,7 @@ export function EmployeeRequestDetails({ requestId, onRequestUpdated }: { reques
       </section>
       <section className={`${card} flex h-full flex-col`}><h2 className="flex items-center gap-3 text-lg font-semibold"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EDF4FF]"><Clock3 size={19} strokeWidth={1.8} className="text-[#4D7FE6]" aria-hidden="true" /></span>Status Timeline</h2><div className="mt-7 flex-1"><StatusTimeline details={details} /></div></section>
     </div>
+    {mode === "assigned" && <section className={card}><h2 className="text-lg font-semibold">Change Status</h2><p className="mt-1 text-sm text-secondary">Update this assigned General Request explicitly.</p><form onSubmit={changeStatus} className="mt-5 grid gap-4 md:grid-cols-[minmax(180px,.7fr)_minmax(0,1.3fr)_auto] md:items-end"><div><label htmlFor={`status-${requestId}`} className="mb-2 block text-sm font-medium">Status</label><select id={`status-${requestId}`} value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as RequestStatus)} className="h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent">{REQUEST_STATUSES.map((status) => <option key={status} value={status}>{REQUEST_STATUS_LABELS[status]}</option>)}</select></div><div><label htmlFor={`status-note-${requestId}`} className="mb-2 block text-sm font-medium">Change Note <span className="font-normal text-secondary">(optional)</span></label><input id={`status-note-${requestId}`} value={changeNote} maxLength={10000} onChange={(event) => setChangeNote(event.target.value)} className="h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent" /></div><button type="submit" disabled={statusBusy} className="h-11 rounded-[9px] bg-accent px-5 text-sm font-medium text-white disabled:opacity-60">{statusBusy ? "Saving..." : "Change Status"}</button></form>{statusError && <p role="alert" className="mt-3 text-sm text-[#B42318]">{statusError}</p>}</section>}
     <section className={card}>
       <h2 className="text-lg font-semibold">Comments</h2>
       <div className="mt-5 divide-y divide-divider border-y border-divider">{details.comments.length === 0 && <p className="py-5 text-sm text-secondary">No comments yet.</p>}{details.comments.map((comment) => <article key={comment.id} className="flex gap-3 py-5"><div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{comment.authorName.charAt(0).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><div><span className="text-sm font-semibold">{comment.authorName}</span><span className="ml-2 text-xs text-secondary">({comment.authorRole === "ADMIN" ? "Administrator" : "Employee"})</span></div><time className="text-xs text-secondary">{formatRequestDateTime(comment.createdAt)}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{comment.text}</p></div></article>)}</div>

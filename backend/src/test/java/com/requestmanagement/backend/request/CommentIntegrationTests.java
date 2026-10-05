@@ -45,7 +45,7 @@ class CommentIntegrationTests {
     }
 
     @Test
-    void requesterCommentReopensCompletedAndRejectedRequestsWithPersistedHistory() throws Exception {
+    void requesterCommentPreservesCompletedAndRejectedWithoutStatusHistory() throws Exception {
         Session requester = login("nora.ahmed@example.com");
         Long requesterId = jdbc.queryForObject("SELECT user_id FROM users WHERE email='nora.ahmed@example.com'", Long.class);
         Long assigneeId = jdbc.queryForObject("SELECT user_id FROM users WHERE email='nouf.khaled@example.com'", Long.class);
@@ -55,13 +55,9 @@ class CommentIntegrationTests {
             postRequesterComment(id, requester, "The issue is still happening");
 
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM comments WHERE request_id=? AND comment_text='The issue is still happening'", Long.class, id)).isEqualTo(1L);
-            assertThat(jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id)).isEqualTo("IN_PROGRESS");
+            assertThat(jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id)).isEqualTo(previousStatus);
             assertThat(jdbc.queryForObject("SELECT assigned_to FROM requests WHERE request_id=?", Long.class, id)).isEqualTo(assigneeId);
-            assertThat(jdbc.queryForObject("SELECT old_status FROM status_history WHERE request_id=?", String.class, id)).isEqualTo(previousStatus);
-            assertThat(jdbc.queryForObject("SELECT new_status FROM status_history WHERE request_id=?", String.class, id)).isEqualTo("IN_PROGRESS");
-            assertThat(jdbc.queryForObject("SELECT changed_by FROM status_history WHERE request_id=?", Long.class, id)).isEqualTo(requesterId);
-            assertThat(jdbc.queryForObject("SELECT change_note FROM status_history WHERE request_id=?", String.class, id)).isEqualTo("Reopened after requester comment");
-            assertThat(jdbc.queryForObject("SELECT changed_at IS NOT NULL FROM status_history WHERE request_id=?", Boolean.class, id)).isTrue();
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Long.class, id)).isZero();
         }
     }
 

@@ -11,10 +11,16 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpecificationExecutor<Request> {
     @EntityGraph(attributePaths = "type")
-    Page<Request> findByCreatedBy_Id(Long creatorId, Pageable pageable);
+    Page<Request> findByCreatedBy_IdAndProjectIsNull(Long creatorId, Pageable pageable);
 
     @EntityGraph(attributePaths = "type")
-    List<Request> findByCreatedBy_IdOrderByCreatedAtDescIdDesc(Long creatorId);
+    List<Request> findByCreatedBy_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(Long creatorId);
+
+    @EntityGraph(attributePaths = "type")
+    Page<Request> findByAssignedTo_IdAndProjectIsNull(Long assigneeId, Pageable pageable);
+
+    @EntityGraph(attributePaths = "type")
+    List<Request> findByAssignedTo_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(Long assigneeId);
 
     @EntityGraph(attributePaths = {"type", "createdBy"})
     Page<Request> findAll(org.springframework.data.jpa.domain.Specification<Request> specification,
@@ -25,7 +31,10 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
                           org.springframework.data.domain.Sort sort);
 
     @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo"})
-    Optional<Request> findByIdAndCreatedBy_Id(Long id, Long creatorId);
+    Optional<Request> findByIdAndCreatedBy_IdAndProjectIsNull(Long id, Long creatorId);
+
+    @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo"})
+    Optional<Request> findByIdAndAssignedTo_IdAndProjectIsNull(Long id, Long assigneeId);
 
     @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo"})
     Optional<Request> findAdminDetailsById(Long id);

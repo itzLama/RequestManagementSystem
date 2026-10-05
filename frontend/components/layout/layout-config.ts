@@ -6,7 +6,7 @@ export type AuthenticatedUser = {
   role: UserRole;
 };
 
-export type NavigationIcon = "create" | "dashboard" | "employees" | "home" | "projects" | "requests";
+export type NavigationIcon = "create" | "dashboard" | "employees" | "home" | "projects" | "requests" | "tasks";
 
 export type NavigationItem = {
   label: string;
@@ -28,6 +28,7 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavigationItem[]> = {
   ],
   EMPLOYEE: [
     { label: "My Requests", href: "/my-requests", icon: "requests" },
+    { label: "Assigned Tasks", href: "/assigned-tasks", icon: "tasks" },
     { label: "Create Request", href: "/create-request", icon: "create" },
   ],
 };
@@ -57,6 +58,10 @@ const PAGE_HEADERS: Record<string, PageHeader> = {
     title: "My Requests",
     subtitle: "View and track your service requests",
   },
+  "/assigned-tasks": {
+    title: "Assigned Tasks",
+    subtitle: "View and manage General Requests assigned to you",
+  },
   "/create-request": {
     title: "Create Request",
     subtitle: "Submit a new service request",
@@ -77,6 +82,9 @@ export function getPageHeader(pathname: string): PageHeader {
   }
   if (pathname.startsWith("/my-requests/")) {
     return { title: `Request #${pathname.slice("/my-requests/".length)}`, subtitle: "View request details and activity" };
+  }
+  if (pathname.startsWith("/assigned-tasks/")) {
+    return { title: `Request #${pathname.slice("/assigned-tasks/".length)}`, subtitle: "View assigned task details and activity" };
   }
   return PAGE_HEADERS[pathname] ?? DEFAULT_PAGE_HEADER;
 }

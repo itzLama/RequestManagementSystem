@@ -98,26 +98,39 @@ class AdminRequestWorkflowIntegrationTests {
     }
 
     @Test
-    void adminCannotReopenCompletedOrRejectedRequests() throws Exception {
+    void adminCanExplicitlyReopenCompletedAndRejectedRequests() throws Exception {
         Session admin = login("sara.saad@example.com");
-        for (String terminalStatus : new String[] { "COMPLETED", "REJECTED" }) {
+        for (String[] transition : new String[][] {
+                { "COMPLETED", "IN_PROGRESS" },
+                { "REJECTED", "NEW" },
+                { "WAITING_USER", "COMPLETED" },
+                { "COMPLETED", "NEW" }
+        }) {
+            String oldStatus = transition[0];
+            String newStatus = transition[1];
             Long id = jdbc.queryForObject("""
                     INSERT INTO requests(title,description,type_id,priority,status,created_by)
                     VALUES (?, 'Terminal reopen test', (SELECT type_id FROM request_types LIMIT 1),
                             'MEDIUM', ?, 2)
                     RETURNING request_id
-                    """, Long.class, "No reopen " + terminalStatus, terminalStatus);
+                    """, Long.class, "Free transition " + oldStatus + " to " + newStatus, oldStatus);
 
             mvc.perform(patch("/api/requests/admin/{id}", id).session(admin.session()).cookie(admin.csrf())
                             .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
-                            .content("{\"status\":\"IN_PROGRESS\",\"assignedToId\":null}"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("Completed or rejected requests cannot be reopened."));
+                            .content("{\"status\":\"" + newStatus + "\",\"assignedToId\":null,\"changeNote\":\"Explicit transition\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value(newStatus));
 
             assertThat(jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id))
-                    .isEqualTo(terminalStatus);
+                    .isEqualTo(newStatus);
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Long.class, id))
-                    .isZero();
+                    .isEqualTo(1L);
+            assertThat(jdbc.queryForObject("SELECT old_status FROM status_history WHERE request_id=?", String.class, id))
+                    .isEqualTo(oldStatus);
+            assertThat(jdbc.queryForObject("SELECT new_status FROM status_history WHERE request_id=?", String.class, id))
+                    .isEqualTo(newStatus);
+            assertThat(jdbc.queryForObject("SELECT change_note FROM status_history WHERE request_id=?", String.class, id))
+                    .isEqualTo("Explicit transition");
         }
     }
 

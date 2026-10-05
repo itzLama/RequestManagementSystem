@@ -64,12 +64,16 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [pathname, reloadUser, router]);
 
   const isAdminProjectRoute = pathname === "/projects" || pathname.startsWith("/projects/");
+  const isEmployeeAssignedTaskRoute = pathname === "/assigned-tasks" || pathname.startsWith("/assigned-tasks/");
 
   useEffect(() => {
     if (user && user.role !== "ADMIN" && isAdminProjectRoute) {
       router.replace("/my-requests");
     }
-  }, [isAdminProjectRoute, router, user]);
+    if (user && user.role !== "EMPLOYEE" && isEmployeeAssignedTaskRoute) {
+      router.replace("/dashboard");
+    }
+  }, [isAdminProjectRoute, isEmployeeAssignedTaskRoute, router, user]);
 
   if (pathname === "/login") {
     return children;
@@ -89,6 +93,10 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   if (isAdminProjectRoute && user.role !== "ADMIN") {
     return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to your requests...</p></div>;
+  }
+
+  if (isEmployeeAssignedTaskRoute && user.role !== "EMPLOYEE") {
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to the dashboard...</p></div>;
   }
 
   const pageHeader = getPageHeader(pathname);
