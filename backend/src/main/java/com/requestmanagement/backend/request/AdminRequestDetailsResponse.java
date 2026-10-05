@@ -23,7 +23,7 @@ public record AdminRequestDetailsResponse(
     ) {
         return new AdminRequestDetailsResponse(
                 request.getId(), request.getTitle(), request.getStatus(),
-                request.getCreatedBy().getFullName(), request.getCreatedBy().getEmail(),
+                request.requesterName(), request.requesterEmail(),
                 request.getType().getTypeName(), request.getPriority(),
                 request.getAssignedTo() == null ? null : request.getAssignedTo().getId(),
                 request.getAssignedTo() == null ? null : request.getAssignedTo().getFullName(),

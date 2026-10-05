@@ -42,11 +42,16 @@ class CreateRequestIntegrationTests {
                 .andExpect(jsonPath("$.updatedAt").exists())
                 .andExpect(jsonPath("$.id").exists());
 
-        var row = jdbcTemplate.queryForMap(
-                "SELECT created_by, status, assigned_to FROM requests WHERE title = ?", "New laptop");
+        var row = jdbcTemplate.queryForMap("""
+                SELECT created_by, status, assigned_to, project_id, guest_name, guest_email
+                FROM requests WHERE title = ?
+                """, "New laptop");
         assertThat(((Number) row.get("created_by")).longValue()).isEqualTo(2L);
         assertThat(row.get("status")).isEqualTo("NEW");
         assertThat(row.get("assigned_to")).isNull();
+        assertThat(row.get("project_id")).isNull();
+        assertThat(row.get("guest_name")).isNull();
+        assertThat(row.get("guest_email")).isNull();
     }
 
     @Test
@@ -70,11 +75,20 @@ class CreateRequestIntegrationTests {
                 .andExpect(jsonPath("$.message").value("Priority is required."));
 
         String extraCreator = """
-                {"title":"Title","description":"Description","typeId":%d,"priority":"LOW","createdBy":1}
+                {"title":"Title","description":"Description","typeId":%d,"priority":"LOW",
+                 "createdBy":1,"projectId":999999,"guestName":"Injected Guest","guestEmail":"injected@example.com"}
                 """.formatted(typeId);
         create(login, extraCreator)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.createdByUserId").value(2));
+        var identity = jdbcTemplate.queryForMap("""
+                SELECT created_by, project_id, guest_name, guest_email
+                FROM requests WHERE title='Title'
+                """);
+        assertThat(((Number) identity.get("created_by")).longValue()).isEqualTo(2L);
+        assertThat(identity.get("project_id")).isNull();
+        assertThat(identity.get("guest_name")).isNull();
+        assertThat(identity.get("guest_email")).isNull();
     }
 
     @Test

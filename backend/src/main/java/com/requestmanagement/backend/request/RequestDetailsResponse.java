@@ -22,7 +22,7 @@ public record RequestDetailsResponse(
     public static RequestDetailsResponse from(Request request, List<TimelineEntry> timeline,
                                               List<CommentResponse> comments) {
         return new RequestDetailsResponse(request.getId(), request.getTitle(), request.getStatus(),
-                request.getCreatedBy().getFullName(), request.getType().getTypeName(),
+                request.requesterName(), request.getType().getTypeName(),
                 request.getPriority(), request.getAssignedTo() == null ? null : request.getAssignedTo().getFullName(),
                 request.getDescription(), request.getCreatedAt(), timeline, comments);
     }

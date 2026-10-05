@@ -123,6 +123,7 @@ Flyway manages the database schema and initial development data:
 - `V3__hash_seed_user_passwords.sql` establishes BCrypt password hashes for the known development seed users.
 - `V4__rename_requester_role_to_employee.sql` migrates the authenticated requester role to Employee without changing user identities or relationships.
 - `V5__create_projects_and_memberships.sql` creates Projects and explicit ProjectMembership records with restrictive foreign keys and duplicate-membership protection.
+- `V6__extend_requests_for_projects_and_guests.sql` adds the nullable Project association and mutually exclusive authenticated/guest creator identity foundation to Requests.
 
 The backend has Hibernate schema generation disabled with:
 
@@ -268,6 +269,9 @@ The following functionality is currently implemented:
 - Project Team Management using explicit memberships with existing active Employees
 - Archived Projects and retained teams remain viewable but read-only
 - Project archive is final; project reactivation and hard deletion are not implemented
+- Request records support General Requests (`project_id` is null) and the schema foundation for Project Requests (`project_id` references a Project)
+- The Request schema supports either an authenticated creator or a guest name/email identity, enforced by a database constraint
+- The existing Employee Create Request workflow remains General-only; Project Request creation and public Guest Submission are not implemented yet
 - Request creation and update timestamps in Admin Request Details
 - Persisted status history for status changes
 - Automatic reopening to In Progress when an Employee comments on their Completed or Rejected request

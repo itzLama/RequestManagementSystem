@@ -15,7 +15,7 @@ public record AdminRequestResponse(
         return new AdminRequestResponse(
                 request.getId(),
                 request.getTitle(),
-                request.getCreatedBy().getFullName(),
+                request.requesterName(),
                 request.getType().getTypeName(),
                 request.getPriority(),
                 request.getStatus(),

@@ -2,6 +2,7 @@ package com.requestmanagement.backend.request;
 
 import java.time.LocalDateTime;
 
+import com.requestmanagement.backend.project.Project;
 import com.requestmanagement.backend.requesttype.RequestType;
 import com.requestmanagement.backend.user.User;
 import jakarta.persistence.Column;
@@ -47,9 +48,19 @@ public class Request {
     @Column(nullable = false, length = 30)
     private RequestStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
     private User createdBy;
+
+    @Column(name = "guest_name", length = 150)
+    private String guestName;
+
+    @Column(name = "guest_email", length = 255)
+    private String guestEmail;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_to")
@@ -70,6 +81,9 @@ public class Request {
         request.priority = priority;
         request.status = RequestStatus.NEW;
         request.createdBy = creator;
+        request.guestName = null;
+        request.guestEmail = null;
+        request.project = null;
         request.assignedTo = null;
         request.createdAt = LocalDateTime.now();
         request.updatedAt = request.createdAt;
@@ -80,5 +94,21 @@ public class Request {
         status = newStatus;
         assignedTo = newAssignee;
         updatedAt = LocalDateTime.now();
+    }
+
+    public String requesterName() {
+        return createdBy != null ? createdBy.getFullName() : guestName;
+    }
+
+    public String requesterEmail() {
+        return createdBy != null ? createdBy.getEmail() : guestEmail;
+    }
+
+    public boolean isGeneralRequest() {
+        return project == null;
+    }
+
+    public boolean isProjectRequest() {
+        return project != null;
     }
 }
