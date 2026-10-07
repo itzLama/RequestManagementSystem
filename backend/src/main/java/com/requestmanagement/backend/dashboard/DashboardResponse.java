@@ -29,7 +29,7 @@ public record DashboardResponse(
             return new LatestRequest(
                     request.getId(),
                     request.getTitle(),
-                    request.getType().getTypeName(),
+                    request.getType() == null ? request.getWorkType().name() : request.getType().getTypeName(),
                     request.getPriority(),
                     request.getStatus(),
                     request.getCreatedAt()

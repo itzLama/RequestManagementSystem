@@ -65,6 +65,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const isAdminProjectRoute = pathname === "/projects" || pathname.startsWith("/projects/");
   const isEmployeeAssignedTaskRoute = pathname === "/assigned-tasks" || pathname.startsWith("/assigned-tasks/");
+  const isEmployeeProjectRoute = pathname === "/employee-projects" || pathname.startsWith("/employee-projects/");
 
   useEffect(() => {
     if (user && user.role !== "ADMIN" && isAdminProjectRoute) {
@@ -73,7 +74,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (user && user.role !== "EMPLOYEE" && isEmployeeAssignedTaskRoute) {
       router.replace("/dashboard");
     }
-  }, [isAdminProjectRoute, isEmployeeAssignedTaskRoute, router, user]);
+    if (user && user.role !== "EMPLOYEE" && isEmployeeProjectRoute) {
+      router.replace("/dashboard");
+    }
+  }, [isAdminProjectRoute, isEmployeeAssignedTaskRoute, isEmployeeProjectRoute, router, user]);
 
   if (pathname === "/login") {
     return children;
@@ -96,6 +100,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   if (isEmployeeAssignedTaskRoute && user.role !== "EMPLOYEE") {
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to the dashboard...</p></div>;
+  }
+
+  if (isEmployeeProjectRoute && user.role !== "EMPLOYEE") {
     return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to the dashboard...</p></div>;
   }
 

@@ -36,9 +36,13 @@ public class Request {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "type_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "type_id")
     private RequestType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "work_type", length = 20)
+    private ProjectWorkType workType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -74,20 +78,49 @@ public class Request {
 
     public static Request create(String title, String description, RequestType type,
                                  RequestPriority priority, User creator) {
+        return create(title, description, type, priority, creator, null);
+    }
+
+    private static Request create(String title, String description, RequestType type,
+                                  RequestPriority priority, User creator, Project project) {
         Request request = new Request();
         request.title = title;
         request.description = description;
         request.type = type;
+        request.workType = null;
         request.priority = priority;
         request.status = RequestStatus.NEW;
         request.createdBy = creator;
         request.guestName = null;
         request.guestEmail = null;
-        request.project = null;
+        request.project = project;
         request.assignedTo = null;
         request.createdAt = LocalDateTime.now();
         request.updatedAt = request.createdAt;
         return request;
+    }
+
+    public static Request createProjectTask(String title, String description, ProjectWorkType workType,
+                                            RequestPriority priority, User creator, User assignee,
+                                            Project project) {
+        if (project == null) throw new IllegalArgumentException("Project is required.");
+        if (workType == null) throw new IllegalArgumentException("Work type is required.");
+        if (assignee == null) throw new IllegalArgumentException("Assignee is required.");
+        Request task = new Request();
+        task.title = title;
+        task.description = description;
+        task.type = null;
+        task.workType = workType;
+        task.priority = priority;
+        task.status = RequestStatus.NEW;
+        task.createdBy = creator;
+        task.guestName = null;
+        task.guestEmail = null;
+        task.project = project;
+        task.assignedTo = assignee;
+        task.createdAt = LocalDateTime.now();
+        task.updatedAt = task.createdAt;
+        return task;
     }
 
     public void changeStatus(RequestStatus newStatus) {
@@ -112,7 +145,8 @@ public class Request {
         return project == null;
     }
 
-    public boolean isProjectRequest() {
+    public boolean isProjectTask() {
         return project != null;
     }
+
 }

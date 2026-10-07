@@ -5,6 +5,9 @@ export type Project = { id: number; name: string; description: string | null; st
 export type ProjectMember = { membershipId: number; employeeId: number; fullName: string; email: string; active: boolean; createdAt: string };
 export type EmployeeOption = { id: number; fullName: string; email: string; active: boolean };
 export type ProjectInput = { name: string; description: string };
+export type ProjectWorkType = "TASK" | "BUG" | "IMPROVEMENT";
+export type ProjectTaskMember = { employeeId: number; fullName: string; email: string; active: boolean };
+export type ProjectTask = { id: number; title: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; status: "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED"; assignedToId: number | null; assignedToName: string | null; createdAt: string };
 
 export class ProjectApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -27,4 +30,11 @@ export const projectApi = {
   addMember: (projectId: number, employeeId: number) => request<ProjectMember>(`/api/projects/${projectId}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId }) }, "Unable to add team member."),
   removeMember: (projectId: number, employeeId: number) => request<void>(`/api/projects/${projectId}/members/${employeeId}`, { method: "DELETE" }, "Unable to remove team member."),
   employees: () => request<EmployeeOption[]>("/api/employees", {}, "Unable to load employees."),
+  mine: () => request<Project[]>("/api/projects/mine", {}, "Unable to load your projects."),
+  myDetails: (id: string | number) => request<Project>(`/api/projects/mine/${id}`, {}, "Unable to load project."),
+  board: (id: string | number) => request<ProjectTask[]>(`/api/projects/mine/${id}/tasks/board`, {}, "Unable to load project tasks."),
+  taskMembers: (id: string | number) => request<ProjectTaskMember[]>(`/api/projects/mine/${id}/members`, {}, "Unable to load project members."),
+  createTask: (id: string | number, input: { title: string; description: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/mine/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
+  adminBoard: (id: string | number) => request<ProjectTask[]>(`/api/projects/${id}/tasks/board`, {}, "Unable to load project tasks."),
+  adminCreateTask: (id: string | number, input: { title: string; description: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
 };

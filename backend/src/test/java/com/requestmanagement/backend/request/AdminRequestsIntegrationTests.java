@@ -29,7 +29,7 @@ class AdminRequestsIntegrationTests {
 
     @Test
     void adminCanRetrieveAllRequestsAndRequesterCannot() throws Exception {
-        Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM requests", Long.class);
+        Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM requests WHERE project_id IS NULL", Long.class);
 
         mockMvc.perform(get("/api/requests/admin").session(login("sara.saad@example.com")))
                 .andExpect(status().isOk())
@@ -37,7 +37,7 @@ class AdminRequestsIntegrationTests {
                 .andExpect(jsonPath("$.content[0].id").isNumber())
                 .andExpect(jsonPath("$.content[0].title").isString())
                 .andExpect(jsonPath("$.content[0].requesterName").isString())
-                .andExpect(jsonPath("$.content[0].typeName").isString())
+                .andExpect(jsonPath("$.content[?(@.typeName != null)]").isNotEmpty())
                 .andExpect(jsonPath("$.content[0].priority").isString())
                 .andExpect(jsonPath("$.content[0].status").isString())
                 .andExpect(jsonPath("$.content[0].createdAt").isString())
@@ -142,6 +142,27 @@ class AdminRequestsIntegrationTests {
                 .andExpect(jsonPath("$.length()").value(12))
                 .andExpect(jsonPath("$[0].id").value(newestId))
                 .andExpect(jsonPath("$[0].requesterName").value("Nora Ahmed"));
+    }
+
+    @Test
+    void projectTasksAreExcludedFromAdminGeneralRequestListBoardAndDetails() throws Exception {
+        Long employee = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM users WHERE email='nora.ahmed@example.com'", Long.class);
+        Long project = jdbcTemplate.queryForObject(
+                "INSERT INTO projects(project_name,status) VALUES ('Admin boundary project','ACTIVE') RETURNING project_id",
+                Long.class);
+        Long task = jdbcTemplate.queryForObject("""
+                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,project_id)
+                VALUES ('Hidden project task','Task',NULL,'TASK','MEDIUM','NEW',?,?) RETURNING request_id
+                """, Long.class, employee, project);
+        MockHttpSession admin = login("sara.saad@example.com");
+
+        mockMvc.perform(get("/api/requests/admin").param("search", "Hidden project task").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mockMvc.perform(get("/api/requests/admin/board").param("search", "Hidden project task").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/requests/admin/{id}", task).session(admin))
+                .andExpect(status().isNotFound());
     }
 
     private Long addRequest(Long creatorId, String title, LocalDateTime createdAt) {

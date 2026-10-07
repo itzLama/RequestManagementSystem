@@ -2,6 +2,7 @@ package com.requestmanagement.backend.comment;
 
 import com.requestmanagement.backend.request.Request;
 import com.requestmanagement.backend.request.RequestRepository;
+import com.requestmanagement.backend.project.ProjectAccessService;
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final RequestRepository requestRepository;
     private final UserRepository userRepository;
+    private final ProjectAccessService projectAccessService;
 
     @Transactional
     public CommentResponse add(Long requestId, Long authorId, AddCommentRequest input) {
@@ -32,9 +34,31 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponse addAdmin(Long requestId, Long authorId, AddCommentRequest input, boolean internal) {
-        Request request = requestRepository.findById(requestId)
+    public CommentResponse addProject(Long projectId, Long requestId, Long authorId, AddCommentRequest input) {
+        projectAccessService.requireMutableProject(projectId, authorId);
+        Request request = requestRepository.findByIdAndProject_Id(requestId, projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found."));
+        return saveEmployeeComment(request, projectAccessService.requireActiveEmployee(authorId), input);
+    }
+
+    @Transactional
+    public CommentResponse addAdmin(Long requestId, Long authorId, AddCommentRequest input, boolean internal) {
+        Request request = requestRepository.findAdminDetailsByIdAndProjectIsNull(requestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found."));
+        return saveAdminComment(request, authorId, input, internal);
+    }
+
+    @Transactional
+    public CommentResponse addAdminProject(Long projectId, Long requestId, Long authorId,
+                                           AddCommentRequest input, boolean internal) {
+        Request request = requestRepository.findByIdAndProject_Id(requestId, projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
+        projectAccessService.requireActive(request.getProject());
+        return saveAdminComment(request, authorId, input, internal);
+    }
+
+    private CommentResponse saveAdminComment(Request request, Long authorId,
+                                             AddCommentRequest input, boolean internal) {
         String text = validateText(input);
         User author = userRepository.findById(authorId)
                 .filter(User::isActive)

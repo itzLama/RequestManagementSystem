@@ -206,6 +206,14 @@ class AssignedTasksIntegrationTests {
 
     private Long addRequest(String title, String status, Long creator, Long assignee,
                             Long projectId, String createdAt) {
+        if (projectId != null) {
+            return jdbc.queryForObject("""
+                    INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,assigned_to,project_id,created_at,updated_at)
+                    VALUES (?, 'Assigned task test', NULL, 'TASK', 'MEDIUM', ?, ?, ?, ?,
+                            COALESCE(?::timestamp, CURRENT_TIMESTAMP), COALESCE(?::timestamp, CURRENT_TIMESTAMP))
+                    RETURNING request_id
+                    """, Long.class, title, status, creator, assignee, projectId, createdAt, createdAt);
+        }
         return jdbc.queryForObject("""
                 INSERT INTO requests(title,description,type_id,priority,status,created_by,assigned_to,project_id,created_at,updated_at)
                 VALUES (?, 'Assigned task test', (SELECT type_id FROM request_types WHERE is_active=true ORDER BY type_id LIMIT 1),

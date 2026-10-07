@@ -31,7 +31,7 @@ public class DashboardService {
         var statusCounts = counts.entrySet().stream()
                 .map(entry -> new DashboardResponse.StatusCount(entry.getKey(), entry.getValue()))
                 .toList();
-        var latestRequests = requestRepository.findTop5ByOrderByCreatedAtDescIdDesc().stream()
+        var latestRequests = requestRepository.findTop5ByProjectIsNullOrderByCreatedAtDescIdDesc().stream()
                 .map(DashboardResponse.LatestRequest::from)
                 .toList();
 

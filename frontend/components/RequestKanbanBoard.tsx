@@ -1,13 +1,18 @@
 import { REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import type { ProjectWorkType } from "@/lib/project-api";
 
 export type KanbanRequest = {
   id: number;
   title: string;
-  typeName: string;
+  typeName: string | null;
   priority: RequestPriority;
   status: RequestStatus;
   requesterName?: string;
+  projectName?: string | null;
+  workType?: ProjectWorkType | null;
+  assignedToName?: string | null;
 };
+const workTypeLabels: Record<ProjectWorkType, string> = { TASK: "Task", BUG: "Bug", IMPROVEMENT: "Improvement" };
 
 const columns: { status: RequestStatus; label: string }[] = [
   { status: "NEW", label: REQUEST_STATUS_LABELS.NEW },
@@ -22,7 +27,7 @@ const priorityClasses: Record<RequestPriority, string> = {
   HIGH: "bg-[#FDECEF] text-[#C33C54]",
 };
 
-export function RequestKanbanBoard({ requests, onRequestClick }: { requests: KanbanRequest[]; onRequestClick?: (id: number) => void }) {
+export function RequestKanbanBoard({ requests, onRequestClick, variant = "request" }: { requests: KanbanRequest[]; onRequestClick?: (id: number) => void; variant?: "request" | "project-task" }) {
   return <div className="overflow-x-auto pb-2">
     <div className="grid min-w-[1280px] grid-cols-5 gap-4">
       {columns.map((column) => {
@@ -33,13 +38,15 @@ export function RequestKanbanBoard({ requests, onRequestClick }: { requests: Kan
             <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-surface px-2 text-xs font-semibold text-secondary">{items.length}</span>
           </div>
           <div className="mt-2 space-y-3">
-            {items.length === 0 && <p className="rounded-lg border border-dashed border-[#D8DAE2] px-3 py-6 text-center text-xs text-secondary">No requests</p>}
+            {items.length === 0 && <p className="rounded-lg border border-dashed border-[#D8DAE2] px-3 py-6 text-center text-xs text-secondary">No {variant === "project-task" ? "tasks" : "requests"}</p>}
             {items.map((request) => <button key={request.id} type="button" onClick={() => onRequestClick?.(request.id)} className="block w-full rounded-[10px] border border-divider bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#D7D9E8] hover:shadow-md">
+              {variant === "project-task" && request.workType && <span className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{workTypeLabels[request.workType]}</span>}
               <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{request.title}</p>
-              <p className="mt-2 text-xs font-medium text-secondary">Request #{request.id}</p>
+              <p className="mt-2 text-xs font-medium text-secondary">{variant === "project-task" || request.projectName ? "Task" : "Request"} #{request.id}</p>
               {request.requesterName && <p className="mt-3 truncate text-xs text-foreground">{request.requesterName}</p>}
+              {request.projectName && <p className="mt-1 truncate text-xs text-accent">{request.projectName}</p>}
               <div className="mt-3 flex items-end justify-between gap-2">
-                <span className="line-clamp-2 text-xs leading-4 text-secondary">{request.typeName}</span>
+                <span className="line-clamp-2 text-xs leading-4 text-secondary">{variant === "project-task" || request.projectName ? request.assignedToName ?? "Unassigned" : request.typeName}</span>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[request.priority]}`}>{REQUEST_PRIORITY_LABELS[request.priority]}</span>
               </div>
             </button>)}

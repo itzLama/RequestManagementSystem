@@ -4,7 +4,6 @@ import com.requestmanagement.backend.requesttype.RequestType;
 import com.requestmanagement.backend.comment.CommentRepository;
 import com.requestmanagement.backend.comment.CommentResponse;
 import com.requestmanagement.backend.statushistory.StatusHistoryRepository;
-import com.requestmanagement.backend.statushistory.StatusHistory;
 import com.requestmanagement.backend.requesttype.RequestTypeRepository;
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
@@ -22,7 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +31,7 @@ public class RequestService {
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
     private final StatusHistoryRepository statusHistoryRepository;
+    private final RequestStatusService requestStatusService;
 
     @Transactional(readOnly = true)
     public RequestDetailsResponse details(Long requestId, Long creatorId) {
@@ -91,7 +90,7 @@ public class RequestService {
     ) {
         User employee = requireActiveEmployee(assigneeId);
         Request request = findAssignedGeneralRequest(requestId, assigneeId);
-        changeStatus(request, input.status(), employee, input.changeNote());
+        requestStatusService.changeStatus(request, input.status(), employee, input.changeNote());
         return employeeDetails(request);
     }
 
@@ -153,30 +152,20 @@ public class RequestService {
     ) {
         Request request = findAdminRequest(requestId);
         User admin = requireActiveAdmin(adminId);
+        Long currentAssigneeId = request.getAssignedTo() == null ? null : request.getAssignedTo().getId();
+        Long requestedAssigneeId = input.assignedToId();
         User assignee = null;
-        if (input.assignedToId() != null) {
-            assignee = userRepository.findById(input.assignedToId())
+        if (requestedAssigneeId != null) {
+            assignee = userRepository.findById(requestedAssigneeId)
                     .filter(User::isActive)
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.BAD_REQUEST, "Assignee must be an active user."));
         }
-        changeStatus(request, input.status(), admin, input.changeNote());
-        Long currentAssigneeId = request.getAssignedTo() == null ? null : request.getAssignedTo().getId();
         Long newAssigneeId = assignee == null ? null : assignee.getId();
-        if (!Objects.equals(currentAssigneeId, newAssigneeId)) request.assignTo(assignee);
+        requestStatusService.changeStatus(request, input.status(), admin, input.changeNote());
+        if (!java.util.Objects.equals(currentAssigneeId, newAssigneeId)) request.assignTo(assignee);
         requestRepository.save(request);
         return adminDetails(requestId);
-    }
-
-    private void changeStatus(Request request, RequestStatus newStatus, User actor, String changeNote) {
-        RequestStatus oldStatus = request.getStatus();
-        if (oldStatus == newStatus) return;
-        request.changeStatus(newStatus);
-        requestRepository.save(request);
-        String note = changeNote == null || changeNote.isBlank()
-                ? "Status changed from " + oldStatus + " to " + newStatus + "."
-                : changeNote.trim();
-        statusHistoryRepository.save(StatusHistory.create(request, oldStatus, newStatus, actor, note));
     }
 
     private RequestDetailsResponse employeeDetails(Request request) {
@@ -193,7 +182,7 @@ public class RequestService {
     }
 
     private Request findAdminRequest(Long requestId) {
-        return requestRepository.findAdminDetailsById(requestId)
+        return requestRepository.findAdminDetailsByIdAndProjectIsNull(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found."));
     }
 
@@ -221,6 +210,7 @@ public class RequestService {
                 : search.trim().toLowerCase(Locale.ROOT);
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.isNull(root.get("project")));
             if (normalizedSearch != null) {
                 predicates.add(criteriaBuilder.like(
                         criteriaBuilder.lower(root.get("title")),

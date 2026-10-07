@@ -124,6 +124,7 @@ Flyway manages the database schema and initial development data:
 - `V4__rename_requester_role_to_employee.sql` migrates the authenticated requester role to Employee without changing user identities or relationships.
 - `V5__create_projects_and_memberships.sql` creates Projects and explicit ProjectMembership records with restrictive foreign keys and duplicate-membership protection.
 - `V6__extend_requests_for_projects_and_guests.sql` adds the nullable Project association and mutually exclusive authenticated/guest creator identity foundation to Requests.
+- `V7__add_project_task_work_type.sql` distinguishes General Requests from Project Tasks, adds Task work types, and migrates existing Project-linked rows without deleting development data.
 
 The backend has Hibernate schema generation disabled with:
 
@@ -270,15 +271,23 @@ The following functionality is currently implemented:
 - Project Team Management using explicit memberships with existing active Employees
 - Archived Projects and retained teams remain viewable but read-only
 - Project archive is final; project reactivation and hard deletion are not implemented
-- Request records support General Requests (`project_id` is null) and the schema foundation for Project Requests (`project_id` references a Project)
+- Employee Projects lists ACTIVE and retained ARCHIVED memberships without exposing unrelated Projects
+- Project Task boards contain only Tasks belonging to the selected Project
+- Active Project members can create assigned Project Tasks, add normal comments, explicitly change status, and reassign Tasks to eligible active Project members
+- Project collaboration is authorized by current active Employee membership, while Task creator and assignee remain separate identities
+- Project Tasks support Task, Bug, and Improvement work types instead of General Request types
+- Archived Projects preserve Tasks, comments, memberships, and status history while remaining fully read-only for Employees and Admin
+- Project Tasks remain separate from General My Requests and Assigned Tasks
+- Admin Requests identify General Request versus Project Task context; Project Tasks never appear in Assigned Tasks
+- Request records support General Requests (`project_id` and `work_type` are null, `type_id` is required) and Project Tasks (`project_id` and `work_type` are required, `type_id` is null)
 - The Request schema supports either an authenticated creator or a guest name/email identity, enforced by a database constraint
-- The existing Employee Create Request workflow remains General-only; Project Request creation and public Guest Submission are not implemented yet
+- The existing Employee Create Request workflow remains General-only; Project Tasks are created contextually from an active Project
 - Request creation and update timestamps in Admin Request Details
 - Persisted status history for status changes
 - Explicit status changes may move freely among New, In Progress, Waiting User, Completed, and Rejected
 - Every real explicit status change creates StatusHistory; comments never change request status
 - Assigned Employees may view, comment on, and explicitly change the status of their currently assigned General Requests
-- Project Boards, drag-and-drop, Project Request collaboration, and public Guest Submission are not implemented yet
+- Drag-and-drop, public Guest Submission, GuestCommunication, and email are not implemented yet
 
 Dashboard reporting remains outside the currently implemented scope.
 
@@ -326,7 +335,7 @@ The completed Week 5 workflow includes:
 
 ## Testing
 
-The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, Assigned Tasks authorization, comments, and explicit request reopening.
+The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, Assigned Tasks, membership-based Project collaboration, archived read-only enforcement, comments, and explicit status changes.
 
 Frontend ESLint and the production build with TypeScript checks also pass.
 

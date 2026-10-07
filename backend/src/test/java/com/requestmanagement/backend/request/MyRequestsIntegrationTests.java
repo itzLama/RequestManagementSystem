@@ -33,7 +33,7 @@ class MyRequestsIntegrationTests {
         addRequest(secondId, "Second user's request", LocalDateTime.now());
         Long noraCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM requests r JOIN users u ON r.created_by = u.user_id
-                WHERE u.email = 'nora.ahmed@example.com'
+                WHERE u.email = 'nora.ahmed@example.com' AND r.project_id IS NULL
                 """, Long.class);
 
         mockMvc.perform(get("/api/requests/mine").session(login("nora.ahmed@example.com")))

@@ -93,6 +93,28 @@ class DashboardIntegrationTests {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void projectTasksAreExcludedFromMetricsAndLatestGeneralRequests() throws Exception {
+        clearRequests();
+        Long general = addRequest("Visible general request", "NEW", LocalDateTime.now());
+        Long employee = jdbc.queryForObject(
+                "SELECT user_id FROM users WHERE email='nora.ahmed@example.com'", Long.class);
+        Long project = jdbc.queryForObject(
+                "INSERT INTO projects(project_name,status) VALUES ('Dashboard task project','ACTIVE') RETURNING project_id",
+                Long.class);
+        jdbc.update("""
+                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,project_id)
+                VALUES ('Excluded dashboard task','Task',NULL,'TASK','HIGH','COMPLETED',?,?)
+                """, employee, project);
+
+        mvc.perform(get("/api/dashboard").session(login("sara.saad@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRequests").value(1))
+                .andExpect(jsonPath("$.completedRequests").value(0))
+                .andExpect(jsonPath("$.latestRequests.length()").value(1))
+                .andExpect(jsonPath("$.latestRequests[0].id").value(general));
+    }
+
     private void clearRequests() {
         jdbc.update("DELETE FROM status_history");
         jdbc.update("DELETE FROM comments");

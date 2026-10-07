@@ -29,6 +29,7 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavigationItem[]> = {
   EMPLOYEE: [
     { label: "My Requests", href: "/my-requests", icon: "requests" },
     { label: "Assigned Tasks", href: "/assigned-tasks", icon: "tasks" },
+    { label: "Projects", href: "/employee-projects", icon: "projects" },
     { label: "Create Request", href: "/create-request", icon: "create" },
   ],
 };
@@ -62,6 +63,10 @@ const PAGE_HEADERS: Record<string, PageHeader> = {
     title: "Assigned Tasks",
     subtitle: "View and manage General Requests assigned to you",
   },
+  "/employee-projects": {
+    title: "Projects",
+    subtitle: "View your projects and collaborate on project tasks",
+  },
   "/create-request": {
     title: "Create Request",
     subtitle: "Submit a new service request",
@@ -74,8 +79,14 @@ const DEFAULT_PAGE_HEADER: PageHeader = {
 };
 
 export function getPageHeader(pathname: string): PageHeader {
+  if (pathname.startsWith("/employee-projects/") && pathname.includes("/tasks/")) {
+    return { title: `Task #${pathname.split("/tasks/")[1]}`, subtitle: "View Project Task details and activity" };
+  }
+  if (pathname.startsWith("/employee-projects/")) {
+    return { title: "Project Workspace", subtitle: "View and collaborate on project tasks and team" };
+  }
   if (pathname.startsWith("/projects/")) {
-    return { title: "Project Details", subtitle: "Manage project information and team membership" };
+    return { title: "Project Workspace", subtitle: "Manage project tasks, team, and project information" };
   }
   if (pathname.startsWith("/requests/")) {
     return { title: `Request #${pathname.slice("/requests/".length)}`, subtitle: "Manage request details and activity" };

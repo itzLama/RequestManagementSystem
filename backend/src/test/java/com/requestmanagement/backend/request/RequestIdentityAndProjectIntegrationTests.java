@@ -31,7 +31,7 @@ class RequestIdentityAndProjectIntegrationTests {
     @Test
     void existingAuthenticatedRequestsRemainGeneral() {
         var row = jdbc.queryForMap("""
-                SELECT project_id, created_by, guest_name, guest_email
+                SELECT project_id, work_type, type_id, created_by, guest_name, guest_email
                 FROM requests
                 WHERE title = 'Laptop Issue'
                 ORDER BY request_id
@@ -39,6 +39,8 @@ class RequestIdentityAndProjectIntegrationTests {
                 """);
 
         assertThat(row.get("project_id")).isNull();
+        assertThat(row.get("work_type")).isNull();
+        assertThat(row.get("type_id")).isNotNull();
         assertThat(row.get("created_by")).isNotNull();
         assertThat(row.get("guest_name")).isNull();
         assertThat(row.get("guest_email")).isNull();
@@ -62,7 +64,7 @@ class RequestIdentityAndProjectIntegrationTests {
                 "SELECT project_id FROM requests WHERE request_id=?", Long.class, requestId))
                 .isEqualTo(projectId);
         Request request = requestRepository.findById(requestId).orElseThrow();
-        assertThat(request.isProjectRequest()).isTrue();
+        assertThat(request.isProjectTask()).isTrue();
         assertThat(request.getProject().getId()).isEqualTo(projectId);
     }
 
@@ -79,6 +81,14 @@ class RequestIdentityAndProjectIntegrationTests {
 
         assertThrows(DataIntegrityViolationException.class,
                 () -> jdbc.update("DELETE FROM projects WHERE project_id=?", projectId));
+    }
+
+    @Test
+    void generalRequestAndProjectTaskScopeConstraintRejectsInvalidShapes() {
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("""
+                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by)
+                VALUES ('Invalid general work type','Constraint test',?,'TASK','LOW','NEW',?)
+                """, typeId(), employeeId()));
     }
 
     @Test
@@ -161,6 +171,13 @@ class RequestIdentityAndProjectIntegrationTests {
     }
 
     private long insertAuthenticatedRequest(Long projectId) {
+        if (projectId != null) {
+            return jdbc.queryForObject("""
+                    INSERT INTO requests(title, description, type_id, work_type, priority, status, created_by, project_id)
+                    VALUES ('Authenticated foundation task', 'Foundation test', NULL, 'TASK', 'LOW', 'NEW', ?, ?)
+                    RETURNING request_id
+                    """, Long.class, employeeId(), projectId);
+        }
         return jdbc.queryForObject("""
                 INSERT INTO requests(title, description, type_id, priority, status, created_by, project_id)
                 VALUES ('Authenticated foundation request', 'Foundation test', ?, 'LOW', 'NEW', ?, ?)

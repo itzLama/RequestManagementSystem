@@ -9,17 +9,27 @@ public record AdminRequestResponse(
         String typeName,
         RequestPriority priority,
         RequestStatus status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long projectId,
+        String projectName,
+        ProjectWorkType workType,
+        Long assignedToId,
+        String assignedToName
 ) {
     public static AdminRequestResponse from(Request request) {
         return new AdminRequestResponse(
                 request.getId(),
                 request.getTitle(),
                 request.requesterName(),
-                request.getType().getTypeName(),
+                request.getType() == null ? null : request.getType().getTypeName(),
                 request.getPriority(),
                 request.getStatus(),
-                request.getCreatedAt()
+                request.getCreatedAt(),
+                request.getProject() == null ? null : request.getProject().getId(),
+                request.getProject() == null ? null : request.getProject().getName(),
+                request.getWorkType(),
+                request.getAssignedTo() == null ? null : request.getAssignedTo().getId(),
+                request.getAssignedTo() == null ? null : request.getAssignedTo().getFullName()
         );
     }
 }

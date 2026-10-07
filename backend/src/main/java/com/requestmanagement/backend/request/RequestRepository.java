@@ -22,11 +22,11 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     @EntityGraph(attributePaths = "type")
     List<Request> findByAssignedTo_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(Long assigneeId);
 
-    @EntityGraph(attributePaths = {"type", "createdBy"})
+    @EntityGraph(attributePaths = {"type", "createdBy", "project", "assignedTo"})
     Page<Request> findAll(org.springframework.data.jpa.domain.Specification<Request> specification,
                           Pageable pageable);
 
-    @EntityGraph(attributePaths = {"type", "createdBy"})
+    @EntityGraph(attributePaths = {"type", "createdBy", "project", "assignedTo"})
     List<Request> findAll(org.springframework.data.jpa.domain.Specification<Request> specification,
                           org.springframework.data.domain.Sort sort);
 
@@ -37,16 +37,23 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     Optional<Request> findByIdAndAssignedTo_IdAndProjectIsNull(Long id, Long assigneeId);
 
     @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo"})
-    Optional<Request> findAdminDetailsById(Long id);
+    List<Request> findByProject_IdOrderByCreatedAtDescIdDesc(Long projectId);
+
+    @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo", "project"})
+    Optional<Request> findByIdAndProject_Id(Long id, Long projectId);
+
+    @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo", "project"})
+    Optional<Request> findAdminDetailsByIdAndProjectIsNull(Long id);
 
     @Query("""
             SELECT r.status AS status, COUNT(r) AS requestCount
             FROM Request r
+            WHERE r.project IS NULL
             GROUP BY r.status
             """)
     List<RequestStatusCountProjection> countRequestsByStatus();
 
     @EntityGraph(attributePaths = "type")
-    List<Request> findTop5ByOrderByCreatedAtDescIdDesc();
+    List<Request> findTop5ByProjectIsNullOrderByCreatedAtDescIdDesc();
 
 }

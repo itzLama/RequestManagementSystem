@@ -7,10 +7,12 @@ type RequestDetailsDialogProps = {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  showTitle?: boolean;
 };
 
-export function RequestDetailsDialog({ title, children, onClose }: RequestDetailsDialogProps) {
+export function RequestDetailsDialog({ title, children, onClose, showTitle = true }: RequestDetailsDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleVisible = showTitle && !title.startsWith("Task #");
 
   useEffect(() => {
     const previousActiveElement = document.activeElement as HTMLElement | null;
@@ -67,8 +69,8 @@ export function RequestDetailsDialog({ title, children, onClose }: RequestDetail
       tabIndex={-1}
       className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-[1500px] flex-col overflow-hidden rounded-2xl border border-divider bg-background shadow-2xl outline-none sm:max-h-[calc(100vh-2.5rem)]"
     >
-      <div className="flex shrink-0 items-center justify-between border-b border-divider bg-surface px-5 py-4 sm:px-7">
-        <h2 id="request-details-dialog-title" className="text-lg font-semibold text-foreground">{title}</h2>
+      <div className={`flex shrink-0 items-center border-b border-divider bg-surface px-5 ${titleVisible ? "justify-between py-4 sm:px-7" : "justify-end py-2"}`}>
+        <h2 id="request-details-dialog-title" className={titleVisible ? "text-lg font-semibold text-foreground" : "sr-only"}>{title}</h2>
         <button type="button" onClick={onClose} aria-label="Close request details" title="Close" className="flex h-9 w-9 items-center justify-center rounded-full text-secondary hover:bg-nav-hover hover:text-foreground">
           <X size={20} aria-hidden="true" />
         </button>
