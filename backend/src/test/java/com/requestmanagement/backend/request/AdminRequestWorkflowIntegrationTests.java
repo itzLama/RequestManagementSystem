@@ -45,15 +45,15 @@ class AdminRequestWorkflowIntegrationTests {
                 VALUES ('Workflow test','Details',(SELECT type_id FROM request_types LIMIT 1),'MEDIUM','NEW',2)
                 RETURNING request_id
                 """, Long.class);
-        Long nouf = jdbc.queryForObject("SELECT user_id FROM users WHERE email='nouf.khaled@example.com'", Long.class);
+        Long nora = jdbc.queryForObject("SELECT user_id FROM users WHERE email='nora.ahmed@example.com'", Long.class);
         Session admin = login("sara.saad@example.com");
         mvc.perform(patch("/api/requests/admin/{id}", id).session(admin.session()).cookie(admin.csrf())
                         .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
-                        .content("{\"status\":\"IN_PROGRESS\",\"assignedToId\":" + nouf + ",\"changeNote\":\"Review started\"}"))
+                        .content("{\"status\":\"IN_PROGRESS\",\"assignedToId\":" + nora + ",\"changeNote\":\"Review started\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.assignedToId").value(nouf)).andExpect(jsonPath("$.timeline[0].changeNote").value("Review started"));
+                .andExpect(jsonPath("$.assignedToId").value(nora)).andExpect(jsonPath("$.timeline[0].changeNote").value("Review started"));
         assertThat(jdbc.queryForObject("SELECT status FROM requests WHERE request_id=?", String.class, id)).isEqualTo("IN_PROGRESS");
-        assertThat(jdbc.queryForObject("SELECT assigned_to FROM requests WHERE request_id=?", Long.class, id)).isEqualTo(nouf);
+        assertThat(jdbc.queryForObject("SELECT assigned_to FROM requests WHERE request_id=?", Long.class, id)).isEqualTo(nora);
         assertThat(jdbc.queryForObject("SELECT old_status FROM status_history WHERE request_id=?", String.class, id)).isEqualTo("NEW");
         assertThat(jdbc.queryForObject("SELECT new_status FROM status_history WHERE request_id=?", String.class, id)).isEqualTo("IN_PROGRESS");
         assertThat(jdbc.queryForObject("SELECT changed_by FROM status_history WHERE request_id=?", Long.class, id)).isEqualTo(1L);
@@ -135,12 +135,13 @@ class AdminRequestWorkflowIntegrationTests {
     }
 
     @Test
-    void allActiveUsersAreAssignableWhileInvalidInactiveAndRequesterActionsAreRejected() throws Exception {
+    void onlyActiveEmployeesAreAssignableAndInvalidAdminInactiveAndEmployeeActionsAreRejected() throws Exception {
         Session admin = login("sara.saad@example.com");
         mvc.perform(get("/api/requests/admin/assignees").session(admin.session()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.fullName == 'Nouf Khaled')]").exists())
-                .andExpect(jsonPath("$[?(@.fullName == 'Sara Saad')]").exists())
-                .andExpect(jsonPath("$[?(@.fullName == 'Nora Ahmed')]").exists());
+                .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.fullName == 'Nouf Khaled')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.fullName == 'Sara Saad')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.fullName == 'Nora Ahmed')]").exists())
+                .andExpect(jsonPath("$[?(@.fullName == 'Reem Khalid')]").exists());
         mvc.perform(get("/api/requests/admin/assignees").session(login("nora.ahmed@example.com").session()))
                 .andExpect(status().isForbidden());
         Long id = requestId();
@@ -151,6 +152,27 @@ class AdminRequestWorkflowIntegrationTests {
                         .content("{\"status\":\"" + currentStatus + "\",\"assignedToId\":" + nora + "}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.assignedToId").value(nora));
         assertThat(jdbc.queryForObject("SELECT assigned_to FROM requests WHERE request_id=?", Long.class, id)).isEqualTo(nora);
+
+        Long adminId = jdbc.queryForObject("SELECT user_id FROM users WHERE email='sara.saad@example.com'", Long.class);
+        mvc.perform(patch("/api/requests/admin/{id}", id).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content("{\"status\":\"" + currentStatus + "\",\"assignedToId\":" + adminId + "}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Assignee must be an active Employee."));
+        assertThat(jdbc.queryForObject("SELECT assigned_to FROM requests WHERE request_id=?", Long.class, id)).isEqualTo(nora);
+
+        Long guestRequest = jdbc.queryForObject("""
+                INSERT INTO requests(title,description,type_id,priority,status,guest_name,guest_email)
+                VALUES ('Guest assignee restriction','Details',(SELECT type_id FROM request_types LIMIT 1),
+                        'MEDIUM','NEW','External Guest','external.guest@example.com')
+                RETURNING request_id
+                """, Long.class);
+        mvc.perform(patch("/api/requests/admin/{id}", guestRequest).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content("{\"status\":\"NEW\",\"assignedToId\":" + adminId + "}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Assignee must be an active Employee."));
+        assertThat(jdbc.queryForObject("SELECT assigned_to FROM requests WHERE request_id=?", Long.class, guestRequest)).isNull();
 
         Long inactive = jdbc.queryForObject("""
                 INSERT INTO users(full_name,email,password_hash,role,is_active)

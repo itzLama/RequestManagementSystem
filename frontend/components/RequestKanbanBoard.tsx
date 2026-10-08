@@ -5,6 +5,7 @@ import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { useRef, type ReactNode } from "react";
 import { REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 import type { ProjectWorkType } from "@/lib/project-api";
+import { GuestBadge } from "@/components/GuestBadge";
 
 export type KanbanRequest = {
   id: number;
@@ -16,6 +17,7 @@ export type KanbanRequest = {
   projectName?: string | null;
   workType?: ProjectWorkType | null;
   assignedToName?: string | null;
+  guest?: boolean;
 };
 
 type BoardProps = {
@@ -48,7 +50,7 @@ const cardClasses = "block w-full rounded-[10px] border border-divider bg-surfac
 
 function CardContent({ request, variant, showAssignee = false }: { request: KanbanRequest; variant: "request" | "project-task"; showAssignee?: boolean }) {
   return <>
-    {variant === "project-task" && request.workType && <span className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{workTypeLabels[request.workType]}</span>}
+    {(request.guest || (variant === "project-task" && request.workType)) && <div className="mb-2 flex flex-wrap gap-2">{variant === "project-task" && request.workType && <span className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{workTypeLabels[request.workType]}</span>}{request.guest && <GuestBadge />}</div>}
     <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{request.title}</p>
     <p className="mt-2 text-xs font-medium text-secondary">{variant === "project-task" || request.projectName ? "Task" : "Request"} #{request.id}</p>
     {request.requesterName && <p className="mt-3 truncate text-xs text-foreground">{request.requesterName}</p>}

@@ -123,6 +123,37 @@ public class Request {
         return task;
     }
 
+    public static Request createGuestGeneralRequest(String title, String description, RequestType type,
+                                                    RequestPriority priority, String guestName,
+                                                    String guestEmail) {
+        Request request = create(title, description, type, priority, null, null);
+        request.guestName = guestName;
+        request.guestEmail = guestEmail;
+        return request;
+    }
+
+    public static Request createGuestProjectRequest(String title, String description,
+                                                    ProjectWorkType workType, RequestPriority priority,
+                                                    String guestName, String guestEmail, Project project) {
+        if (project == null) throw new IllegalArgumentException("Project is required.");
+        if (workType == null) throw new IllegalArgumentException("Work type is required.");
+        Request request = new Request();
+        request.title = title;
+        request.description = description;
+        request.type = null;
+        request.workType = workType;
+        request.priority = priority;
+        request.status = RequestStatus.NEW;
+        request.createdBy = null;
+        request.guestName = guestName;
+        request.guestEmail = guestEmail;
+        request.project = project;
+        request.assignedTo = null;
+        request.createdAt = LocalDateTime.now();
+        request.updatedAt = request.createdAt;
+        return request;
+    }
+
     public void changeStatus(RequestStatus newStatus) {
         status = newStatus;
         updatedAt = LocalDateTime.now();
@@ -147,6 +178,10 @@ public class Request {
 
     public boolean isProjectTask() {
         return project != null;
+    }
+
+    public boolean isGuest() {
+        return createdBy == null;
     }
 
 }

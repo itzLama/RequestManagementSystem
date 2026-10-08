@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import type { AuthenticatedUser } from "@/components/layout/layout-config";
@@ -106,6 +107,9 @@ export default function LoginPage() {
             {isSubmitting ? "Signing in..." : "Sign In"}
           </button>
         </form>
+        <div className="my-6 flex items-center gap-3" aria-hidden="true"><span className="h-px flex-1 bg-divider" /><span className="text-xs font-medium text-secondary">OR</span><span className="h-px flex-1 bg-divider" /></div>
+        <Link href="/guest/request" className="flex h-11 w-full items-center justify-center rounded-[9px] border border-accent text-sm font-medium text-accent transition-colors hover:bg-nav-hover">Continue as Guest</Link>
+        <p className="mt-2 text-center text-xs text-secondary">Submit a request without signing in</p>
       </section>
     </main>
   );

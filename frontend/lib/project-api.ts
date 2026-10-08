@@ -7,7 +7,7 @@ export type EmployeeOption = { id: number; fullName: string; email: string; acti
 export type ProjectInput = { name: string; description: string };
 export type ProjectWorkType = "TASK" | "BUG" | "IMPROVEMENT";
 export type ProjectTaskMember = { employeeId: number; fullName: string; email: string; active: boolean };
-export type ProjectTask = { id: number; title: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; status: "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED"; assignedToId: number | null; assignedToName: string | null; createdAt: string };
+export type ProjectTask = { id: number; title: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; status: "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED"; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean };
 export type ProjectTaskStatus = ProjectTask["status"];
 export type ProjectTaskStatusResponse = { status: ProjectTaskStatus };
 

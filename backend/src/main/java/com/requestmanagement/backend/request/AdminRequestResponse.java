@@ -14,7 +14,8 @@ public record AdminRequestResponse(
         String projectName,
         ProjectWorkType workType,
         Long assignedToId,
-        String assignedToName
+        String assignedToName,
+        boolean guest
 ) {
     public static AdminRequestResponse from(Request request) {
         return new AdminRequestResponse(
@@ -29,7 +30,8 @@ public record AdminRequestResponse(
                 request.getProject() == null ? null : request.getProject().getName(),
                 request.getWorkType(),
                 request.getAssignedTo() == null ? null : request.getAssignedTo().getId(),
-                request.getAssignedTo() == null ? null : request.getAssignedTo().getFullName()
+                request.getAssignedTo() == null ? null : request.getAssignedTo().getFullName(),
+                request.isGuest()
         );
     }
 }

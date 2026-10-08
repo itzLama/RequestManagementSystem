@@ -141,7 +141,7 @@ public class RequestService {
 
     @Transactional(readOnly = true)
     public List<AssigneeResponse> assignees() {
-        return userRepository.findByActiveTrueOrderByFullNameAsc().stream()
+        return userRepository.findByActiveTrueAndRoleOrderByFullNameAscIdAsc(User.Role.EMPLOYEE).stream()
                 .map(AssigneeResponse::from)
                 .toList();
     }
@@ -156,10 +156,10 @@ public class RequestService {
         Long requestedAssigneeId = input.assignedToId();
         User assignee = null;
         if (requestedAssigneeId != null) {
-            assignee = userRepository.findById(requestedAssigneeId)
+            assignee = userRepository.findByIdAndRole(requestedAssigneeId, User.Role.EMPLOYEE)
                     .filter(User::isActive)
                     .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "Assignee must be an active user."));
+                            HttpStatus.BAD_REQUEST, "Assignee must be an active Employee."));
         }
         Long newAssigneeId = assignee == null ? null : assignee.getId();
         requestStatusService.changeStatus(request, input.status(), admin, input.changeNote());

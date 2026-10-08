@@ -16,10 +16,10 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     @EntityGraph(attributePaths = "type")
     List<Request> findByCreatedBy_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(Long creatorId);
 
-    @EntityGraph(attributePaths = {"type", "assignedTo"})
+    @EntityGraph(attributePaths = {"type", "assignedTo", "createdBy"})
     Page<Request> findByAssignedTo_IdAndProjectIsNull(Long assigneeId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"type", "assignedTo"})
+    @EntityGraph(attributePaths = {"type", "assignedTo", "createdBy"})
     List<Request> findByAssignedTo_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(Long assigneeId);
 
     @EntityGraph(attributePaths = {"type", "createdBy", "project", "assignedTo"})

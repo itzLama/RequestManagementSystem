@@ -6,10 +6,11 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
 import { formatRequestDateTime, formatTimelineDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { GuestBadge } from "@/components/GuestBadge";
 
 type TimelineEntry = { oldStatus: RequestStatus | null; newStatus: RequestStatus; changedByName: string; changeNote: string | null; changedAt: string };
 type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
-type Details = { id: number; title: string; status: RequestStatus; requesterName: string; typeName: string; priority: RequestPriority; assignedToName: string | null; description: string; createdAt: string; timeline: TimelineEntry[]; comments: Comment[] };
+type Details = { id: number; title: string; status: RequestStatus; requesterName: string; requesterEmail: string; guest: boolean; typeName: string; priority: RequestPriority; assignedToName: string | null; description: string; createdAt: string; timeline: TimelineEntry[]; comments: Comment[] };
 
 function StatusTimeline({ details }: { details: Details }) {
   const events = [
@@ -113,7 +114,7 @@ export function EmployeeRequestDetails({ requestId, mode = "creator", onRequestU
       <section className={card}>
         <h2 className="text-xs font-semibold uppercase tracking-wide text-secondary">Request Information</h2>
         <div className="mt-5 flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h3 className="break-words text-[22px] font-semibold leading-tight text-foreground">{details.title}</h3><p className="mt-2 text-sm text-secondary">ID #{details.id}</p></div><span className="rounded-full bg-nav-active px-3.5 py-1.5 text-xs font-semibold text-accent">{REQUEST_STATUS_LABELS[details.status]}</span></div>
-        <dl className="mt-7 grid gap-x-7 gap-y-6 border-t border-divider pt-7 sm:grid-cols-2"><div className="space-y-6"><Info icon={UserRound} label="Requester" value={details.requesterName} /><Info icon={Flag} label="Priority" value={REQUEST_PRIORITY_LABELS[details.priority]} /></div><div className="space-y-6"><Info icon={Layers3} label="Type" value={details.typeName} /><Info icon={UserRoundCheck} label="Assigned To" value={details.assignedToName ?? UNASSIGNED_LABEL} /></div></dl>
+        <dl className="mt-7 grid gap-x-7 gap-y-6 border-t border-divider pt-7 sm:grid-cols-2"><div className="space-y-6"><div><Info icon={UserRound} label="Requester" value={details.requesterName} /><div className="ml-8 mt-1 flex items-center gap-2">{details.guest && <GuestBadge />}{details.guest && <span className="text-xs text-secondary">{details.requesterEmail}</span>}</div></div><Info icon={Flag} label="Priority" value={REQUEST_PRIORITY_LABELS[details.priority]} /></div><div className="space-y-6"><Info icon={Layers3} label="Type" value={details.typeName} /><Info icon={UserRoundCheck} label="Assigned To" value={details.assignedToName ?? UNASSIGNED_LABEL} /></div></dl>
         <div className="mt-7 border-t border-divider pt-6"><div className="flex items-center gap-3"><FileText size={19} strokeWidth={1.8} className="text-accent" aria-hidden="true" /><h4 className="text-sm font-semibold">Description</h4></div><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-secondary">{details.description}</p></div>
       </section>
       <section className={`${card} flex h-full flex-col`}><h2 className="flex items-center gap-3 text-lg font-semibold"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EDF4FF]"><Clock3 size={19} strokeWidth={1.8} className="text-[#4D7FE6]" aria-hidden="true" /></span>Status Timeline</h2><div className="mt-7 flex-1"><StatusTimeline details={details} /></div></section>

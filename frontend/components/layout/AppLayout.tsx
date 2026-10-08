@@ -23,9 +23,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [loadingUser, setLoadingUser] = useState(true);
   const [authError, setAuthError] = useState("");
   const [reloadUser, setReloadUser] = useState(0);
+  const isPublicRoute = pathname === "/login" || pathname === "/guest/request";
 
   useEffect(() => {
-    if (pathname === "/login") {
+    if (isPublicRoute) {
       return;
     }
 
@@ -61,7 +62,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     loadCurrentUser();
 
     return () => controller.abort();
-  }, [pathname, reloadUser, router]);
+  }, [isPublicRoute, pathname, reloadUser, router]);
 
   const isAdminProjectRoute = pathname === "/projects" || pathname.startsWith("/projects/");
   const isEmployeeAssignedTaskRoute = pathname === "/assigned-tasks" || pathname.startsWith("/assigned-tasks/");
@@ -79,7 +80,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   }, [isAdminProjectRoute, isEmployeeAssignedTaskRoute, isEmployeeProjectRoute, router, user]);
 
-  if (pathname === "/login") {
+  if (isPublicRoute) {
     return children;
   }
 

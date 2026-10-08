@@ -14,6 +14,7 @@ public record AdminRequestDetailsResponse(
         String description, LocalDateTime createdAt, LocalDateTime updatedAt,
         Long projectId, String projectName, ProjectStatus projectStatus,
         ProjectWorkType workType, Long createdById, String createdByName,
+        boolean guest,
         List<RequestDetailsResponse.TimelineEntry> timeline,
         List<CommentResponse> comments,
         List<CommentResponse> internalNotes
@@ -36,7 +37,7 @@ public record AdminRequestDetailsResponse(
                 request.getProject() == null ? null : request.getProject().getStatus(),
                 request.getWorkType(),
                 request.getCreatedBy() == null ? null : request.getCreatedBy().getId(),
-                request.getCreatedBy() == null ? null : request.getCreatedBy().getFullName(),
+                request.getCreatedBy() == null ? null : request.getCreatedBy().getFullName(), request.isGuest(),
                 timeline, comments, internalNotes
         );
     }

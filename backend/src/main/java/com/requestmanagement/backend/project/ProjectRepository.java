@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface ProjectRepository extends JpaRepository<Project, Long> {
     List<Project> findAllByOrderByCreatedAtDescIdDesc();
+    List<Project> findByStatusOrderByNameAscIdAsc(ProjectStatus status);
 }
