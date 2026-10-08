@@ -9,8 +9,9 @@ import { RequestViewToggle, type RequestView } from "@/components/RequestViewTog
 import { EmployeeRequestDetails } from "@/components/employee/EmployeeRequestDetails";
 import { apiFetch } from "@/lib/api-client";
 import { formatRequestDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { requestStatusApi, RequestStatusApiError } from "@/lib/request-status-api";
 
-type AssignedTask = { id: number; title: string; typeName: string; priority: RequestPriority; status: RequestStatus; createdAt: string };
+type AssignedTask = { id: number; title: string; typeName: string; priority: RequestPriority; status: RequestStatus; createdAt: string; assignedToId: number; assignedToName: string };
 type AssignedTasksPage = { content: AssignedTask[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean };
 
 function TaskActions({ onOpen }: { onOpen: () => void }) {
@@ -25,6 +26,8 @@ export default function AssignedTasksPage() {
   const [result, setResult] = useState<AssignedTasksPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [boardError, setBoardError] = useState("");
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [reload, setReload] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const closeDetails = useCallback(() => setSelectedRequestId(null), []);
@@ -48,13 +51,31 @@ export default function AssignedTasksPage() {
     loadTasks(); return () => controller.abort();
   }, [requestedPage, reload, router, view]);
 
+  async function moveTask(requestId: number, newStatus: RequestStatus) {
+    if (statusUpdating) return;
+    const previousTasks = boardTasks;
+    const task = previousTasks.find((item) => item.id === requestId);
+    if (!task || task.status === newStatus) return;
+    setBoardError(""); setStatusUpdating(true); setBoardTasks((current) => current.map((item) => item.id === requestId ? { ...item, status: newStatus } : item));
+    try {
+      const updated = await requestStatusApi.updateAssigned(requestId, newStatus);
+      setBoardTasks((current) => current.map((item) => item.id === requestId ? { ...item, status: updated.status } : item));
+    } catch (cause) {
+      setBoardTasks(previousTasks);
+      if (cause instanceof RequestStatusApiError && cause.statusCode === 401) router.replace("/login");
+      else if (cause instanceof RequestStatusApiError && cause.statusCode === 403) router.replace("/my-requests");
+      else { setBoardError(cause instanceof Error ? cause.message : "Unable to change request status."); setReload((value) => value + 1); }
+    } finally { setStatusUpdating(false); }
+  }
+
   return <div className="space-y-5">
     <div className="flex justify-end"><RequestViewToggle view={view} onChange={setView} /></div>
     <section className={view === "table" ? "w-full rounded-xl border border-divider bg-surface" : "w-full"}>
       {loading && <p role="status" className="px-6 py-10 text-sm text-secondary sm:px-8">Loading assigned tasks...</p>}
       {!loading && error && <div role="alert" className="px-6 py-10 text-sm text-[#B42318] sm:px-8">{error} <button type="button" onClick={refreshTasks} className="font-medium underline">Retry</button></div>}
       {!loading && !error && view === "board" && boardTasks.length === 0 && <div className="rounded-xl border border-divider bg-surface px-6 py-12 text-center"><h2 className="text-lg font-semibold">No assigned tasks</h2><p className="mt-2 text-sm text-secondary">General Requests assigned to you will appear here.</p></div>}
-      {!loading && !error && view === "board" && boardTasks.length > 0 && <RequestKanbanBoard requests={boardTasks} onRequestClick={setSelectedRequestId} />}
+      {!loading && !error && view === "board" && boardError && <p role="alert" className="mb-4 rounded-[9px] bg-[#FFF1F0] px-4 py-3 text-sm text-[#B42318]">{boardError}</p>}
+      {!loading && !error && view === "board" && boardTasks.length > 0 && <RequestKanbanBoard requests={boardTasks} onRequestClick={setSelectedRequestId} showAssignee dragEnabled statusUpdatePending={statusUpdating} onStatusDrop={moveTask} />}
       {!loading && !error && view === "table" && result && result.content.length > 0 && <div className="px-8 pb-6 pt-8 text-sm text-secondary">Showing {result.content.length} {result.content.length === 1 ? "task" : "tasks"} on this page</div>}
       {!loading && !error && view === "table" && result && result.content.length === 0 && <p className="px-8 pb-10 pt-8 text-sm text-secondary">No General Requests are currently assigned to you.</p>}
       {!loading && !error && view === "table" && result && result.content.length > 0 && <div className="overflow-x-auto px-6 pb-5 sm:px-8"><table className="w-full min-w-[850px] border-collapse text-left text-sm"><thead className="bg-background text-xs font-medium text-secondary"><tr><th className="px-4 py-5">No</th><th className="px-5 py-5">Title</th><th className="px-5 py-5">Type</th><th className="px-5 py-5">Priority</th><th className="px-5 py-5">Status</th><th className="px-5 py-5">Created Date</th><th className="px-5 py-5 text-center">Actions</th></tr></thead><tbody>{result.content.map((task, index) => <tr key={task.id} className="border-t border-divider"><td className="px-4 py-5 font-medium">{result.totalElements - (result.page * result.size + index)}</td><td className="max-w-56 truncate px-5 py-5">{task.title}</td><td className="px-5 py-5">{task.typeName}</td><td className="px-5 py-5">{REQUEST_PRIORITY_LABELS[task.priority]}</td><td className="px-5 py-5">{REQUEST_STATUS_LABELS[task.status]}</td><td className="whitespace-nowrap px-5 py-5">{formatRequestDate(task.createdAt)}</td><td className="px-5 py-3 text-center"><TaskActions onOpen={() => setSelectedRequestId(task.id)} /></td></tr>)}</tbody></table></div>}

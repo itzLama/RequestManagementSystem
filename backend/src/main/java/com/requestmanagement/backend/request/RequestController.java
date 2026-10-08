@@ -117,7 +117,7 @@ public class RequestController {
     }
 
     @GetMapping("/assigned")
-    public MyRequestsPageResponse listAssigned(
+    public AssignedTasksPageResponse listAssigned(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
@@ -126,7 +126,7 @@ public class RequestController {
     }
 
     @GetMapping("/assigned/board")
-    public List<MyRequestResponse> boardAssigned(@AuthenticationPrincipal AuthenticatedUser principal) {
+    public List<AssignedTaskResponse> boardAssigned(@AuthenticationPrincipal AuthenticatedUser principal) {
         return requestService.boardAssigned(principal.userId());
     }
 

@@ -8,6 +8,8 @@ export type ProjectInput = { name: string; description: string };
 export type ProjectWorkType = "TASK" | "BUG" | "IMPROVEMENT";
 export type ProjectTaskMember = { employeeId: number; fullName: string; email: string; active: boolean };
 export type ProjectTask = { id: number; title: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; status: "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED"; assignedToId: number | null; assignedToName: string | null; createdAt: string };
+export type ProjectTaskStatus = ProjectTask["status"];
+export type ProjectTaskStatusResponse = { status: ProjectTaskStatus };
 
 export class ProjectApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -37,4 +39,6 @@ export const projectApi = {
   createTask: (id: string | number, input: { title: string; description: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/mine/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
   adminBoard: (id: string | number) => request<ProjectTask[]>(`/api/projects/${id}/tasks/board`, {}, "Unable to load project tasks."),
   adminCreateTask: (id: string | number, input: { title: string; description: string; workType: ProjectWorkType; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
+  updateTaskStatus: (projectId: string | number, taskId: number, status: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/mine/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, changeNote: null }) }, "Unable to change task status."),
+  adminUpdateTaskStatus: (projectId: string | number, taskId: number, status: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, changeNote: null }) }, "Unable to change task status."),
 };

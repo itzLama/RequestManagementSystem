@@ -41,6 +41,8 @@ class AssignedTasksIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(newer))
+                .andExpect(jsonPath("$.content[0].assignedToId").value(viewer))
+                .andExpect(jsonPath("$.content[0].assignedToName").value("Assigned Viewer"))
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.totalPages").value(2));
         mvc.perform(get("/api/requests/assigned?page=1&size=1").session(session.session()))
@@ -50,6 +52,8 @@ class AssignedTasksIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(newer))
+                .andExpect(jsonPath("$[0].assignedToId").value(viewer))
+                .andExpect(jsonPath("$[0].assignedToName").value("Assigned Viewer"))
                 .andExpect(jsonPath("$[1].id").value(older))
                 .andExpect(jsonPath("$[?(@.title == 'Assigned project request')]").isEmpty());
     }

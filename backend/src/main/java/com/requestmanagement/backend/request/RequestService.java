@@ -60,22 +60,22 @@ public class RequestService {
     }
 
     @Transactional(readOnly = true)
-    public MyRequestsPageResponse listAssigned(Long assigneeId, int page, int size) {
+    public AssignedTasksPageResponse listAssigned(Long assigneeId, int page, int size) {
         requireActiveEmployee(assigneeId);
         PageRequest pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
-        Page<MyRequestResponse> results = requestRepository
+        Page<AssignedTaskResponse> results = requestRepository
                 .findByAssignedTo_IdAndProjectIsNull(assigneeId, pageable)
-                .map(MyRequestResponse::from);
-        return MyRequestsPageResponse.from(results);
+                .map(AssignedTaskResponse::from);
+        return AssignedTasksPageResponse.from(results);
     }
 
     @Transactional(readOnly = true)
-    public List<MyRequestResponse> boardAssigned(Long assigneeId) {
+    public List<AssignedTaskResponse> boardAssigned(Long assigneeId) {
         requireActiveEmployee(assigneeId);
         return requestRepository
                 .findByAssignedTo_IdAndProjectIsNullOrderByCreatedAtDescIdDesc(assigneeId)
-                .stream().map(MyRequestResponse::from).toList();
+                .stream().map(AssignedTaskResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
