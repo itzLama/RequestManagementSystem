@@ -1,9 +1,11 @@
 package com.requestmanagement.backend.request;
 
+import com.requestmanagement.backend.notification.GuestEmailNotificationEvent;
 import com.requestmanagement.backend.statushistory.StatusHistory;
 import com.requestmanagement.backend.statushistory.StatusHistoryRepository;
 import com.requestmanagement.backend.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 public class RequestStatusService {
     private final RequestRepository requestRepository;
     private final StatusHistoryRepository statusHistoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public boolean changeStatus(Request request, RequestStatus newStatus, User actor, String changeNote) {
         RequestStatus oldStatus = request.getStatus();
@@ -21,6 +24,9 @@ public class RequestStatusService {
                 ? "Status changed from " + oldStatus + " to " + newStatus + "."
                 : changeNote.trim();
         statusHistoryRepository.save(StatusHistory.create(request, oldStatus, newStatus, actor, note));
+        if (request.isGuest()) {
+            eventPublisher.publishEvent(GuestEmailNotificationEvent.statusChanged(request));
+        }
         return true;
     }
 }

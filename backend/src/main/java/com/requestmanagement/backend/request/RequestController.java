@@ -4,6 +4,9 @@ import com.requestmanagement.backend.security.AuthenticatedUser;
 import com.requestmanagement.backend.comment.AddCommentRequest;
 import com.requestmanagement.backend.comment.CommentResponse;
 import com.requestmanagement.backend.comment.CommentService;
+import com.requestmanagement.backend.guestcommunication.GuestCommunicationResponse;
+import com.requestmanagement.backend.guestcommunication.GuestCommunicationService;
+import com.requestmanagement.backend.guestcommunication.SendGuestCommunicationRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -27,6 +30,7 @@ public class RequestController {
 
     private final RequestService requestService;
     private final CommentService commentService;
+    private final GuestCommunicationService guestCommunicationService;
 
     @GetMapping("/admin/assignees")
     public List<AssigneeResponse> assignees() {
@@ -36,6 +40,24 @@ public class RequestController {
     @GetMapping("/admin/{id}")
     public AdminRequestDetailsResponse adminDetails(@PathVariable Long id) {
         return requestService.adminDetails(id);
+    }
+
+    @GetMapping("/admin/{id}/guest-communications")
+    public List<GuestCommunicationResponse> adminGuestCommunications(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return guestCommunicationService.adminGeneralHistory(id, principal.userId());
+    }
+
+    @PostMapping("/admin/{id}/guest-communications")
+    public ResponseEntity<GuestCommunicationResponse> sendAdminGuestCommunication(
+            @PathVariable Long id,
+            @Valid @RequestBody SendGuestCommunicationRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(guestCommunicationService.sendAdminGeneral(id, principal.userId(), input));
     }
 
     @org.springframework.web.bind.annotation.PatchMapping("/admin/{id}")
@@ -136,6 +158,24 @@ public class RequestController {
             @AuthenticationPrincipal AuthenticatedUser principal
     ) {
         return requestService.assignedDetails(id, principal.userId());
+    }
+
+    @GetMapping("/assigned/{id}/guest-communications")
+    public List<GuestCommunicationResponse> assignedGuestCommunications(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return guestCommunicationService.assignedGeneralHistory(id, principal.userId());
+    }
+
+    @PostMapping("/assigned/{id}/guest-communications")
+    public ResponseEntity<GuestCommunicationResponse> sendAssignedGuestCommunication(
+            @PathVariable Long id,
+            @Valid @RequestBody SendGuestCommunicationRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(guestCommunicationService.sendAssignedGeneral(id, principal.userId(), input));
     }
 
     @PostMapping("/assigned/{id}/comments")

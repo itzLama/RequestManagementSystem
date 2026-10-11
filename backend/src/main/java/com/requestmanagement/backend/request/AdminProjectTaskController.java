@@ -3,6 +3,9 @@ package com.requestmanagement.backend.request;
 import com.requestmanagement.backend.comment.AddCommentRequest;
 import com.requestmanagement.backend.comment.CommentResponse;
 import com.requestmanagement.backend.comment.CommentService;
+import com.requestmanagement.backend.guestcommunication.GuestCommunicationResponse;
+import com.requestmanagement.backend.guestcommunication.GuestCommunicationService;
+import com.requestmanagement.backend.guestcommunication.SendGuestCommunicationRequest;
 import com.requestmanagement.backend.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import java.util.List;
 public class AdminProjectTaskController {
     private final ProjectTaskService projectTaskService;
     private final CommentService commentService;
+    private final GuestCommunicationService guestCommunicationService;
 
     @GetMapping("/board")
     public List<ProjectTaskBoardResponse> board(@PathVariable Long projectId,
@@ -30,6 +34,27 @@ public class AdminProjectTaskController {
     public AdminProjectTaskDetailsResponse details(@PathVariable Long projectId, @PathVariable Long taskId,
                                                    @AuthenticationPrincipal AuthenticatedUser principal) {
         return projectTaskService.adminDetails(projectId, taskId, principal.userId());
+    }
+
+    @GetMapping("/{taskId}/guest-communications")
+    public List<GuestCommunicationResponse> guestCommunications(
+            @PathVariable Long projectId,
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return guestCommunicationService.adminProjectHistory(projectId, taskId, principal.userId());
+    }
+
+    @PostMapping("/{taskId}/guest-communications")
+    public ResponseEntity<GuestCommunicationResponse> sendGuestCommunication(
+            @PathVariable Long projectId,
+            @PathVariable Long taskId,
+            @Valid @RequestBody SendGuestCommunicationRequest input,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                guestCommunicationService.sendAdminProject(
+                        projectId, taskId, principal.userId(), input));
     }
 
     @PostMapping
