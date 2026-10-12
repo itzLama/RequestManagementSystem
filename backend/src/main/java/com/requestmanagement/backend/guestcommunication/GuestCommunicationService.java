@@ -100,8 +100,7 @@ public class GuestCommunicationService {
     public GuestCommunicationResponse sendEmployeeProject(
             Long projectId, Long taskId, Long employeeId, SendGuestCommunicationRequest input
     ) {
-        Project project = projectAccessService.requireMutableProject(projectId, employeeId);
-        User sender = projectAccessService.requireActiveEmployee(employeeId);
+projectAccessService.requireMutableProject(projectId, employeeId);        User sender = projectAccessService.requireActiveEmployee(employeeId);
         Request task = findProjectTask(projectId, taskId);
         requireGuest(task);
         return save(task, sender, input);
