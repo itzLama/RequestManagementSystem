@@ -1,8 +1,14 @@
 package com.requestmanagement.backend.employee;
 
+import com.requestmanagement.backend.comment.CommentRepository;
+import com.requestmanagement.backend.guestcommunication.GuestCommunicationRepository;
+import com.requestmanagement.backend.project.ProjectMembershipRepository;
+import com.requestmanagement.backend.request.RequestRepository;
+import com.requestmanagement.backend.statushistory.StatusHistoryRepository;
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,6 +27,11 @@ public class EmployeeService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RequestRepository requestRepository;
+    private final CommentRepository commentRepository;
+    private final StatusHistoryRepository statusHistoryRepository;
+    private final GuestCommunicationRepository guestCommunicationRepository;
+    private final ProjectMembershipRepository projectMembershipRepository;
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> list() {
@@ -58,6 +69,39 @@ public class EmployeeService {
         User employee = requireEmployee(id);
         employee.deactivate();
         return EmployeeResponse.from(userRepository.save(employee));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        User employee = requireEmployee(id);
+        if (hasPersistedDependencies(employee.getId())) {
+            throw deletionConflict();
+        }
+
+        try {
+            userRepository.delete(employee);
+            userRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Employee has persisted activity and must be deactivated instead.",
+                    exception);
+        }
+    }
+
+    private boolean hasPersistedDependencies(Long employeeId) {
+        return requestRepository.existsByCreatedBy_Id(employeeId)
+                || requestRepository.existsByAssignedTo_Id(employeeId)
+                || commentRepository.existsByUser_Id(employeeId)
+                || statusHistoryRepository.existsByChangedBy_Id(employeeId)
+                || guestCommunicationRepository.existsBySentBy_Id(employeeId)
+                || projectMembershipRepository.existsByEmployee_Id(employeeId);
+    }
+
+    private ResponseStatusException deletionConflict() {
+        return new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Employee has persisted activity and must be deactivated instead.");
     }
 
     private User requireEmployee(Long id) {

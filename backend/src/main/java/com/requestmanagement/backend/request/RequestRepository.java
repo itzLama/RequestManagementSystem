@@ -10,6 +10,12 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpecificationExecutor<Request> {
+    boolean existsByCreatedBy_Id(Long creatorId);
+
+    boolean existsByAssignedTo_Id(Long assigneeId);
+
+    boolean existsByProject_Id(Long projectId);
+
     @EntityGraph(attributePaths = "type")
     Page<Request> findByCreatedBy_IdAndProjectIsNull(Long creatorId, Pageable pageable);
 

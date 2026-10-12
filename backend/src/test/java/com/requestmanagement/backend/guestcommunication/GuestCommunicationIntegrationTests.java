@@ -171,7 +171,7 @@ class GuestCommunicationIntegrationTests {
         entityManager.clear();
         mvc.perform(get("/api/projects/mine/{projectId}/tasks/{taskId}/guest-communications",
                         projectId, taskId).session(noraSession.session()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

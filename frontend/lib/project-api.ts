@@ -28,6 +28,7 @@ export const projectApi = {
   create: (input: ProjectInput) => request<Project>("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project."),
   update: (id: number, input: ProjectInput) => request<Project>(`/api/projects/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to update project."),
   archive: (id: number) => request<Project>(`/api/projects/${id}/archive`, { method: "PATCH" }, "Unable to archive project."),
+  delete: (id: number) => request<void>(`/api/projects/${id}`, { method: "DELETE" }, "Unable to delete project."),
   members: (id: string | number) => request<ProjectMember[]>(`/api/projects/${id}/members`, {}, "Unable to load project team."),
   addMember: (projectId: number, employeeId: number) => request<ProjectMember>(`/api/projects/${projectId}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId }) }, "Unable to add team member."),
   removeMember: (projectId: number, employeeId: number) => request<void>(`/api/projects/${projectId}/members/${employeeId}`, { method: "DELETE" }, "Unable to remove team member."),

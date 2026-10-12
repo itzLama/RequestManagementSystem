@@ -1,6 +1,8 @@
 package com.requestmanagement.backend.project;
 
+import com.requestmanagement.backend.request.RequestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +14,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProjectService {
     private final ProjectRepository projectRepository;
+    private final ProjectMembershipRepository projectMembershipRepository;
+    private final RequestRepository requestRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> list() {
@@ -41,6 +45,31 @@ public class ProjectService {
         Project project = requireProject(id);
         project.archive();
         return ProjectResponse.from(projectRepository.save(project));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        Project project = requireProject(id);
+        if (projectMembershipRepository.existsByProject_Id(id)
+                || requestRepository.existsByProject_Id(id)) {
+            throw deletionConflict();
+        }
+
+        try {
+            projectRepository.delete(project);
+            projectRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Project has persisted activity and must be archived instead.",
+                    exception);
+        }
+    }
+
+    private ResponseStatusException deletionConflict() {
+        return new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Project has persisted activity and must be archived instead.");
     }
 
     Project requireProject(Long id) {

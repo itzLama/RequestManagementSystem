@@ -1,5 +1,6 @@
 package com.requestmanagement.backend.security;
 
+import com.requestmanagement.backend.user.UserRepository;
 import java.io.IOException;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
@@ -59,7 +61,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             SecurityContextRepository securityContextRepository,
-            CsrfTokenRepository csrfTokenRepository
+            CsrfTokenRepository csrfTokenRepository,
+            UserRepository userRepository
     ) throws Exception {
         http
                 .csrf(csrf -> csrf
@@ -111,6 +114,10 @@ public class SecurityConfig {
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
+
+        http.addFilterAfter(
+                new ActiveAccountFilter(userRepository),
+                SecurityContextHolderFilter.class);
 
         return http.build();
     }

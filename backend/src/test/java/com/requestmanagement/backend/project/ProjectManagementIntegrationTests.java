@@ -69,7 +69,7 @@ class ProjectManagementIntegrationTests {
     }
 
     @Test
-    void validationMissingProjectsAndDeleteAreRejected() throws Exception {
+    void validationMissingProjectsAndUnusedProjectDeletionAreHandled() throws Exception {
         Session admin = login("sara.saad@example.com");
         for (String body : new String[]{"{\"name\":\"   \"}", "{\"name\":\"Valid\",\"description\":\"" + "x".repeat(2001) + "\"}"}) {
             mvc.perform(post("/api/projects").session(admin.session()).cookie(admin.csrf())
@@ -77,9 +77,10 @@ class ProjectManagementIntegrationTests {
                     .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").isString());
         }
         mvc.perform(get("/api/projects/{id}", 999999999).session(admin.session())).andExpect(status().isNotFound());
-        long id = insertProject("No delete");
+        long id = insertProject("Unused project deletion");
         mvc.perform(delete("/api/projects/{id}", id).session(admin.session()).cookie(admin.csrf())
-                        .header("X-XSRF-TOKEN", admin.csrf().getValue())).andExpect(status().isMethodNotAllowed());
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue())).andExpect(status().isNoContent());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM projects WHERE project_id=?", Integer.class, id)).isZero();
     }
 
     @Test

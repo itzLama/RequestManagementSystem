@@ -74,7 +74,7 @@ class EmployeeManagementIntegrationTests {
     }
 
     @Test
-    void validationDuplicatesMissingTargetsAndDeleteAreRejected() throws Exception {
+    void validationDuplicatesMissingTargetsAndEmployeesWithActivityAreRejected() throws Exception {
         Session admin = login("sara.saad@example.com");
         for (String body : new String[]{
                 "{\"fullName\":\"\",\"email\":\"bad\",\"initialPassword\":\"short\"}",
@@ -86,7 +86,7 @@ class EmployeeManagementIntegrationTests {
         }
         mvc.perform(get("/api/employees/{id}", 999999999).session(admin.session())).andExpect(status().isNotFound());
         mvc.perform(delete("/api/employees/{id}", 2).session(admin.session()).cookie(admin.csrf())
-                        .header("X-XSRF-TOKEN", admin.csrf().getValue())).andExpect(status().isMethodNotAllowed());
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue())).andExpect(status().isConflict());
     }
 
     @Test

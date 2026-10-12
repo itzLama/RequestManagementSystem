@@ -68,7 +68,7 @@ class ProjectTaskCollaborationIntegrationTests {
         jdbc.update("DELETE FROM project_memberships WHERE project_id=? AND employee_id=?", project, nora); entityManager.clear();
         assertMutationAccess(project, request, session, 404);
         member(project, nora); jdbc.update("UPDATE users SET is_active=false WHERE user_id=?", nora); entityManager.clear();
-        assertMutationAccess(project, request, session, 403);
+        assertMutationAccess(project, request, session, 401);
     }
 
     @Test

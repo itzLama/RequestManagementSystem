@@ -34,4 +34,10 @@ public class ProjectController {
 
     @PatchMapping("/{projectId}/archive")
     public ProjectResponse archive(@PathVariable Long projectId) { return projectService.archive(projectId); }
+
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<Void> delete(@PathVariable Long projectId) {
+        projectService.delete(projectId);
+        return ResponseEntity.noContent().build();
+    }
 }

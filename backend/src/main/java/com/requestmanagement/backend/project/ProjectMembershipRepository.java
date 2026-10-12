@@ -12,6 +12,8 @@ public interface ProjectMembershipRepository extends JpaRepository<ProjectMember
             Long projectId, com.requestmanagement.backend.user.User.Role role);
     Optional<ProjectMembership> findByProject_IdAndEmployee_Id(Long projectId, Long employeeId);
     boolean existsByProject_IdAndEmployee_Id(Long projectId, Long employeeId);
+    boolean existsByProject_Id(Long projectId);
+    boolean existsByEmployee_Id(Long employeeId);
 
     @EntityGraph(attributePaths = "project")
     List<ProjectMembership> findByEmployee_IdOrderByProject_CreatedAtDescProject_IdDesc(Long employeeId);

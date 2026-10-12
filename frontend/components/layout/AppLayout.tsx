@@ -41,6 +41,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         });
 
         if (response.status === 401) {
+          setUser(null);
           router.replace("/login");
           return;
         }

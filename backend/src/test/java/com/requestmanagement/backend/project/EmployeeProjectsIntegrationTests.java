@@ -57,7 +57,7 @@ class EmployeeProjectsIntegrationTests {
         mvc.perform(get("/api/projects/mine/{id}", project).session(session.session())).andExpect(status().isNotFound());
         mvc.perform(get("/api/projects/mine/{id}/members", project).session(session.session())).andExpect(status().isNotFound());
         member(project, employee); jdbc.update("UPDATE users SET is_active=false WHERE user_id=?", employee); entityManager.clear();
-        mvc.perform(get("/api/projects/mine").session(session.session())).andExpect(status().isForbidden());
+        mvc.perform(get("/api/projects/mine").session(session.session())).andExpect(status().isUnauthorized());
     }
 
     @Test

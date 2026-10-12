@@ -187,7 +187,7 @@ class AssignedTasksIntegrationTests {
         jdbc.update("UPDATE users SET is_active=false WHERE user_id=?", nora);
         entityManager.clear();
         mvc.perform(get("/api/requests/assigned").session(employee.session()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

@@ -1,6 +1,11 @@
 const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const PUBLIC_API_PATHS = new Set([
+  "/api/auth/csrf",
+  "/api/auth/login",
+  "/api/auth/logout",
+]);
 
 type CsrfTokenResponse = {
   token: string;
@@ -45,6 +50,13 @@ async function getCsrfToken() {
   return readCookie(CSRF_COOKIE_NAME) ?? refreshCsrfToken();
 }
 
+function isPublicApiRequest(input: RequestInfo | URL) {
+  if (typeof window === "undefined") return false;
+  const rawUrl = input instanceof Request ? input.url : input.toString();
+  const path = new URL(rawUrl, window.location.origin).pathname;
+  return PUBLIC_API_PATHS.has(path) || path.startsWith("/api/guest/");
+}
+
 export async function apiFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
@@ -56,12 +68,18 @@ export async function apiFetch(
     headers.set(CSRF_HEADER_NAME, await getCsrfToken());
   }
 
-  return fetch(input, {
+  const response = await fetch(input, {
     ...init,
     method,
     headers,
     credentials: "include",
   });
+
+  if (response.status === 401 && !isPublicApiRequest(input) && typeof window !== "undefined") {
+    window.location.replace("/login");
+  }
+
+  return response;
 }
 
 export async function getApiErrorMessage(response: Response, fallback: string) {
