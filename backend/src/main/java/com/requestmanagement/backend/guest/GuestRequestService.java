@@ -8,6 +8,9 @@ import com.requestmanagement.backend.request.RequestRepository;
 import com.requestmanagement.backend.requesttype.RequestType;
 import com.requestmanagement.backend.requesttype.RequestTypeRepository;
 import com.requestmanagement.backend.requesttype.RequestTypeResponse;
+import com.requestmanagement.backend.projectworktype.ProjectWorkType;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeResponse;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,7 @@ public class GuestRequestService {
     private final RequestRepository requestRepository;
     private final RequestTypeRepository requestTypeRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectWorkTypeService projectWorkTypeService;
 
     @Transactional(readOnly = true)
     public List<RequestTypeResponse> requestTypes() {
@@ -32,6 +36,11 @@ public class GuestRequestService {
     @Transactional(readOnly = true)
     public List<PublicProjectResponse> projects() {
         return projectRepository.findByStatusOrderByNameAscIdAsc(ProjectStatus.ACTIVE).stream().map(PublicProjectResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectWorkTypeResponse> projectWorkTypes(Long projectId) {
+        return projectWorkTypeService.listGuest(projectId);
     }
 
     @Transactional
@@ -48,8 +57,9 @@ public class GuestRequestService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found."));
         if (!project.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived projects cannot receive requests.");
+        ProjectWorkType workType = projectWorkTypeService.requireActiveForProject(projectId, input.workTypeId());
         Request request = Request.createGuestProjectRequest(normalize(input.title(), "Title"), normalize(input.description(), "Description"),
-                input.workType(), input.priority(), normalize(input.guestName(), "Guest name"), normalizeEmail(input.guestEmail()), project);
+                workType, input.priority(), normalize(input.guestName(), "Guest name"), normalizeEmail(input.guestEmail()), project);
         return new GuestRequestCreatedResponse(requestRepository.save(request).getId());
     }
 

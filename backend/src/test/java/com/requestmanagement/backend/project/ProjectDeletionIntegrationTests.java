@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -137,17 +138,17 @@ class ProjectDeletionIntegrationTests {
 
     private long authenticatedTask(long project) {
         return jdbc.queryForObject("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,project_id)
-                VALUES (?,'Project deletion test',NULL,'TASK','MEDIUM','NEW',?,?) RETURNING request_id
-                """, Long.class, "Authenticated task " + UUID.randomUUID(), userId("nora.ahmed@example.com"), project);
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,project_id)
+                VALUES (?,'Project deletion test',NULL,?,'MEDIUM','NEW',?,?) RETURNING request_id
+                """, Long.class, "Authenticated task " + UUID.randomUUID(), workTypeId(jdbc, project, "Task"), userId("nora.ahmed@example.com"), project);
     }
 
     private long guestTask(long project) {
         return jdbc.queryForObject("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,guest_name,guest_email,project_id)
-                VALUES (?,'Guest project deletion test',NULL,'TASK','MEDIUM','NEW',NULL,'Guest User','guest@example.com',?)
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,guest_name,guest_email,project_id)
+                VALUES (?,'Guest project deletion test',NULL,?,'MEDIUM','NEW',NULL,'Guest User','guest@example.com',?)
                 RETURNING request_id
-                """, Long.class, "Guest task " + UUID.randomUUID(), project);
+                """, Long.class, "Guest task " + UUID.randomUUID(), workTypeId(jdbc, project, "Task"), project);
     }
 
     private int projectCount(long id) {

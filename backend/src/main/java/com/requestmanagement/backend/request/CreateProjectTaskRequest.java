@@ -9,7 +9,8 @@ public record CreateProjectTaskRequest(
         @NotBlank(message = "Title is required.")
         @Size(max = 200, message = "Title must be at most 200 characters.") String title,
         @NotBlank(message = "Description is required.") String description,
-        @NotNull(message = "Work type is required.") ProjectWorkType workType,
+        @NotNull(message = "Work Type is required.")
+        @Positive(message = "Work Type ID must be positive.") Long workTypeId,
         @NotNull(message = "Priority is required.") RequestPriority priority,
         @NotNull(message = "Assignee is required.")
         @Positive(message = "Assignee ID must be positive.") Long assignedToId

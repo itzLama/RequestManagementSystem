@@ -8,6 +8,8 @@ import com.requestmanagement.backend.statushistory.StatusHistoryRepository;
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
 import com.requestmanagement.backend.project.ProjectRepository;
+import com.requestmanagement.backend.projectworktype.ProjectWorkType;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class ProjectTaskService {
     private final RequestStatusService requestStatusService;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectWorkTypeService projectWorkTypeService;
 
     @Transactional(readOnly = true)
     public List<ProjectTaskBoardResponse> board(Long projectId, Long employeeId) {
@@ -45,11 +48,12 @@ public class ProjectTaskService {
         Project project = projectAccessService.requireMutableProject(projectId, employeeId);
         User creator = projectAccessService.requireActiveEmployee(employeeId);
         User assignee = projectAccessService.requireEligibleAssignee(project, input.assignedToId());
+        ProjectWorkType workType = projectWorkTypeService.requireActiveForProject(projectId, input.workTypeId());
         String title = input.title().trim();
         String description = input.description().trim();
         if (title.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title is required.");
         if (description.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required.");
-        Request task = Request.createProjectTask(title, description, input.workType(), input.priority(),
+        Request task = Request.createProjectTask(title, description, workType, input.priority(),
                 creator, assignee, project);
         return ProjectTaskBoardResponse.from(requestRepository.save(task));
     }
@@ -97,12 +101,13 @@ public class ProjectTaskService {
         Project project = requireProject(projectId);
         projectAccessService.requireActive(project);
         User assignee = projectAccessService.requireEligibleAssignee(project, input.assignedToId());
+        ProjectWorkType workType = projectWorkTypeService.requireActiveForProject(projectId, input.workTypeId());
         String title = input.title().trim();
         String description = input.description().trim();
         if (title.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title is required.");
         if (description.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required.");
         return ProjectTaskBoardResponse.from(requestRepository.save(Request.createProjectTask(
-                title, description, input.workType(), input.priority(), admin, assignee, project)));
+                title, description, workType, input.priority(), admin, assignee, project)));
     }
 
     @Transactional

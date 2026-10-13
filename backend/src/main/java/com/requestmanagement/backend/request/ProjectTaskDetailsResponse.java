@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record ProjectTaskDetailsResponse(
-        Long id, String title, String description, ProjectWorkType workType,
+        Long id, String title, String description, Long workTypeId, String workTypeName,
         RequestPriority priority, RequestStatus status,
         Long assignedToId, String assignedToName,
         Long createdById, String createdByName, String requesterName, String requesterEmail, boolean guest,
@@ -19,7 +19,7 @@ public record ProjectTaskDetailsResponse(
                                                   List<RequestDetailsResponse.TimelineEntry> timeline,
                                                   List<CommentResponse> comments) {
         return new ProjectTaskDetailsResponse(task.getId(), task.getTitle(), task.getDescription(),
-                task.getWorkType(), task.getPriority(), task.getStatus(),
+                task.getWorkType().getId(), task.getWorkType().getName(), task.getPriority(), task.getStatus(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getId(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getFullName(),
                 task.getCreatedBy() == null ? null : task.getCreatedBy().getId(),

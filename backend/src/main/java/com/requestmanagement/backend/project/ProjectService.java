@@ -1,6 +1,8 @@
 package com.requestmanagement.backend.project;
 
 import com.requestmanagement.backend.request.RequestRepository;
+import com.requestmanagement.backend.projectworktype.ProjectWorkType;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMembershipRepository projectMembershipRepository;
     private final RequestRepository requestRepository;
+    private final ProjectWorkTypeRepository projectWorkTypeRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> list() {
@@ -29,8 +32,11 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse create(CreateProjectRequest input) {
-        return ProjectResponse.from(projectRepository.save(Project.create(
-                normalizeName(input.name()), normalizeDescription(input.description()))));
+        Project project = projectRepository.save(Project.create(
+                normalizeName(input.name()), normalizeDescription(input.description())));
+        projectWorkTypeRepository.saveAll(List.of("Task", "Bug", "Improvement").stream()
+                .map(name -> ProjectWorkType.create(project, name)).toList());
+        return ProjectResponse.from(project);
     }
 
     @Transactional
@@ -56,6 +62,8 @@ public class ProjectService {
         }
 
         try {
+            projectWorkTypeRepository.deleteAllByProject_Id(id);
+            projectWorkTypeRepository.flush();
             projectRepository.delete(project);
             projectRepository.flush();
         } catch (DataIntegrityViolationException exception) {

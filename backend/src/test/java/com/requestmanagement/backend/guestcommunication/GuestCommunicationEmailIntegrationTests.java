@@ -20,6 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
@@ -64,6 +65,10 @@ class GuestCommunicationEmailIntegrationTests {
         jdbc.update("DELETE FROM requests WHERE title LIKE ?", PREFIX + "%");
         jdbc.update("""
                 DELETE FROM project_memberships WHERE project_id IN
+                (SELECT project_id FROM projects WHERE project_name LIKE ?)
+                """, PREFIX + "%");
+        jdbc.update("""
+                DELETE FROM project_work_types WHERE project_id IN
                 (SELECT project_id FROM projects WHERE project_name LIKE ?)
                 """, PREFIX + "%");
         jdbc.update("DELETE FROM projects WHERE project_name LIKE ?", PREFIX + "%");
@@ -264,12 +269,12 @@ class GuestCommunicationEmailIntegrationTests {
 
     private long guestProjectTask(String title, long projectId) {
         return jdbc.queryForObject("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,
                                      guest_name,guest_email,project_id)
-                VALUES (?,'Step 4 project email test',NULL,'TASK','HIGH','NEW',
+                VALUES (?,'Step 4 project email test',NULL,?,'HIGH','NEW',
                         'Project Email Guest','project.guest@example.com',?)
                 RETURNING request_id
-                """, Long.class, title, projectId);
+                """, Long.class, title, workTypeId(jdbc, projectId, "Task"), projectId);
     }
 
     private long activeProject(String name) {

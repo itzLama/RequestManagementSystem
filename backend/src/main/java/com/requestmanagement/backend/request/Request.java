@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.requestmanagement.backend.project.Project;
 import com.requestmanagement.backend.requesttype.RequestType;
+import com.requestmanagement.backend.projectworktype.ProjectWorkType;
 import com.requestmanagement.backend.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,8 +41,8 @@ public class Request {
     @JoinColumn(name = "type_id")
     private RequestType type;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "work_type", length = 20)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_work_type_id")
     private ProjectWorkType workType;
 
     @Enumerated(EnumType.STRING)

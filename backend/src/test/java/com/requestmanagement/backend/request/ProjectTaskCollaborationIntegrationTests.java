@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -42,12 +43,12 @@ class ProjectTaskCollaborationIntegrationTests {
     void activeMemberCreatesAssignedProjectTaskWithoutSpoofableIdentity() throws Exception {
         long employee = userId("nora.ahmed@example.com"); long assignee = createEmployee("Task Assignee", "task.assignee@example.com"); long project = project("Create project task", "ACTIVE"); member(project, employee); member(project, assignee); Session session = login("nora.ahmed@example.com");
         MvcResult result = mvc.perform(post("/api/projects/mine/{projectId}/tasks", project).session(session.session()).cookie(session.csrf()).header("X-XSRF-TOKEN", session.csrf().getValue()).contentType("application/json")
-                        .content("{\"title\":\" Project need \",\"description\":\" Project description \",\"workType\":\"BUG\",\"priority\":\"HIGH\",\"assignedToId\":" + assignee + ",\"createdBy\":1,\"projectId\":999,\"typeId\":1}"))
+                        .content("{\"title\":\" Project need \",\"description\":\" Project description \",\"workTypeId\":" + workTypeId(jdbc, project, "Bug") + ",\"priority\":\"HIGH\",\"assignedToId\":" + assignee + ",\"createdBy\":1,\"projectId\":999,\"typeId\":1}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("NEW")).andReturn();
         long id = ((Number) com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.id")).longValue();
-        var row = jdbc.queryForMap("SELECT created_by,project_id,type_id,work_type,guest_name,guest_email,assigned_to,status FROM requests WHERE request_id=?", id);
+        var row = jdbc.queryForMap("SELECT created_by,project_id,type_id,project_work_type_id,guest_name,guest_email,assigned_to,status FROM requests WHERE request_id=?", id);
         assertThat(((Number) row.get("created_by")).longValue()).isEqualTo(employee); assertThat(((Number) row.get("project_id")).longValue()).isEqualTo(project);
-        assertThat(row.get("type_id")).isNull(); assertThat(row.get("work_type")).isEqualTo("BUG");
+        assertThat(row.get("type_id")).isNull(); assertThat(((Number) row.get("project_work_type_id")).longValue()).isEqualTo(workTypeId(jdbc, project, "Bug"));
         assertThat(row.get("guest_name")).isNull(); assertThat(row.get("guest_email")).isNull(); assertThat(((Number) row.get("assigned_to")).longValue()).isEqualTo(assignee); assertThat(row.get("status")).isEqualTo("NEW");
         mvc.perform(post("/api/projects/mine/{projectId}/tasks", project).session(session.session()).contentType("application/json").content("{}"))
                 .andExpect(status().isForbidden());
@@ -91,7 +92,7 @@ class ProjectTaskCollaborationIntegrationTests {
     void archivedProjectIsFullyReadOnlyForEmployeeAndAdmin() throws Exception {
         long nora = userId("nora.ahmed@example.com"); long project = project("Archived collaboration", "ARCHIVED"); member(project, nora); long request = request("Archived request", project, nora, "NEW"); Session employee = login("nora.ahmed@example.com"); Session admin = login("sara.saad@example.com");
         mvc.perform(get("/api/projects/mine/{p}/tasks/{r}", project, request).session(employee.session())).andExpect(status().isOk());
-        mvc.perform(post("/api/projects/mine/{p}/tasks", project).session(employee.session()).cookie(employee.csrf()).header("X-XSRF-TOKEN", employee.csrf().getValue()).contentType("application/json").content("{\"title\":\"No\",\"description\":\"No\",\"workType\":\"TASK\",\"priority\":\"LOW\",\"assignedToId\":" + nora + "}" )).andExpect(status().isConflict());
+        mvc.perform(post("/api/projects/mine/{p}/tasks", project).session(employee.session()).cookie(employee.csrf()).header("X-XSRF-TOKEN", employee.csrf().getValue()).contentType("application/json").content("{\"title\":\"No\",\"description\":\"No\",\"workTypeId\":" + workTypeId(jdbc, project, "Task") + ",\"priority\":\"LOW\",\"assignedToId\":" + nora + "}" )).andExpect(status().isConflict());
         mvc.perform(post("/api/projects/mine/{p}/tasks/{r}/comments", project, request).session(employee.session()).cookie(employee.csrf()).header("X-XSRF-TOKEN", employee.csrf().getValue()).contentType("application/json").content("{\"text\":\"No\"}" )).andExpect(status().isConflict());
         mvc.perform(patch("/api/projects/mine/{p}/tasks/{r}/status", project, request).session(employee.session()).cookie(employee.csrf()).header("X-XSRF-TOKEN", employee.csrf().getValue()).contentType("application/json").content("{\"status\":\"COMPLETED\"}" )).andExpect(status().isConflict());
         mvc.perform(get("/api/projects/{p}/tasks/{r}", project, request).session(admin.session())).andExpect(status().isOk()).andExpect(jsonPath("$.projectStatus").value("ARCHIVED"));
@@ -163,15 +164,15 @@ class ProjectTaskCollaborationIntegrationTests {
         MvcResult result = mvc.perform(post("/api/projects/{projectId}/tasks", project)
                         .session(admin.session()).cookie(admin.csrf())
                         .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
-                        .content("{\"title\":\"Admin-created Task\",\"description\":\"Project work\",\"workType\":\"IMPROVEMENT\",\"priority\":\"HIGH\",\"assignedToId\":" + nora + "}"))
+                        .content("{\"title\":\"Admin-created Task\",\"description\":\"Project work\",\"workTypeId\":" + workTypeId(jdbc, project, "Improvement") + ",\"priority\":\"HIGH\",\"assignedToId\":" + nora + "}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("NEW")).andReturn();
         long task = ((Number) com.jayway.jsonpath.JsonPath.read(
                 result.getResponse().getContentAsString(), "$.id")).longValue();
-        var row = jdbc.queryForMap("SELECT created_by,project_id,type_id,work_type,assigned_to FROM requests WHERE request_id=?", task);
+        var row = jdbc.queryForMap("SELECT created_by,project_id,type_id,project_work_type_id,assigned_to FROM requests WHERE request_id=?", task);
         assertThat(((Number) row.get("created_by")).longValue()).isEqualTo(adminId);
         assertThat(((Number) row.get("project_id")).longValue()).isEqualTo(project);
         assertThat(row.get("type_id")).isNull();
-        assertThat(row.get("work_type")).isEqualTo("IMPROVEMENT");
+        assertThat(((Number) row.get("project_work_type_id")).longValue()).isEqualTo(workTypeId(jdbc, project, "Improvement"));
         assertThat(((Number) row.get("assigned_to")).longValue()).isEqualTo(nora);
 
         mvc.perform(get("/api/projects/{projectId}/tasks/{taskId}", otherProject, task)
@@ -182,15 +183,15 @@ class ProjectTaskCollaborationIntegrationTests {
 
     private long project(String name, String status) { return jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id", Long.class, name, status); }
     private void assertMutationAccess(long project, long request, Session session, int expectedStatus) throws Exception {
-        mvc.perform(post("/api/projects/mine/{p}/tasks", project).session(session.session()).cookie(session.csrf()).header("X-XSRF-TOKEN", session.csrf().getValue()).contentType("application/json").content("{\"title\":\"Blocked\",\"description\":\"Blocked\",\"workType\":\"TASK\",\"priority\":\"LOW\",\"assignedToId\":" + userId("nora.ahmed@example.com") + "}" )).andExpect(status().is(expectedStatus));
+        mvc.perform(post("/api/projects/mine/{p}/tasks", project).session(session.session()).cookie(session.csrf()).header("X-XSRF-TOKEN", session.csrf().getValue()).contentType("application/json").content("{\"title\":\"Blocked\",\"description\":\"Blocked\",\"workTypeId\":" + workTypeId(jdbc, project, "Task") + ",\"priority\":\"LOW\",\"assignedToId\":" + userId("nora.ahmed@example.com") + "}" )).andExpect(status().is(expectedStatus));
         mvc.perform(post("/api/projects/mine/{p}/tasks/{r}/comments", project, request).session(session.session()).cookie(session.csrf()).header("X-XSRF-TOKEN", session.csrf().getValue()).contentType("application/json").content("{\"text\":\"Blocked\"}" )).andExpect(status().is(expectedStatus));
         mvc.perform(patch("/api/projects/mine/{p}/tasks/{r}/status", project, request).session(session.session()).cookie(session.csrf()).header("X-XSRF-TOKEN", session.csrf().getValue()).contentType("application/json").content("{\"status\":\"COMPLETED\"}" )).andExpect(status().is(expectedStatus));
     }
     private void member(long project, long employee) { jdbc.update("INSERT INTO project_memberships(project_id,employee_id) VALUES (?,?)", project, employee); }
     private long createEmployee(String name, String email) { return jdbc.queryForObject("INSERT INTO users(full_name,email,password_hash,role,is_active) VALUES (?,?,(SELECT password_hash FROM users WHERE email='nora.ahmed@example.com'),'EMPLOYEE',true) RETURNING user_id", Long.class, name, email); }
     private long request(String title, Long project, long creator, String status) {
-        if (project != null) return jdbc.queryForObject("INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,project_id) VALUES (?,'Project test',NULL,'TASK','MEDIUM',?,?,?) RETURNING request_id", Long.class, title, status, creator, project);
-        return jdbc.queryForObject("INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,project_id) VALUES (?,'Project test',?,NULL,'MEDIUM',?,?,NULL) RETURNING request_id", Long.class, title, typeId(), status, creator);
+        if (project != null) return jdbc.queryForObject("INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,project_id) VALUES (?,'Project test',NULL,?,'MEDIUM',?,?,?) RETURNING request_id", Long.class, title, workTypeId(jdbc, project, "Task"), status, creator, project);
+        return jdbc.queryForObject("INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,project_id) VALUES (?,'Project test',?,NULL,'MEDIUM',?,?,NULL) RETURNING request_id", Long.class, title, typeId(), status, creator);
     }
     private long typeId() { return jdbc.queryForObject("SELECT type_id FROM request_types WHERE is_active=true ORDER BY type_id LIMIT 1", Long.class); }
     private long userId(String email) { return jdbc.queryForObject("SELECT user_id FROM users WHERE email=?", Long.class, email); }

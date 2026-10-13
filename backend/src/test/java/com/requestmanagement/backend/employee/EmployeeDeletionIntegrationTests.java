@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -188,9 +189,9 @@ class EmployeeDeletionIntegrationTests {
                 "INSERT INTO projects(project_name,status) VALUES (?,'ACTIVE') RETURNING project_id",
                 Long.class, "Deletion project " + UUID.randomUUID());
         return jdbc.queryForObject("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,assigned_to,project_id)
-                VALUES (?,'Deletion policy task',NULL,'TASK','LOW','NEW',?,?,?) RETURNING request_id
-                """, Long.class, "Deletion task " + UUID.randomUUID(), creator, assignee, project);
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,assigned_to,project_id)
+                VALUES (?,'Deletion policy task',NULL,?,'LOW','NEW',?,?,?) RETURNING request_id
+                """, Long.class, "Deletion task " + UUID.randomUUID(), workTypeId(jdbc, project, "Task"), creator, assignee, project);
     }
 
     private long guestRequest() {

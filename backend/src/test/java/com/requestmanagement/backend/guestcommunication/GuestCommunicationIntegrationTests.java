@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -291,12 +292,12 @@ class GuestCommunicationIntegrationTests {
 
     private long guestProjectTask(String title, long projectId) {
         return jdbc.queryForObject("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,
                                      guest_name,guest_email,project_id)
-                VALUES (?,'Guest project communication',NULL,'TASK','HIGH','NEW',
+                VALUES (?,'Guest project communication',NULL,?,'HIGH','NEW',
                         'Project Guest','project.guest@example.com',?)
                 RETURNING request_id
-                """, Long.class, title, projectId);
+                """, Long.class, title, workTypeId(jdbc, projectId, "Task"), projectId);
     }
 
     private long project(String name, String status) {

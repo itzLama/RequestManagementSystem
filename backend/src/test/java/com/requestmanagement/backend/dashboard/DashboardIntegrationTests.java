@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -103,9 +104,9 @@ class DashboardIntegrationTests {
                 "INSERT INTO projects(project_name,status) VALUES ('Dashboard task project','ACTIVE') RETURNING project_id",
                 Long.class);
         jdbc.update("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,project_id)
-                VALUES ('Excluded dashboard task','Task',NULL,'TASK','HIGH','COMPLETED',?,?)
-                """, employee, project);
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,project_id)
+                VALUES ('Excluded dashboard task','Task',NULL,?,'HIGH','COMPLETED',?,?)
+                """, workTypeId(jdbc, project, "Task"), employee, project);
 
         mvc.perform(get("/api/dashboard").session(login("sara.saad@example.com")))
                 .andExpect(status().isOk())

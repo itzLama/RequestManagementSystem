@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -212,11 +213,11 @@ class AssignedTasksIntegrationTests {
                             Long projectId, String createdAt) {
         if (projectId != null) {
             return jdbc.queryForObject("""
-                    INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by,assigned_to,project_id,created_at,updated_at)
-                    VALUES (?, 'Assigned task test', NULL, 'TASK', 'MEDIUM', ?, ?, ?, ?,
+                    INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,assigned_to,project_id,created_at,updated_at)
+                    VALUES (?, 'Assigned task test', NULL, ?, 'MEDIUM', ?, ?, ?, ?,
                             COALESCE(?::timestamp, CURRENT_TIMESTAMP), COALESCE(?::timestamp, CURRENT_TIMESTAMP))
                     RETURNING request_id
-                    """, Long.class, title, status, creator, assignee, projectId, createdAt, createdAt);
+                    """, Long.class, title, workTypeId(jdbc, projectId, "Task"), status, creator, assignee, projectId, createdAt, createdAt);
         }
         return jdbc.queryForObject("""
                 INSERT INTO requests(title,description,type_id,priority,status,created_by,assigned_to,project_id,created_at,updated_at)

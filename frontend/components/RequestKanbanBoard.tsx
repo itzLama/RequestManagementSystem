@@ -4,7 +4,6 @@ import { DragDropProvider, PointerSensor, type DragEndEvent, type DragStartEvent
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { useRef, type ReactNode } from "react";
 import { REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
-import type { ProjectWorkType } from "@/lib/project-api";
 import { GuestBadge } from "@/components/GuestBadge";
 
 export type KanbanRequest = {
@@ -15,7 +14,7 @@ export type KanbanRequest = {
   status: RequestStatus;
   requesterName?: string;
   projectName?: string | null;
-  workType?: ProjectWorkType | null;
+  workTypeName?: string | null;
   assignedToName?: string | null;
   guest?: boolean;
 };
@@ -33,7 +32,6 @@ type BoardProps = {
 type DragData = { taskId: number; status: RequestStatus };
 type DropData = { status: RequestStatus };
 
-const workTypeLabels: Record<ProjectWorkType, string> = { TASK: "Task", BUG: "Bug", IMPROVEMENT: "Improvement" };
 const columns: { status: RequestStatus; label: string }[] = [
   { status: "NEW", label: REQUEST_STATUS_LABELS.NEW },
   { status: "IN_PROGRESS", label: REQUEST_STATUS_LABELS.IN_PROGRESS },
@@ -50,7 +48,7 @@ const cardClasses = "block w-full rounded-[10px] border border-divider bg-surfac
 
 function CardContent({ request, variant, showAssignee = false }: { request: KanbanRequest; variant: "request" | "project-task"; showAssignee?: boolean }) {
   return <>
-    {(request.guest || (variant === "project-task" && request.workType)) && <div className="mb-2 flex flex-wrap gap-2">{variant === "project-task" && request.workType && <span className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{workTypeLabels[request.workType]}</span>}{request.guest && <GuestBadge />}</div>}
+    {(request.guest || (variant === "project-task" && request.workTypeName)) && <div className="mb-2 flex flex-wrap gap-2">{variant === "project-task" && request.workTypeName && <span className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{request.workTypeName}</span>}{request.guest && <GuestBadge />}</div>}
     <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{request.title}</p>
     <p className="mt-2 text-xs font-medium text-secondary">{variant === "project-task" || request.projectName ? "Task" : "Request"} #{request.id}</p>
     {request.requesterName && <p className="mt-3 truncate text-xs text-foreground">{request.requesterName}</p>}

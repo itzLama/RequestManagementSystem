@@ -1,6 +1,7 @@
 package com.requestmanagement.backend.guest;
 
 import com.requestmanagement.backend.requesttype.RequestTypeResponse;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,12 @@ public class GuestRequestController {
 
     @GetMapping("/projects")
     public List<PublicProjectResponse> projects() { return guestRequestService.projects(); }
+
+    @GetMapping("/projects/{projectId}/work-types")
+    public List<ProjectWorkTypeResponse> projectWorkTypes(
+            @PathVariable @Positive(message = "Project ID must be positive.") Long projectId) {
+        return guestRequestService.projectWorkTypes(projectId);
+    }
 
     @PostMapping("/requests/general")
     public ResponseEntity<GuestRequestCreatedResponse> createGeneral(@Valid @RequestBody CreateGuestGeneralRequest input) {

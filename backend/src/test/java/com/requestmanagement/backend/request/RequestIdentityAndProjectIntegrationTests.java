@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,7 +32,7 @@ class RequestIdentityAndProjectIntegrationTests {
     @Test
     void existingAuthenticatedRequestsRemainGeneral() {
         var row = jdbc.queryForMap("""
-                SELECT project_id, work_type, type_id, created_by, guest_name, guest_email
+                SELECT project_id, project_work_type_id, type_id, created_by, guest_name, guest_email
                 FROM requests
                 WHERE title = 'Laptop Issue'
                 ORDER BY request_id
@@ -39,7 +40,7 @@ class RequestIdentityAndProjectIntegrationTests {
                 """);
 
         assertThat(row.get("project_id")).isNull();
-        assertThat(row.get("work_type")).isNull();
+        assertThat(row.get("project_work_type_id")).isNull();
         assertThat(row.get("type_id")).isNotNull();
         assertThat(row.get("created_by")).isNotNull();
         assertThat(row.get("guest_name")).isNull();
@@ -70,8 +71,11 @@ class RequestIdentityAndProjectIntegrationTests {
 
     @Test
     void nonexistentProjectIsRejected() {
-        assertThrows(DataIntegrityViolationException.class,
-                () -> insertAuthenticatedRequest(Long.MAX_VALUE));
+        long existingProject = insertProject("Work Type owner");
+        assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("""
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by,project_id)
+                VALUES ('Missing Project','Constraint test',NULL,?,'LOW','NEW',?,?)
+                """, workTypeId(jdbc, existingProject, "Task"), employeeId(), Long.MAX_VALUE));
     }
 
     @Test
@@ -85,10 +89,11 @@ class RequestIdentityAndProjectIntegrationTests {
 
     @Test
     void generalRequestAndProjectTaskScopeConstraintRejectsInvalidShapes() {
+        long project = insertProject("Invalid scope Work Type owner");
         assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("""
-                INSERT INTO requests(title,description,type_id,work_type,priority,status,created_by)
-                VALUES ('Invalid general work type','Constraint test',?,'TASK','LOW','NEW',?)
-                """, typeId(), employeeId()));
+                INSERT INTO requests(title,description,type_id,project_work_type_id,priority,status,created_by)
+                VALUES ('Invalid general work type','Constraint test',?,?,'LOW','NEW',?)
+                """, typeId(), workTypeId(jdbc, project, "Task"), employeeId()));
     }
 
     @Test
@@ -173,10 +178,10 @@ class RequestIdentityAndProjectIntegrationTests {
     private long insertAuthenticatedRequest(Long projectId) {
         if (projectId != null) {
             return jdbc.queryForObject("""
-                    INSERT INTO requests(title, description, type_id, work_type, priority, status, created_by, project_id)
-                    VALUES ('Authenticated foundation task', 'Foundation test', NULL, 'TASK', 'LOW', 'NEW', ?, ?)
+                    INSERT INTO requests(title, description, type_id, project_work_type_id, priority, status, created_by, project_id)
+                    VALUES ('Authenticated foundation task', 'Foundation test', NULL, ?, 'LOW', 'NEW', ?, ?)
                     RETURNING request_id
-                    """, Long.class, employeeId(), projectId);
+                    """, Long.class, workTypeId(jdbc, projectId, "Task"), employeeId(), projectId);
         }
         return jdbc.queryForObject("""
                 INSERT INTO requests(title, description, type_id, priority, status, created_by, project_id)

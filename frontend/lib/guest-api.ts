@@ -15,6 +15,7 @@ async function json<T>(url: string, init: RequestInit = {}, fallback: string): P
 export const guestApi = {
   requestTypes: () => json<GuestOption[]>("/api/guest/request-types", { cache: "no-store" }, "Unable to load request types."),
   projects: () => json<GuestOption[]>("/api/guest/projects", { cache: "no-store" }, "Unable to load projects."),
+  projectWorkTypes: (projectId: number) => json<ProjectWorkType[]>(`/api/guest/projects/${projectId}/work-types`, { cache: "no-store" }, "Unable to load Work Types."),
   createGeneral: (input: GuestIdentity & { typeId: number }) => json<GuestCreatedResponse>("/api/guest/requests/general", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to submit request."),
-  createProject: (projectId: number, input: GuestIdentity & { workType: ProjectWorkType }) => json<GuestCreatedResponse>(`/api/guest/requests/projects/${projectId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to submit request."),
+  createProject: (projectId: number, input: GuestIdentity & { workTypeId: number }) => json<GuestCreatedResponse>(`/api/guest/requests/projects/${projectId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to submit request."),
 };

@@ -1,5 +1,7 @@
 package com.requestmanagement.backend.project;
 
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeResponse;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
 import com.requestmanagement.backend.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmployeeProjectController {
     private final EmployeeProjectService employeeProjectService;
+    private final ProjectWorkTypeService projectWorkTypeService;
 
     @GetMapping
     public List<ProjectResponse> list(@AuthenticationPrincipal AuthenticatedUser principal) {
@@ -31,5 +34,11 @@ public class EmployeeProjectController {
     public List<ProjectTaskMemberResponse> members(@PathVariable Long projectId,
                                                    @AuthenticationPrincipal AuthenticatedUser principal) {
         return employeeProjectService.members(projectId, principal.userId());
+    }
+
+    @GetMapping("/{projectId}/work-types")
+    public List<ProjectWorkTypeResponse> workTypes(@PathVariable Long projectId,
+                                                   @AuthenticationPrincipal AuthenticatedUser principal) {
+        return projectWorkTypeService.listEmployee(projectId, principal.userId());
     }
 }

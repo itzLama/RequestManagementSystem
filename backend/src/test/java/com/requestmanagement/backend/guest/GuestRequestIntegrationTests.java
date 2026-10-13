@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -71,8 +72,8 @@ class GuestRequestIntegrationTests {
                         .header("X-XSRF-TOKEN", csrf.getValue()).with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
                         .contentType("application/json").content("""
                                 {"guestName":"Project Guest","guestEmail":"project.guest@example.com","title":"Guest project bug",
-                                 "description":"Broken flow","workType":"BUG","priority":"MEDIUM","assignedToId":1,"status":"COMPLETED"}
-                                """))
+                                 "description":"Broken flow","workTypeId":%d,"priority":"MEDIUM","assignedToId":1,"status":"COMPLETED"}
+                                """.formatted(workTypeId(jdbc, projectId, "Bug"))))
                 .andExpect(status().isCreated()).andReturn();
         long requestId = Long.parseLong(created.getResponse().getContentAsString().replaceAll("\\D", ""));
         var row = jdbc.queryForMap("SELECT * FROM requests WHERE request_id=?", requestId);
@@ -80,7 +81,7 @@ class GuestRequestIntegrationTests {
         assertThat(row.get("assigned_to")).isNull();
         assertThat(((Number) row.get("project_id")).longValue()).isEqualTo(projectId);
         assertThat(row.get("type_id")).isNull();
-        assertThat(row.get("work_type")).isEqualTo("BUG");
+        assertThat(((Number) row.get("project_work_type_id")).longValue()).isEqualTo(workTypeId(jdbc, projectId, "Bug"));
         assertThat(row.get("status")).isEqualTo("NEW");
 
         Session employee = login("nora.ahmed@example.com");
@@ -115,11 +116,11 @@ class GuestRequestIntegrationTests {
         Cookie csrf = csrf();
         mvc.perform(post("/api/guest/requests/projects/{id}", archived).cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
-                        .contentType("application/json").content(projectBody("Archived")))
+                        .contentType("application/json").content(projectBody("Archived", archived)))
                 .andExpect(status().isConflict());
         mvc.perform(post("/api/guest/requests/projects/{id}", Long.MAX_VALUE).cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
-                        .contentType("application/json").content(projectBody("Missing")))
+                        .contentType("application/json").content(projectBody("Missing", archived)))
                 .andExpect(status().isNotFound());
     }
 
@@ -139,6 +140,7 @@ class GuestRequestIntegrationTests {
     @Test
     void invalidPublicInputsAreRejected() throws Exception {
         Cookie csrf = csrf();
+        long projectId = project("Invalid Work Type Project", "ACTIVE");
         mvc.perform(post("/api/guest/requests/general").cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
                         .contentType("application/json").content("""
@@ -149,9 +151,9 @@ class GuestRequestIntegrationTests {
                         .with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
                         .contentType("application/json").content(generalBody("X").replace(activeTypeId() + "", Long.MAX_VALUE + "")))
                 .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/guest/requests/projects/1").cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
+        mvc.perform(post("/api/guest/requests/projects/{projectId}", projectId).cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
-                        .contentType("application/json").content(projectBody("Bad enum").replace("\"BUG\"", "\"UNKNOWN\"")))
+                        .contentType("application/json").content("{\"guestName\":\"Guest\",\"guestEmail\":\"guest@example.com\",\"title\":\"Bad Work Type\",\"description\":\"Description\",\"workTypeId\":" + Long.MAX_VALUE + ",\"priority\":\"LOW\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -168,7 +170,7 @@ class GuestRequestIntegrationTests {
         }
         mvc.perform(post("/api/guest/requests/projects/{id}", projectId).cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(limitedIp); return request; })
-                        .contentType("application/json").content(projectBody("Fifth")))
+                            .contentType("application/json").content(projectBody("Fifth", projectId)))
                 .andExpect(status().isCreated());
         mvc.perform(post("/api/guest/requests/general").cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(limitedIp); return request; })
@@ -181,7 +183,7 @@ class GuestRequestIntegrationTests {
     }
 
     private String generalBody(String title) { return "{\"guestName\":\"Guest\",\"guestEmail\":\"guest@example.com\",\"title\":\"" + title + "\",\"description\":\"Description\",\"typeId\":" + activeTypeId() + ",\"priority\":\"LOW\"}"; }
-    private String projectBody(String title) { return "{\"guestName\":\"Guest\",\"guestEmail\":\"guest@example.com\",\"title\":\"" + title + "\",\"description\":\"Description\",\"workType\":\"BUG\",\"priority\":\"LOW\"}"; }
+    private String projectBody(String title, long projectId) { return "{\"guestName\":\"Guest\",\"guestEmail\":\"guest@example.com\",\"title\":\"" + title + "\",\"description\":\"Description\",\"workTypeId\":" + workTypeId(jdbc, projectId, "Bug") + ",\"priority\":\"LOW\"}"; }
     private long activeTypeId() { return jdbc.queryForObject("SELECT type_id FROM request_types WHERE is_active=true ORDER BY type_id LIMIT 1", Long.class); }
     private long userId(String email) { return jdbc.queryForObject("SELECT user_id FROM users WHERE email=?", Long.class, email); }
     private long project(String name, String status) { return jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id", Long.class, name, status); }

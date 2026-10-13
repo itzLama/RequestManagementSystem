@@ -12,7 +12,7 @@ public record AdminRequestResponse(
         LocalDateTime createdAt,
         Long projectId,
         String projectName,
-        ProjectWorkType workType,
+        Long workTypeId, String workTypeName,
         Long assignedToId,
         String assignedToName,
         boolean guest
@@ -28,7 +28,8 @@ public record AdminRequestResponse(
                 request.getCreatedAt(),
                 request.getProject() == null ? null : request.getProject().getId(),
                 request.getProject() == null ? null : request.getProject().getName(),
-                request.getWorkType(),
+                request.getWorkType() == null ? null : request.getWorkType().getId(),
+                request.getWorkType() == null ? null : request.getWorkType().getName(),
                 request.getAssignedTo() == null ? null : request.getAssignedTo().getId(),
                 request.getAssignedTo() == null ? null : request.getAssignedTo().getFullName(),
                 request.isGuest()

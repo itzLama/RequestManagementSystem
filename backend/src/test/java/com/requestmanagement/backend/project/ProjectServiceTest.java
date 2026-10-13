@@ -1,6 +1,7 @@
 package com.requestmanagement.backend.project;
 
 import com.requestmanagement.backend.request.RequestRepository;
+import com.requestmanagement.backend.projectworktype.ProjectWorkTypeRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,8 @@ class ProjectServiceTest {
         ProjectService service = new ProjectService(
                 projects,
                 mock(ProjectMembershipRepository.class),
-                mock(RequestRepository.class));
+                mock(RequestRepository.class),
+                mock(ProjectWorkTypeRepository.class));
 
         assertThatThrownBy(() -> service.delete(42L))
                 .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
