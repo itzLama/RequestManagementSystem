@@ -10,6 +10,8 @@ import com.requestmanagement.backend.user.UserRepository;
 import com.requestmanagement.backend.project.ProjectRepository;
 import com.requestmanagement.backend.projectworktype.ProjectWorkType;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
+import com.requestmanagement.backend.guestform.RequestGuestFieldAnswerRepository;
+import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class ProjectTaskService {
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final ProjectWorkTypeService projectWorkTypeService;
+    private final RequestGuestFieldAnswerRepository guestFieldAnswerRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectTaskBoardResponse> board(Long projectId, Long employeeId) {
@@ -146,7 +149,9 @@ public class ProjectTaskService {
                 .map(RequestDetailsResponse.TimelineEntry::from).toList();
         var comments = commentRepository.findByRequest_IdAndInternalFalseOrderByCreatedAtAscIdAsc(task.getId())
                 .stream().map(CommentResponse::from).toList();
-        return ProjectTaskDetailsResponse.from(task, timeline, comments);
+        var answers = guestFieldAnswerRepository.findByRequest_IdOrderByDisplayOrderAscIdAsc(task.getId()).stream()
+                .map(AnswerResponse::from).toList();
+        return ProjectTaskDetailsResponse.from(task, timeline, comments, answers);
     }
 
     private AdminProjectTaskDetailsResponse adminDetails(Request task) {
@@ -156,7 +161,9 @@ public class ProjectTaskService {
                 .stream().map(CommentResponse::from).toList();
         var internalNotes = commentRepository.findByRequest_IdAndInternalTrueOrderByCreatedAtAscIdAsc(task.getId())
                 .stream().map(CommentResponse::from).toList();
-        return AdminProjectTaskDetailsResponse.from(task, timeline, comments, internalNotes);
+        var answers = guestFieldAnswerRepository.findByRequest_IdOrderByDisplayOrderAscIdAsc(task.getId()).stream()
+                .map(AnswerResponse::from).toList();
+        return AdminProjectTaskDetailsResponse.from(task, timeline, comments, internalNotes, answers);
     }
 
     private User requireActiveAdmin(Long adminId) {

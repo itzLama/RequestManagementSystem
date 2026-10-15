@@ -5,6 +5,7 @@ import com.requestmanagement.backend.project.ProjectStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
 
 public record ProjectTaskDetailsResponse(
         Long id, String title, String description, Long workTypeId, String workTypeName,
@@ -13,11 +14,12 @@ public record ProjectTaskDetailsResponse(
         Long createdById, String createdByName, String requesterName, String requesterEmail, boolean guest,
         Long projectId, String projectName, ProjectStatus projectStatus,
         LocalDateTime createdAt, LocalDateTime updatedAt,
-        List<RequestDetailsResponse.TimelineEntry> timeline, List<CommentResponse> comments
+        List<RequestDetailsResponse.TimelineEntry> timeline, List<CommentResponse> comments,
+        List<AnswerResponse> guestAnswers
 ) {
     public static ProjectTaskDetailsResponse from(Request task,
                                                   List<RequestDetailsResponse.TimelineEntry> timeline,
-                                                  List<CommentResponse> comments) {
+                                                  List<CommentResponse> comments, List<AnswerResponse> guestAnswers) {
         return new ProjectTaskDetailsResponse(task.getId(), task.getTitle(), task.getDescription(),
                 task.getWorkType().getId(), task.getWorkType().getName(), task.getPriority(), task.getStatus(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getId(),
@@ -26,6 +28,6 @@ public record ProjectTaskDetailsResponse(
                 task.getCreatedBy() == null ? null : task.getCreatedBy().getFullName(),
                 task.requesterName(), task.requesterEmail(), task.isGuest(),
                 task.getProject().getId(), task.getProject().getName(), task.getProject().getStatus(),
-                task.getCreatedAt(), task.getUpdatedAt(), timeline, comments);
+                task.getCreatedAt(), task.getUpdatedAt(), timeline, comments, guestAnswers);
     }
 }

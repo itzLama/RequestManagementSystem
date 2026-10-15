@@ -10,12 +10,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.requestmanagement.backend.guestform.ProjectGuestFormService;
+import com.requestmanagement.backend.guestform.GuestFormDtos.PublicSettingsResponse;
 
 @RestController
 @RequestMapping("/api/guest")
 @RequiredArgsConstructor
 public class GuestRequestController {
     private final GuestRequestService guestRequestService;
+    private final ProjectGuestFormService guestFormService;
 
     @GetMapping("/request-types")
     public List<RequestTypeResponse> requestTypes() { return guestRequestService.requestTypes(); }
@@ -27,6 +30,11 @@ public class GuestRequestController {
     public List<ProjectWorkTypeResponse> projectWorkTypes(
             @PathVariable @Positive(message = "Project ID must be positive.") Long projectId) {
         return guestRequestService.projectWorkTypes(projectId);
+    }
+
+    @GetMapping("/projects/{projectId}/form")
+    public PublicSettingsResponse projectForm(@PathVariable @Positive Long projectId) {
+        return guestFormService.publicForm(projectId);
     }
 
     @PostMapping("/requests/general")

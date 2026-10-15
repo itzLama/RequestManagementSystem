@@ -186,7 +186,7 @@ class GuestRequestIntegrationTests {
     private String projectBody(String title, long projectId) { return "{\"guestName\":\"Guest\",\"guestEmail\":\"guest@example.com\",\"title\":\"" + title + "\",\"description\":\"Description\",\"workTypeId\":" + workTypeId(jdbc, projectId, "Bug") + ",\"priority\":\"LOW\"}"; }
     private long activeTypeId() { return jdbc.queryForObject("SELECT type_id FROM request_types WHERE is_active=true ORDER BY type_id LIMIT 1", Long.class); }
     private long userId(String email) { return jdbc.queryForObject("SELECT user_id FROM users WHERE email=?", Long.class, email); }
-    private long project(String name, String status) { return jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id", Long.class, name, status); }
+    private long project(String name, String status) { Long id = jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id", Long.class, name, status); jdbc.update("INSERT INTO project_guest_form_settings(project_id) VALUES (?)", id); return id; }
     private String uniqueIp() { return "198.51.100." + IP_SEQUENCE.getAndIncrement(); }
     private Cookie csrf() throws Exception { Cookie cookie = mvc.perform(get("/api/auth/csrf")).andReturn().getResponse().getCookie("XSRF-TOKEN"); assertThat(cookie).isNotNull(); return cookie; }
     private Session login(String email) throws Exception {

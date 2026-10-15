@@ -3,6 +3,10 @@ package com.requestmanagement.backend.project;
 import com.requestmanagement.backend.request.RequestRepository;
 import com.requestmanagement.backend.projectworktype.ProjectWorkType;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeRepository;
+import com.requestmanagement.backend.guestform.ProjectGuestFormSettings;
+import com.requestmanagement.backend.guestform.ProjectGuestFormSettingsRepository;
+import com.requestmanagement.backend.guestform.ProjectGuestFieldRepository;
+import com.requestmanagement.backend.guestform.ProjectGuestFieldOptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +23,9 @@ public class ProjectService {
     private final ProjectMembershipRepository projectMembershipRepository;
     private final RequestRepository requestRepository;
     private final ProjectWorkTypeRepository projectWorkTypeRepository;
+    private final ProjectGuestFormSettingsRepository guestFormSettingsRepository;
+    private final ProjectGuestFieldRepository guestFieldRepository;
+    private final ProjectGuestFieldOptionRepository guestFieldOptionRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> list() {
@@ -36,6 +43,7 @@ public class ProjectService {
                 normalizeName(input.name()), normalizeDescription(input.description())));
         projectWorkTypeRepository.saveAll(List.of("Task", "Bug", "Improvement").stream()
                 .map(name -> ProjectWorkType.create(project, name)).toList());
+        guestFormSettingsRepository.save(ProjectGuestFormSettings.defaults(project));
         return ProjectResponse.from(project);
     }
 
@@ -62,6 +70,12 @@ public class ProjectService {
         }
 
         try {
+            guestFieldOptionRepository.deleteAllByField_Project_Id(id);
+            guestFieldOptionRepository.flush();
+            guestFieldRepository.deleteAllByProject_Id(id);
+            guestFieldRepository.flush();
+            guestFormSettingsRepository.deleteById(id);
+            guestFormSettingsRepository.flush();
             projectWorkTypeRepository.deleteAllByProject_Id(id);
             projectWorkTypeRepository.flush();
             projectRepository.delete(project);

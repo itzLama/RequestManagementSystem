@@ -2,6 +2,9 @@ package com.requestmanagement.backend.project;
 
 import com.requestmanagement.backend.request.RequestRepository;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeRepository;
+import com.requestmanagement.backend.guestform.ProjectGuestFormSettingsRepository;
+import com.requestmanagement.backend.guestform.ProjectGuestFieldRepository;
+import com.requestmanagement.backend.guestform.ProjectGuestFieldOptionRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -28,7 +31,10 @@ class ProjectServiceTest {
                 projects,
                 mock(ProjectMembershipRepository.class),
                 mock(RequestRepository.class),
-                mock(ProjectWorkTypeRepository.class));
+                mock(ProjectWorkTypeRepository.class),
+                mock(ProjectGuestFormSettingsRepository.class),
+                mock(ProjectGuestFieldRepository.class),
+                mock(ProjectGuestFieldOptionRepository.class));
 
         assertThatThrownBy(() -> service.delete(42L))
                 .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {

@@ -11,6 +11,7 @@ import com.requestmanagement.backend.requesttype.RequestTypeResponse;
 import com.requestmanagement.backend.projectworktype.ProjectWorkType;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeResponse;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
+import com.requestmanagement.backend.guestform.GuestFormSubmissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class GuestRequestService {
     private final RequestTypeRepository requestTypeRepository;
     private final ProjectRepository projectRepository;
     private final ProjectWorkTypeService projectWorkTypeService;
+    private final GuestFormSubmissionService guestFormSubmissionService;
 
     @Transactional(readOnly = true)
     public List<RequestTypeResponse> requestTypes() {
@@ -57,10 +59,12 @@ public class GuestRequestService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found."));
         if (!project.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived projects cannot receive requests.");
-        ProjectWorkType workType = projectWorkTypeService.requireActiveForProject(projectId, input.workTypeId());
-        Request request = Request.createGuestProjectRequest(normalize(input.title(), "Title"), normalize(input.description(), "Description"),
-                workType, input.priority(), normalize(input.guestName(), "Guest name"), normalizeEmail(input.guestEmail()), project);
-        return new GuestRequestCreatedResponse(requestRepository.save(request).getId());
+        var resolved = guestFormSubmissionService.resolve(projectId, input.workTypeId(), input.priority(), input.description(), input.answers());
+        Request request = Request.createGuestProjectRequest(normalize(input.title(), "Title"), resolved.description(),
+                resolved.workType(), resolved.priority(), normalize(input.guestName(), "Guest name"), normalizeEmail(input.guestEmail()), project);
+        requestRepository.save(request);
+        guestFormSubmissionService.saveAnswers(request, resolved.answers());
+        return new GuestRequestCreatedResponse(request.getId());
     }
 
     private String normalize(String value, String field) {

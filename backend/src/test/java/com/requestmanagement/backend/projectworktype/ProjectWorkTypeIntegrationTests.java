@@ -166,8 +166,10 @@ class ProjectWorkTypeIntegrationTests {
     }
 
     private long project(String name, String status) {
-        return jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id",
+        Long id = jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id",
                 Long.class, name, status);
+        jdbc.update("INSERT INTO project_guest_form_settings(project_id) VALUES (?)", id);
+        return id;
     }
 
     private long createType(Session admin, long project, String name) throws Exception {

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import com.requestmanagement.backend.guestform.ProjectGuestFormSettingsRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +19,7 @@ public class ProjectWorkTypeService {
     private final ProjectWorkTypeRepository repository;
     private final ProjectRepository projectRepository;
     private final ProjectAccessService projectAccessService;
+    private final ProjectGuestFormSettingsRepository guestFormSettingsRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectWorkTypeResponse> listAdmin(Long projectId) {
@@ -69,6 +71,10 @@ public class ProjectWorkTypeService {
         requireActiveProject(projectId);
         ProjectWorkType type = requireOwned(projectId, workTypeId);
         if (!type.isActive()) return;
+        if (guestFormSettingsRepository.existsByDefaultWorkType_IdAndWorkTypeVisibleFalse(workTypeId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This Work Type is the hidden Guest form default. Change the default or show Work Type before retiring it.");
+        }
         if (repository.countByProject_IdAndActiveTrue(projectId) <= 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "A Project must keep at least one active Work Type.");
