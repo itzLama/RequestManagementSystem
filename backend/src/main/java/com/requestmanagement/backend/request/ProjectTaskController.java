@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.requestmanagement.backend.projectstatus.ProjectStatusDtos;
 
 @RestController
 @RequestMapping("/api/projects/mine/{projectId}/tasks")
@@ -76,7 +77,7 @@ public class ProjectTaskController {
 
     @PatchMapping("/{taskId}/status")
     public ProjectTaskDetailsResponse status(@PathVariable Long projectId, @PathVariable Long taskId,
-                                             @Valid @RequestBody UpdateRequestStatusRequest input,
+                                             @Valid @RequestBody ProjectStatusDtos.StatusInput input,
                                              @AuthenticationPrincipal AuthenticatedUser principal) {
         return projectTaskService.updateStatus(projectId, taskId, principal.userId(), input);
     }

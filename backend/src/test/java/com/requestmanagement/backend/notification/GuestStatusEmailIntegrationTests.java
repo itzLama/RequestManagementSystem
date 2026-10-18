@@ -79,6 +79,10 @@ class GuestStatusEmailIntegrationTests {
                 DELETE FROM project_work_types WHERE project_id IN
                 (SELECT project_id FROM projects WHERE project_name LIKE ?)
                 """, PREFIX + "%");
+        jdbc.update("""
+                DELETE FROM project_status_columns WHERE project_id IN
+                (SELECT project_id FROM projects WHERE project_name LIKE ?)
+                """, PREFIX + "%");
         jdbc.update("DELETE FROM projects WHERE project_name LIKE ?", PREFIX + "%");
     }
 
@@ -113,7 +117,7 @@ class GuestStatusEmailIntegrationTests {
         updateAdminProject(projectId, taskId, login("sara.saad@example.com"), "IN_PROGRESS")
                 .andExpect(status().isOk());
 
-        assertOneStatusEmail(taskId, "IN_PROGRESS");
+        assertOneStatusEmail(taskId, "In Progress");
         assertPersistedTransition(taskId, "IN_PROGRESS", 1);
     }
 
@@ -127,7 +131,7 @@ class GuestStatusEmailIntegrationTests {
         updateEmployeeProject(projectId, taskId, login("nora.ahmed@example.com"), "COMPLETED")
                 .andExpect(status().isOk());
 
-        assertOneStatusEmail(taskId, "COMPLETED");
+        assertOneStatusEmail(taskId, "Completed");
         assertPersistedTransition(taskId, "COMPLETED", 1);
     }
 

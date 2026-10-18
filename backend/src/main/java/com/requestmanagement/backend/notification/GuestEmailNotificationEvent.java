@@ -33,14 +33,12 @@ public final class GuestEmailNotificationEvent {
 
     public static GuestEmailNotificationEvent statusChanged(Request request) {
         validateGuestRequest(request);
-        Objects.requireNonNull(request.getStatus(), "request status is required");
-
         return new GuestEmailNotificationEvent(
                 GuestEmailNotificationCategory.REQUEST_STATUS_CHANGED,
                 request.getGuestEmail(),
                 request.getId(),
                 request.getGuestName(),
-                request.getStatus().name(),
+                request.statusDisplayName(),
                 null);
     }
 

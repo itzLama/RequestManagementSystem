@@ -71,6 +71,10 @@ class GuestCommunicationEmailIntegrationTests {
                 DELETE FROM project_work_types WHERE project_id IN
                 (SELECT project_id FROM projects WHERE project_name LIKE ?)
                 """, PREFIX + "%");
+        jdbc.update("""
+                DELETE FROM project_status_columns WHERE project_id IN
+                (SELECT project_id FROM projects WHERE project_name LIKE ?)
+                """, PREFIX + "%");
         jdbc.update("DELETE FROM projects WHERE project_name LIKE ?", PREFIX + "%");
     }
 

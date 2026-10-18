@@ -12,6 +12,7 @@ import com.requestmanagement.backend.projectworktype.ProjectWorkType;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
 import com.requestmanagement.backend.guestform.RequestGuestFieldAnswerRepository;
 import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
+import com.requestmanagement.backend.projectstatus.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,11 +28,11 @@ public class ProjectTaskService {
     private final RequestRepository requestRepository;
     private final StatusHistoryRepository statusHistoryRepository;
     private final CommentRepository commentRepository;
-    private final RequestStatusService requestStatusService;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final ProjectWorkTypeService projectWorkTypeService;
     private final RequestGuestFieldAnswerRepository guestFieldAnswerRepository;
+    private final ProjectStatusService projectStatusService;
 
     @Transactional(readOnly = true)
     public List<ProjectTaskBoardResponse> board(Long projectId, Long employeeId) {
@@ -57,17 +58,17 @@ public class ProjectTaskService {
         if (title.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title is required.");
         if (description.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required.");
         Request task = Request.createProjectTask(title, description, workType, input.priority(),
-                creator, assignee, project);
+                creator, assignee, project, projectStatusService.initial(projectId));
         return ProjectTaskBoardResponse.from(requestRepository.save(task));
     }
 
     @Transactional
     public ProjectTaskDetailsResponse updateStatus(Long projectId, Long taskId, Long employeeId,
-                                                   UpdateRequestStatusRequest input) {
+                                                   ProjectStatusDtos.StatusInput input) {
         projectAccessService.requireMutableProject(projectId, employeeId);
         User actor = projectAccessService.requireActiveEmployee(employeeId);
         Request task = findTask(projectId, taskId);
-        requestStatusService.changeStatus(task, input.status(), actor, input.changeNote());
+        projectStatusService.change(task, projectStatusService.resolveStatusId(projectId, input), actor, input.changeNote());
         return details(task);
     }
 
@@ -110,17 +111,17 @@ public class ProjectTaskService {
         if (title.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Title is required.");
         if (description.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description is required.");
         return ProjectTaskBoardResponse.from(requestRepository.save(Request.createProjectTask(
-                title, description, workType, input.priority(), admin, assignee, project)));
+                title, description, workType, input.priority(), admin, assignee, project, projectStatusService.initial(projectId))));
     }
 
     @Transactional
     public AdminProjectTaskDetailsResponse adminUpdateStatus(Long projectId, Long taskId, Long adminId,
-                                                             UpdateRequestStatusRequest input) {
+                                                             ProjectStatusDtos.StatusInput input) {
         User admin = requireActiveAdmin(adminId);
         Project project = requireProject(projectId);
         projectAccessService.requireActive(project);
         Request task = findTask(projectId, taskId);
-        requestStatusService.changeStatus(task, input.status(), admin, input.changeNote());
+        projectStatusService.change(task, projectStatusService.resolveStatusId(projectId, input), admin, input.changeNote());
         return adminDetails(task);
     }
 

@@ -82,6 +82,7 @@ class GuestEmailServiceTests {
         when(request.getGuestName()).thenReturn("Guest User");
         when(request.getGuestEmail()).thenReturn("guest@example.com");
         when(request.getStatus()).thenReturn(status);
+        when(request.statusDisplayName()).thenReturn(status.name());
         return request;
     }
 

@@ -16,9 +16,11 @@ const card = "rounded-xl border border-divider bg-surface p-6";
 export function GuestCommunicationPanel({
   target,
   readOnly = false,
+  initialVisibleCount,
 }: {
   target: GuestCommunicationTarget;
   readOnly?: boolean;
+  initialVisibleCount?: number;
 }) {
   const router = useRouter();
   const access = target.access;
@@ -38,6 +40,7 @@ export function GuestCommunicationPanel({
   const [sendError, setSendError] = useState("");
   const [success, setSuccess] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendingRef = useRef(false);
@@ -152,6 +155,11 @@ export function GuestCommunicationPanel({
     setSendError("");
   }
 
+  const visibleHistory = initialVisibleCount && !showAllHistory
+    ? history.slice(-initialVisibleCount)
+    : history;
+  const hiddenMessageCount = Math.max(0, history.length - (initialVisibleCount ?? history.length));
+
   return <>
     <section className={card} aria-labelledby={`guest-communication-${target.requestId}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -173,11 +181,13 @@ export function GuestCommunicationPanel({
         : loadError ? <div role="alert" className="py-7 text-center"><p className="text-sm text-[#B42318]">{loadError}</p><button type="button" onClick={() => setReload((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></div>
           : <div className="mt-5 divide-y divide-divider border-y border-divider">
             {history.length === 0 && <p className="py-6 text-sm text-secondary">No messages have been sent to this Guest yet.</p>}
-            {history.map((item) => <article key={item.id} className="flex gap-3 py-5">
+            {visibleHistory.map((item) => <article key={item.id} className="flex gap-3 py-5">
               <div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.senderName.trim().charAt(0).toUpperCase() || "?"}</div>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><p className="text-sm font-semibold">{item.senderName} <span className="font-normal text-secondary">({item.senderRole === "ADMIN" ? "Administrator" : "Employee"})</span></p><time className="text-xs text-secondary">{formatRequestDateTime(item.sentAt)}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.message}</p></div>
             </article>)}
           </div>}
+
+      {!loading && !loadError && hiddenMessageCount > 0 && <button type="button" onClick={() => setShowAllHistory((value) => !value)} aria-expanded={showAllHistory} className="mt-4 text-sm font-medium text-accent hover:underline">{showAllHistory ? "Show less" : `View ${hiddenMessageCount} older ${hiddenMessageCount === 1 ? "message" : "messages"}`}</button>}
 
       {readOnly && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project is archived. Existing Guest Communication remains available, but new messages cannot be sent.</p>}
     </section>

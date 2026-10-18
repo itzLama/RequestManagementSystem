@@ -9,7 +9,7 @@ import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
 
 public record AdminProjectTaskDetailsResponse(
         Long id, String title, String description, Long workTypeId, String workTypeName,
-        RequestPriority priority, RequestStatus status,
+        RequestPriority priority, RequestStatus status, Long statusId, String statusName, String statusSemantic,
         Long assignedToId, String assignedToName,
         Long createdById, String createdByName, String requesterName, String requesterEmail, boolean guest,
         Long projectId, String projectName, ProjectStatus projectStatus,
@@ -25,7 +25,7 @@ public record AdminProjectTaskDetailsResponse(
     ) {
         return new AdminProjectTaskDetailsResponse(
                 task.getId(), task.getTitle(), task.getDescription(), task.getWorkType().getId(), task.getWorkType().getName(),
-                task.getPriority(), task.getStatus(),
+                task.getPriority(), task.getStatus(), task.getProjectStatus().getId(), task.getProjectStatus().getName(), task.getProjectStatus().getSemanticKey()==null?null:task.getProjectStatus().getSemanticKey().name(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getId(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getFullName(),
                 task.getCreatedBy() == null ? null : task.getCreatedBy().getId(),

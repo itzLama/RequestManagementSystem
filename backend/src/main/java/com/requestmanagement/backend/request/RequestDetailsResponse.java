@@ -12,9 +12,13 @@ public record RequestDetailsResponse(
         List<TimelineEntry> timeline, List<CommentResponse> comments
 ) {
     public record TimelineEntry(RequestStatus oldStatus, RequestStatus newStatus,
+                                Long oldProjectStatusId, String oldProjectStatusName,
+                                Long newProjectStatusId, String newProjectStatusName,
                                 String changedByName, String changeNote, LocalDateTime changedAt) {
         public static TimelineEntry from(StatusHistory history) {
             return new TimelineEntry(history.getOldStatus(), history.getNewStatus(),
+                    history.getOldProjectStatus()==null?null:history.getOldProjectStatus().getId(), history.getOldProjectStatus()==null?null:history.getOldProjectStatus().getName(),
+                    history.getNewProjectStatus()==null?null:history.getNewProjectStatus().getId(), history.getNewProjectStatus()==null?null:history.getNewProjectStatus().getName(),
                     history.getChangedBy().getFullName(), history.getChangeNote(), history.getChangedAt());
         }
     }

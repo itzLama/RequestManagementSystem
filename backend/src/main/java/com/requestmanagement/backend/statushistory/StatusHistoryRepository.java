@@ -9,4 +9,6 @@ public interface StatusHistoryRepository extends JpaRepository<StatusHistory, Lo
 
     @EntityGraph(attributePaths = "changedBy")
     List<StatusHistory> findByRequest_IdOrderByChangedAtAscIdAsc(Long requestId);
+
+    List<StatusHistory> findByOldProjectStatus_IdOrNewProjectStatus_Id(Long oldStatusId, Long newStatusId);
 }

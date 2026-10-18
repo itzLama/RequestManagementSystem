@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import com.requestmanagement.backend.project.Project;
 import com.requestmanagement.backend.requesttype.RequestType;
 import com.requestmanagement.backend.projectworktype.ProjectWorkType;
+import com.requestmanagement.backend.projectstatus.ProjectStatusColumn;
 import com.requestmanagement.backend.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,6 +55,10 @@ public class Request {
     private RequestStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_status_id")
+    private ProjectStatusColumn projectStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
 
@@ -91,6 +96,7 @@ public class Request {
         request.workType = null;
         request.priority = priority;
         request.status = RequestStatus.NEW;
+        request.projectStatus = null;
         request.createdBy = creator;
         request.guestName = null;
         request.guestEmail = null;
@@ -103,7 +109,7 @@ public class Request {
 
     public static Request createProjectTask(String title, String description, ProjectWorkType workType,
                                             RequestPriority priority, User creator, User assignee,
-                                            Project project) {
+                                            Project project, ProjectStatusColumn initialStatus) {
         if (project == null) throw new IllegalArgumentException("Project is required.");
         if (workType == null) throw new IllegalArgumentException("Work type is required.");
         if (assignee == null) throw new IllegalArgumentException("Assignee is required.");
@@ -113,7 +119,8 @@ public class Request {
         task.type = null;
         task.workType = workType;
         task.priority = priority;
-        task.status = RequestStatus.NEW;
+        task.status = RequestStatus.valueOf(initialStatus.getSemanticKey().name());
+        task.projectStatus = initialStatus;
         task.createdBy = creator;
         task.guestName = null;
         task.guestEmail = null;
@@ -135,7 +142,8 @@ public class Request {
 
     public static Request createGuestProjectRequest(String title, String description,
                                                     ProjectWorkType workType, RequestPriority priority,
-                                                    String guestName, String guestEmail, Project project) {
+                                                    String guestName, String guestEmail, Project project,
+                                                    ProjectStatusColumn initialStatus) {
         if (project == null) throw new IllegalArgumentException("Project is required.");
         if (workType == null) throw new IllegalArgumentException("Work type is required.");
         Request request = new Request();
@@ -144,7 +152,8 @@ public class Request {
         request.type = null;
         request.workType = workType;
         request.priority = priority;
-        request.status = RequestStatus.NEW;
+        request.status = RequestStatus.valueOf(initialStatus.getSemanticKey().name());
+        request.projectStatus = initialStatus;
         request.createdBy = null;
         request.guestName = guestName;
         request.guestEmail = guestEmail;
@@ -158,6 +167,16 @@ public class Request {
     public void changeStatus(RequestStatus newStatus) {
         status = newStatus;
         updatedAt = LocalDateTime.now();
+    }
+
+    public void changeProjectStatus(ProjectStatusColumn newStatus) {
+        projectStatus = newStatus;
+        status = newStatus.getSemanticKey() == null ? null : RequestStatus.valueOf(newStatus.getSemanticKey().name());
+        updatedAt = LocalDateTime.now();
+    }
+
+    public String statusDisplayName() {
+        return projectStatus != null ? projectStatus.getName() : status.name();
     }
 
     public void assignTo(User newAssignee) {

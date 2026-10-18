@@ -6,15 +6,16 @@ export type ProjectMember = { membershipId: number; employeeId: number; fullName
 export type EmployeeOption = { id: number; fullName: string; email: string; active: boolean };
 export type ProjectInput = { name: string; description: string };
 export type ProjectWorkType = { id: number; name: string; active: boolean };
+export type ProjectStatusColumn = { id: number; name: string; displayOrder: number; active: boolean; protectedNew: boolean; semanticKey: string | null };
 export type GuestFieldType = "TEXT" | "TEXTAREA" | "NUMBER" | "DROPDOWN" | "DATE" | "CHECKBOX";
 export type GuestFieldOption = { id: number; label: string };
 export type ProjectGuestField = { id: number; label: string; type: GuestFieldType; required: boolean; displayOrder: number; active: boolean; options: GuestFieldOption[] };
 export type ProjectGuestForm = { workTypeVisible: boolean; defaultWorkTypeId: number | null; priorityVisible: boolean; priorityRequired: boolean; descriptionVisible: boolean; descriptionRequired: boolean; fields: ProjectGuestField[] };
 export type GuestFieldInput = { label: string; type: GuestFieldType; required: boolean; options: string[]; optionIds?: (number | null)[] };
 export type ProjectTaskMember = { employeeId: number; fullName: string; email: string; active: boolean };
-export type ProjectTask = { id: number; title: string; workTypeId: number; workTypeName: string; priority: "LOW" | "MEDIUM" | "HIGH"; status: "NEW" | "IN_PROGRESS" | "WAITING_USER" | "COMPLETED" | "REJECTED"; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean };
-export type ProjectTaskStatus = ProjectTask["status"];
-export type ProjectTaskStatusResponse = { status: ProjectTaskStatus };
+export type ProjectTask = { id: number; title: string; workTypeId: number; workTypeName: string; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean };
+export type ProjectTaskStatus = number;
+export type ProjectTaskStatusResponse = { statusId: number; statusName: string; statusSemantic: string | null };
 
 export class ProjectApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -41,6 +42,12 @@ export const projectApi = {
   createWorkType: (id: string | number, name: string) => request<ProjectWorkType>(`/api/projects/${id}/work-types`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to add Work Type."),
   renameWorkType: (projectId: string | number, workTypeId: number, name: string) => request<ProjectWorkType>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to rename Work Type."),
   retireWorkType: (projectId: string | number, workTypeId: number) => request<void>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "DELETE" }, "Unable to delete Work Type."),
+  statuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/${id}/statuses`, {}, "Unable to load Project statuses."),
+  myStatuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/mine/${id}/statuses`, {}, "Unable to load Project statuses."),
+  createStatus: (id: string | number, name: string) => request<ProjectStatusColumn>(`/api/projects/${id}/statuses`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to add status."),
+  renameStatus: (projectId: string | number, statusId: number, name: string) => request<ProjectStatusColumn>(`/api/projects/${projectId}/statuses/${statusId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to rename status."),
+  deleteStatus: (projectId: string | number, statusId: number) => request<void>(`/api/projects/${projectId}/statuses/${statusId}`, { method: "DELETE" }, "Unable to delete status."),
+  reorderStatuses: (projectId: string | number, statusIds: number[]) => request<ProjectStatusColumn[]>(`/api/projects/${projectId}/statuses/order`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusIds }) }, "Unable to reorder statuses."),
   guestForm: (id: string | number) => request<ProjectGuestForm>(`/api/projects/${id}/guest-form`, {}, "Unable to load Guest form settings."),
   updateGuestForm: (id: string | number, input: Omit<ProjectGuestForm, "fields">) => request<ProjectGuestForm>(`/api/projects/${id}/guest-form/settings`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to update Guest form settings."),
   createGuestField: (id: string | number, input: GuestFieldInput) => request<ProjectGuestField>(`/api/projects/${id}/guest-form/fields`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to add custom field."),
@@ -56,6 +63,6 @@ export const projectApi = {
   createTask: (id: string | number, input: { title: string; description: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/mine/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
   adminBoard: (id: string | number) => request<ProjectTask[]>(`/api/projects/${id}/tasks/board`, {}, "Unable to load project tasks."),
   adminCreateTask: (id: string | number, input: { title: string; description: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
-  updateTaskStatus: (projectId: string | number, taskId: number, status: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/mine/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, changeNote: null }) }, "Unable to change task status."),
-  adminUpdateTaskStatus: (projectId: string | number, taskId: number, status: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, changeNote: null }) }, "Unable to change task status."),
+  updateTaskStatus: (projectId: string | number, taskId: number, statusId: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/mine/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusId, changeNote: null }) }, "Unable to change task status."),
+  adminUpdateTaskStatus: (projectId: string | number, taskId: number, statusId: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusId, changeNote: null }) }, "Unable to change task status."),
 };
