@@ -21,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
+import org.springframework.context.ApplicationEventPublisher;
+import com.requestmanagement.backend.notification.GuestEmailNotificationEvent;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class GuestRequestService {
     private final ProjectWorkTypeService projectWorkTypeService;
     private final GuestFormSubmissionService guestFormSubmissionService;
     private final ProjectStatusService projectStatusService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<RequestTypeResponse> requestTypes() {
@@ -67,6 +70,7 @@ public class GuestRequestService {
                 projectStatusService.initial(projectId));
         requestRepository.save(request);
         guestFormSubmissionService.saveAnswers(request, resolved.answers());
+        eventPublisher.publishEvent(GuestEmailNotificationEvent.submitted(request));
         return new GuestRequestCreatedResponse(request.getId());
     }
 

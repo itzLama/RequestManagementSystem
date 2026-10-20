@@ -75,6 +75,32 @@ class GuestEmailServiceTests {
         verify(mailSender).send(any(SimpleMailMessage.class));
     }
 
+    @Test
+    void projectGuestEmailsContainTrackingInstructionsWithoutTrackingUrls() {
+        Request request = guestRequest(91L, RequestStatus.WAITING_USER);
+        when(request.isProjectTask()).thenReturn(true);
+
+        guestEmailService.send(GuestEmailNotificationEvent.statusChanged(request));
+        guestEmailService.send(GuestEmailNotificationEvent.messageSent(
+                guestCommunication(request, "Sensitive reply body")));
+        guestEmailService.send(GuestEmailNotificationEvent.submitted(request));
+        guestEmailService.send(GuestEmailNotificationEvent.verification(request, "123456"));
+
+        org.mockito.ArgumentCaptor<SimpleMailMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender, org.mockito.Mockito.times(4)).send(captor.capture());
+
+        assertThat(captor.getAllValues()).allSatisfy(email ->
+                assertThat(email.getText())
+                        .contains("You can track your request through the Masar website using your tracking number and registered email.")
+                        .doesNotContain("localhost", "http://", "https://", "/track-request"));
+        assertThat(captor.getAllValues().get(1).getText()).doesNotContain("Sensitive reply body");
+        assertThat(captor.getAllValues().get(2).getText()).contains("#91");
+        assertThat(captor.getAllValues().get(3).getText())
+                .contains("123456")
+                .contains("expires in 10 minutes");
+    }
+
     private Request guestRequest(Long id, RequestStatus status) {
         Request request = mock(Request.class);
         when(request.isGuest()).thenReturn(true);

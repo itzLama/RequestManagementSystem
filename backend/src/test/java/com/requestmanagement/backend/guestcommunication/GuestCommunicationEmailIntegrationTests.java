@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
@@ -200,11 +201,11 @@ class GuestCommunicationEmailIntegrationTests {
                         })
                         .cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .contentType("application/json")
-                        .content("""
+                        .content(String.format(Locale.ROOT, """
                                 {"guestName":"No Email Guest","guestEmail":"no-email@example.com",
                                  "title":"%s","description":"Submission only",
                                  "typeId":%d,"priority":"LOW"}
-                                """.formatted(title("guest-submission"), activeTypeId())))
+                                """, title("guest-submission"), activeTypeId())))
                 .andExpect(status().isCreated());
 
         verifyNoInteractions(mailSender);
@@ -218,7 +219,14 @@ class GuestCommunicationEmailIntegrationTests {
         assertThat(email.getTo()).containsExactly(recipient);
         assertThat(email.getSubject()).isEqualTo(
                 "[Masar] New message for Request #" + requestId);
-        assertThat(email.getText()).contains(message);
+        if (recipient.startsWith("project.")) {
+            assertThat(email.getText())
+                    .contains("You can track your request through the Masar website using your tracking number and registered email.")
+                    .doesNotContain(message, "localhost", "http://", "https://", "/track-request");
+        } else {
+            assertThat(email.getText()).contains(message)
+                    .doesNotContain("localhost", "http://", "https://", "/track-request");
+        }
     }
 
     private org.springframework.test.web.servlet.ResultActions sendAdminGeneral(

@@ -14,6 +14,8 @@ public final class GuestEmailNotificationEvent {
     private final String guestName;
     private final String status;
     private final String message;
+    private final boolean projectTrackingAvailable;
+    private final String verificationCode;
 
     private GuestEmailNotificationEvent(
             GuestEmailNotificationCategory category,
@@ -21,7 +23,7 @@ public final class GuestEmailNotificationEvent {
             Long requestId,
             String guestName,
             String status,
-            String message
+            String message, boolean projectTrackingAvailable, String verificationCode
     ) {
         this.category = category;
         this.recipientEmail = recipientEmail;
@@ -29,6 +31,7 @@ public final class GuestEmailNotificationEvent {
         this.guestName = guestName;
         this.status = status;
         this.message = message;
+        this.projectTrackingAvailable=projectTrackingAvailable; this.verificationCode=verificationCode;
     }
 
     public static GuestEmailNotificationEvent statusChanged(Request request) {
@@ -39,7 +42,7 @@ public final class GuestEmailNotificationEvent {
                 request.getId(),
                 request.getGuestName(),
                 request.statusDisplayName(),
-                null);
+                null, request.isProjectTask(), null);
     }
 
     public static GuestEmailNotificationEvent messageSent(GuestCommunication communication) {
@@ -59,8 +62,11 @@ public final class GuestEmailNotificationEvent {
                 request.getId(),
                 request.getGuestName(),
                 null,
-                message);
+                message, request.isProjectTask(), null);
     }
+
+    public static GuestEmailNotificationEvent submitted(Request request){validateGuestRequest(request);return new GuestEmailNotificationEvent(GuestEmailNotificationCategory.REQUEST_SUBMITTED,request.getGuestEmail(),request.getId(),request.getGuestName(),null,null,true,null);}
+    public static GuestEmailNotificationEvent verification(Request request,String code){validateGuestRequest(request);Objects.requireNonNull(code);return new GuestEmailNotificationEvent(GuestEmailNotificationCategory.VERIFICATION_CODE,request.getGuestEmail(),request.getId(),request.getGuestName(),null,null,true,code);}
 
     private static void validateGuestRequest(Request request) {
         Objects.requireNonNull(request, "request is required");

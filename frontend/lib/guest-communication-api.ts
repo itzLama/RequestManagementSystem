@@ -4,7 +4,8 @@ export type GuestCommunication = {
   id: number;
   message: string;
   senderName: string;
-  senderRole: "ADMIN" | "EMPLOYEE";
+  senderRole: "ADMIN" | "EMPLOYEE" | null;
+  senderType: "TEAM" | "GUEST";
   sentAt: string;
 };
 

@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
@@ -183,11 +184,11 @@ class GuestStatusEmailIntegrationTests {
                         })
                         .cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .contentType("application/json")
-                        .content("""
+                        .content(String.format(Locale.ROOT, """
                                 {"guestName":"Status Guest","guestEmail":"status@example.com",
                                  "title":"%s","description":"Submission only",
                                  "typeId":%d,"priority":"LOW"}
-                                """.formatted(title("submission"), activeTypeId())))
+                                """, title("submission"), activeTypeId())))
                 .andExpect(status().isCreated());
 
         verifyNoInteractions(mailSender);
@@ -267,7 +268,8 @@ class GuestStatusEmailIntegrationTests {
         assertThat(email.getTo()).containsExactly("guest@example.com");
         assertThat(email.getSubject()).isEqualTo(
                 "[Masar] Request #" + requestId + " status updated");
-        assertThat(email.getText()).contains(statusValue);
+        assertThat(email.getText()).contains(statusValue)
+                .doesNotContain("localhost", "http://", "https://", "/track-request");
     }
 
     private void assertPersistedTransition(long requestId, String statusValue, long historyCount) {

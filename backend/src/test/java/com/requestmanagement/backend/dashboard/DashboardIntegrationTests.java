@@ -117,6 +117,8 @@ class DashboardIntegrationTests {
     }
 
     private void clearRequests() {
+        jdbc.update("DELETE FROM guest_tracking_sessions");
+        jdbc.update("DELETE FROM guest_tracking_challenges");
         jdbc.update("DELETE FROM request_guest_field_answers");
         jdbc.update("DELETE FROM guest_communications");
         jdbc.update("DELETE FROM status_history");

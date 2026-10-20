@@ -23,7 +23,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [loadingUser, setLoadingUser] = useState(true);
   const [authError, setAuthError] = useState("");
   const [reloadUser, setReloadUser] = useState(0);
-  const isPublicRoute = pathname === "/login" || pathname === "/guest/request";
+  const isPublicRoute =
+    pathname === "/login"
+    || pathname === "/guest/request"
+    || pathname === "/track-request";
 
   useEffect(() => {
     if (isPublicRoute) {

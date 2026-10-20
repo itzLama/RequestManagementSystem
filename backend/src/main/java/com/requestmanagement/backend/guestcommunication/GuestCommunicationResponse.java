@@ -9,14 +9,20 @@ public record GuestCommunicationResponse(
         String message,
         String senderName,
         User.Role senderRole,
+        GuestCommunication.SenderType senderType,
         LocalDateTime sentAt
 ) {
     public static GuestCommunicationResponse from(GuestCommunication communication) {
+        String senderName = communication.getSenderName();
+        if (senderName == null && communication.getSentBy() != null) {
+            senderName = communication.getSentBy().getFullName();
+        }
         return new GuestCommunicationResponse(
                 communication.getId(),
                 communication.getMessage(),
-                communication.getSentBy().getFullName(),
-                communication.getSentBy().getRole(),
+                senderName,
+                communication.getSentBy() == null ? null : communication.getSentBy().getRole(),
+                communication.getSenderType(),
                 communication.getSentAt()
         );
     }

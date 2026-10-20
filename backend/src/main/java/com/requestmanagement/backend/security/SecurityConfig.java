@@ -78,6 +78,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/guest/request-types", "/api/guest/projects").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/guest/projects/*/work-types").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/guest/projects/*/form").permitAll()
+                        .requestMatchers("/api/guest/tracking/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/guest/requests/general", "/api/guest/requests/projects/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/dashboard").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/requests/admin/board").hasRole("ADMIN")
