@@ -1,361 +1,340 @@
-# Masar | مسار
+# Masar — Internal Service Request Management System
 
-## Internal Service Request Management System
+Masar is a full-stack application for managing internal service requests and project-based work. It provides employees and administrators with a shared workspace for submitting, assigning, tracking, and managing Requests and Project Tasks. Guests can also submit General and Project Requests without creating an internal account.
 
-Masar is an internal service request management system developed as part of an IT internship project. It is intended to help employees submit and track internal service requests while allowing administrators to manage requests, assignments, statuses, comments, and reporting.
+## Overview
 
-The current repository contains the completed Week 3 foundation, Week 4 requester workflow, and Week 5 administrator request-management workflow.
+Masar supports two related workflows:
 
-## Main Users
+- **General Requests** can be submitted by authenticated Employees or unauthenticated Guests. They use centrally managed Request Types and a fixed five-status workflow.
+- **Project Requests and Tasks** belong to a specific Project. They use that Project's configurable Work Types, Guest Form fields, and status columns.
 
-- **Employee:** Submits and tracks personal internal service requests.
-- **Administrator:** Manages requests, assignments, statuses, public comments, and internal notes.
+Employees can access their own General Requests, General Requests assigned to them, and Projects where they are members. Administrators manage users, General Requests, Projects, and Project configuration. Verified Guests can track and communicate about Project Guest Requests only.
 
-## Tech Stack
+## Key Features
 
-### Main Technologies
+### General Request Management
 
-- **Frontend:** Next.js 16.3.5, React 19.2.8, and TypeScript 5
-- **Backend:** Java 21 and Spring Boot 4.1.1
-- **Database:** PostgreSQL 16
-- **Database migration:** Flyway
+- Submission by authenticated Employees and unauthenticated Guests.
+- Employees can view and comment on General Requests they created; assigned Employees have a separate Assigned Tasks view and can comment or change status.
+- Administrators can view all General Requests, change status and priority, and assign or unassign eligible active Employees.
+- Board and table views with search and filtering.
+- Ordinary Comments are visible in the applicable Request details; Internal Notes are a separate Admin-only channel.
+- Request timestamps and persisted Status History.
+- Assignment restricted to active Employees.
 
-### Backend Libraries
+General Guest submission displays a Request Number. It does not provide OTP tracking or a two-way Guest portal.
 
-- Spring Web MVC
-- Spring Data JPA
-- Spring Security
-- Jakarta Bean Validation
-- Lombok
-- PostgreSQL JDBC driver
+### Project Management
 
-### Frontend Styling and Development
+- Admin Project creation, editing, and archiving. Hard deletion is rejected when memberships, Requests, or other dependent records exist.
+- Project membership management with member-scoped Employee access.
+- Admin and Employee Project workspaces with Kanban drag-and-drop.
+- Project-specific, configurable status columns and Work Types.
+- Project-specific Guest Forms with text, textarea, number, dropdown, date, and checkbox fields.
+- Existing Tasks retain their Work Type associations, and submitted custom answers retain snapshots when configuration changes.
+- Project Task details with Comments, Activity History, custom answers, and Guest Communication for Guest-submitted Tasks.
+- Archived Projects remain readable but cannot accept configuration changes, Task updates, or new Guest Communication.
 
-- Tailwind CSS 4
-- lucide-react 1.47.0
-- ESLint 9
+### Guest Requests
 
-### Build and Local Infrastructure
+- Guests can submit General or Project Requests without an Employee account.
+- A General submission uses the standard General Request fields and displays a **Request Number** after submission.
+- A Project submission uses that Project's active Work Types and dynamic Guest Form fields and displays a **Tracking Number**.
+- Project submissions can later enter the OTP-based tracking flow using the Tracking Number and matching Guest email.
+- Submissions use server-side validation, CSRF protection, and rate limiting.
+- Submitted dynamic-field answers retain their labels, types, options, and values if the Project form is later changed.
 
-- Maven 3.9.16 through Maven Wrapper 3.3.4
-- npm with the committed `package-lock.json`
-- Docker Compose for the local PostgreSQL service
+### Project Guest Tracking and Communication
+
+- Tracking Number and matching email verification followed by a six-digit email OTP.
+- Request-scoped Guest sessions rather than general Guest accounts.
+- Access to current status, permitted submitted details, and Guest-visible communication.
+- Two-way communication between a verified Guest and the authorized Project team.
+- Thirty-minute inactivity expiration enforced by the backend; passive reads do not extend a session.
+- An explicit **Exit Tracking** action.
+- Tracking information remains readable for archived Projects, while new Guest messages are disabled.
+- Internal Comments, Activity History, assignee details, and Project membership are not exposed through Guest Tracking APIs.
+
+### Administration and Dashboard
+
+- Admin Dashboard with request totals, open and completed metrics, status distribution, and recent General Requests.
+- Employee management: create, update, deactivate/reactivate, and safely delete unused Employee records.
+- Project, membership, Work Type, status, and Guest Form configuration.
+- General Request and Project Task management according to role and Project scope.
+- Status History for General Requests and Activity History for Project Tasks.
+- Confirmation dialogs and conflict responses for destructive or history-sensitive actions.
+
+Reporting is currently limited to the Dashboard summaries and recent-request list; there is no separate reporting module.
+
+## User Roles and Permissions
+
+### Administrator
+
+Administrators manage Employee accounts and all General Requests. They can create and manage Projects, memberships, Work Types, status columns, and Guest Form fields; create and update Project Tasks; assign eligible Employees; communicate with Guests on Guest-submitted Tasks; and view the administrative Dashboard. Employees or Projects with persisted dependencies cannot be hard-deleted and must instead be deactivated or archived.
+
+### Employee
+
+Employees create and view their own General Requests. They separately access General Requests assigned to them, where they can comment and perform the permitted status updates. Project access requires membership; within an active authorized Project, an Employee can use its board, create Tasks, perform permitted Task updates, comment, and communicate on Guest-submitted Tasks. Inactive Employees cannot authenticate, continue using an old session, or receive new assignments or memberships.
+
+### Guest
+
+Guests are unauthenticated external submitters, not a persisted application role. General submissions return a Request Number but have no Guest tracking portal. Project submissions return a Tracking Number; after matching-email and OTP verification, the Guest receives a session scoped to that Project Request and can view permitted details and exchange Guest Communication.
+
+## Technology Stack
+
+| Area | Technology |
+| --- | --- |
+| Frontend | Next.js 16.3.5, React 19.2.8, TypeScript 5, Tailwind CSS 4 |
+| UI and interaction | Lucide React, dnd-kit |
+| Backend | Java 21, Spring Boot 4.1.1, Spring Web MVC |
+| Security | Spring Security, session authentication, CSRF protection |
+| Persistence | Spring Data JPA, PostgreSQL 16 |
+| Database migrations | Flyway |
+| Email | Spring Mail with Mailpit for local development |
+| Build tools | Maven Wrapper 3.3.4 / Maven 3.9.16, npm |
+| Local infrastructure | Docker Compose |
+
+## System Architecture
+
+```text
+Browser
+   |
+   | Next.js pages and API client calls
+   v
+Next.js frontend (localhost:3000)
+   |
+   | /api proxy
+   v
+Spring Boot REST API (localhost:8080)
+   |                     |
+   | JPA / Flyway        | SMTP
+   v                     v
+PostgreSQL 16          Mailpit
+(localhost:5432)       SMTP 1025 / UI 8025
+```
+
+The frontend sends same-origin `/api` requests, which Next.js proxies to the configured backend. Spring Boot owns authentication, authorization, validation, business transactions, email event publication, and persistence. Flyway applies forward-only schema migrations at backend startup.
+
+Email notifications are published from committed business transactions and delivered afterward. Mailpit captures them during local development. Guest Tracking verifies an OTP and establishes a server-managed, request-scoped session; it does not expose internal authenticated-user data.
 
 ## Project Structure
 
 ```text
 RequestManagementSystem/
 ├── backend/
-│   ├── .mvn/                         # Maven Wrapper configuration
-│   ├── src/main/java/                # Spring Boot application
-│   ├── src/main/resources/
-│   │   ├── db/migration/             # Flyway migrations
-│   │   └── application.properties    # Backend configuration
-│   ├── src/test/                     # Backend tests
-│   ├── mvnw
-│   ├── mvnw.cmd
-│   └── pom.xml
+│   ├── src/main/java/com/requestmanagement/backend/
+│   │   ├── auth/                 # Login and authenticated-session APIs
+│   │   ├── dashboard/            # Administrative metrics
+│   │   ├── employee/             # Employee administration
+│   │   ├── guest/                # Public Guest submissions
+│   │   ├── guestcommunication/   # Team-to-Guest communication
+│   │   ├── guestform/            # Dynamic Project Guest Forms
+│   │   ├── guesttracking/        # OTP and request-scoped tracking
+│   │   ├── notification/         # Email events and delivery
+│   │   ├── project/              # Projects, membership, and Tasks
+│   │   ├── projectstatus/        # Configurable Project statuses
+│   │   ├── projectworktype/      # Configurable Project Work Types
+│   │   ├── request/              # General Request workflows
+│   │   ├── security/             # Spring Security and account checks
+│   │   └── statushistory/        # Status transition history
+│   ├── src/main/resources/db/migration/
+│   └── src/test/
 ├── frontend/
-│   ├── app/                          # Next.js App Router pages
-│   ├── components/                   # Shared UI components
-│   ├── lib/                          # Frontend API utilities
-│   ├── public/                       # Static assets and Masar logo
-│   ├── package.json
-│   └── package-lock.json
-├── .env.example                      # Environment-variable reference
-├── .gitignore
-└── compose.yaml                      # PostgreSQL Docker service
+│   ├── app/                      # Next.js routes
+│   ├── components/               # Shared and role-specific UI
+│   ├── context/                  # Authentication state
+│   └── lib/                      # API clients and display utilities
+├── compose.yaml
+├── .env.example
+└── README.md
 ```
 
-## Prerequisites
+## Getting Started — Local Development
 
-Install the following software before running the project locally:
+### Prerequisites
 
-- **Java Development Kit 21**
-- **Node.js and npm**
-- **Docker with Docker Compose support**
-- **Windows PowerShell**
+Install:
 
-A separate Maven installation is not required because the backend includes the Maven Wrapper.
+- Git
+- Java Development Kit 21
+- Docker Desktop with Docker Compose
+- Node.js 20.9 or later and npm
 
-## Environment Configuration
+The repository includes Maven Wrapper scripts, so a separate Maven installation is optional.
 
-The backend and Docker Compose use the following PostgreSQL environment variables:
-
-| Variable | Default or Required Value |
-|---|---|
-| `POSTGRES_HOST` | Defaults to `127.0.0.1` |
-| `POSTGRES_PORT` | Defaults to `5432` |
-| `POSTGRES_DB` | Defaults to `request_management` |
-| `POSTGRES_USER` | Defaults to `request_user` |
-| `POSTGRES_PASSWORD` | Required and must be supplied locally |
-
-The repository contains `.env.example` as documentation only. It contains placeholder values and must not contain a real password.
-
-Before starting PostgreSQL or the backend, set a local password in the relevant PowerShell terminal:
+### 1. Clone the repository
 
 ```powershell
-$env:POSTGRES_PASSWORD = "choose-a-local-password"
+git clone https://github.com/itzLama/RequestManagementSystem.git
+Set-Location RequestManagementSystem
 ```
 
-Use the same password for Docker Compose and the Spring Boot backend.
+### 2. Create the local environment file
 
-If the other PostgreSQL settings are changed, set the same values for both processes:
+Windows PowerShell:
 
 ```powershell
-$env:POSTGRES_HOST = "127.0.0.1"
-$env:POSTGRES_PORT = "5432"
-$env:POSTGRES_DB = "request_management"
-$env:POSTGRES_USER = "request_user"
-$env:POSTGRES_PASSWORD = "choose-a-local-password"
+Copy-Item .env.example .env
 ```
 
-Never commit a local `.env` file or any real credentials.
+macOS or Linux:
 
-## Database Setup
-
-PostgreSQL runs locally through Docker Compose using the official PostgreSQL 16 image. Database data is stored in the named Docker volume `postgres_data`.
-
-Flyway manages the database schema and initial development data:
-
-- `V1__create_initial_schema.sql` creates the five application tables.
-- `V2__insert_initial_data.sql` inserts the initial users, request types, requests, comments, and status history.
-- `V3__hash_seed_user_passwords.sql` establishes BCrypt password hashes for the known development seed users.
-- `V4__rename_requester_role_to_employee.sql` migrates the authenticated requester role to Employee without changing user identities or relationships.
-- `V5__create_projects_and_memberships.sql` creates Projects and explicit ProjectMembership records with restrictive foreign keys and duplicate-membership protection.
-- `V6__extend_requests_for_projects_and_guests.sql` adds the nullable Project association and mutually exclusive authenticated/guest creator identity foundation to Requests.
-- `V7__add_project_task_work_type.sql` distinguishes General Requests from Project Tasks, adds Task work types, and migrates existing Project-linked rows without deleting development data.
-
-The backend has Hibernate schema generation disabled with:
-
-```properties
-spring.jpa.hibernate.ddl-auto=none
+```bash
+cp .env.example .env
 ```
 
-Flyway is therefore responsible for database schema creation and migration. No manual SQL setup is required.
+Keep `.env` local and never commit credentials or secrets.
 
-## Running the Project Locally
+### 3. Configure environment variables
 
-Run each application component in a separate PowerShell terminal.
+At minimum, configure:
 
-### 1. Start PostgreSQL
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB` | PostgreSQL database name |
+| `POSTGRES_USER` | PostgreSQL user |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `MASAR_GUEST_TRACKING_SECRET` | Strong secret used to protect Guest Tracking credentials |
+| `MASAR_GUEST_COOKIE_SECURE` | Use `false` for local HTTP only; use `true` with HTTPS |
+
+The sample file also documents `POSTGRES_HOST`, `POSTGRES_PORT`, SMTP settings, and `MASAR_MAIL_FROM`. Defaults target PostgreSQL and Mailpit on the local machine.
+
+Docker Compose automatically reads the root `.env`. Spring Boot does **not** automatically import that file when started directly on the host, so export the required values into the backend process environment.
+
+Windows PowerShell example:
+
+```powershell
+$env:POSTGRES_PASSWORD = "<your-local-database-password>"
+$env:MASAR_GUEST_TRACKING_SECRET = "<a-strong-local-development-secret>"
+$env:MASAR_GUEST_COOKIE_SECURE = "false"
+```
+
+Set any non-default database or mail values in the same shell before starting the backend. Do not reuse development secrets in production.
+
+### 4. Start PostgreSQL and Mailpit
 
 From the repository root:
 
 ```powershell
-$env:POSTGRES_PASSWORD = "choose-a-local-password"
-docker compose up -d postgres
-```
-
-To check the container status:
-
-```powershell
+docker compose up -d postgres mailpit
 docker compose ps
 ```
 
-### 2. Start the Spring Boot backend
+PostgreSQL data is kept in the `postgres_data` Docker volume. Mailpit is intentionally ephemeral in this development setup.
 
-Open another PowerShell terminal:
+### 5. Start the backend
+
+In a terminal containing the required environment variables:
 
 ```powershell
-cd backend
-$env:POSTGRES_PASSWORD = "choose-a-local-password"
+Set-Location backend
 .\mvnw.cmd spring-boot:run
 ```
 
-The backend starts at:
+macOS or Linux:
 
-```text
-http://localhost:8080
+```bash
+cd backend
+./mvnw spring-boot:run
 ```
 
-During startup, Flyway validates and applies any pending migrations.
+The API starts at `http://localhost:8080`. Flyway validates and applies pending migrations during startup.
 
-### 3. Install the frontend dependencies
+### 6. Start the frontend
 
-After cloning the repository, run this once from a new PowerShell terminal:
+In a separate terminal:
 
 ```powershell
-cd frontend
-npm.cmd ci
+Set-Location frontend
+npm ci
+npm run dev
 ```
 
-Run `npm.cmd ci` again only when dependencies need to be reinstalled or the lockfile changes.
+The application is available at `http://localhost:3000`. The frontend proxies `/api` to `http://localhost:8080` by default. Set `BACKEND_URL` before starting Next.js if the backend uses a different address.
 
-### 4. Start the Next.js frontend
+Useful public routes:
 
-For normal frontend startup, open a PowerShell terminal and run:
+- Guest request submission: `http://localhost:3000/guest/request`
+- Guest request tracking: `http://localhost:3000/track-request`
+- Mailpit interface: `http://localhost:8025`
 
-```powershell
-cd frontend
-npm.cmd run dev
-```
+## Database Migrations
 
-The frontend starts at:
+Flyway migrations are stored in `backend/src/main/resources/db/migration` and currently cover:
 
-```text
-http://localhost:3000
-```
+- Core users, Request Types, Requests, Comments, and Status History.
+- Seed and development data.
+- Projects, memberships, Project Tasks, and Guest submission support.
+- Guest Communication and restrictive history protections.
+- Project-specific Work Types, dynamic Guest Forms, and configurable statuses.
+- Guest Tracking OTP/session storage and supporting constraints.
 
-The Next.js development server forwards `/api/*` requests to the backend at `http://localhost:8080`.
+Existing migrations are immutable; schema evolution should use a new forward-only migration.
 
-### 5. Open the application
+## Email Testing with Mailpit
 
-Open the following address in a browser:
+Mailpit is a local SMTP capture tool, not a production delivery service. With Docker Compose running, Spring Mail sends to `127.0.0.1:1025`, and captured messages can be inspected at `http://localhost:8025`.
 
-```text
-http://localhost:3000/login
-```
+Current development emails include:
 
-## Sample Development Accounts
+- Project Guest Request submission confirmation.
+- Guest Tracking OTP verification.
+- Guest Request status-change notifications.
+- Notifications to a Guest when an authorized Admin or Employee sends a Guest Communication message.
 
-The following accounts come from the Flyway development seed data. They are for local development and testing only.
+Guest replies are stored for the authorized team to read but do not currently trigger email to team members. Notification text avoids embedding localhost URLs or tracking links. Real email-provider configuration, delivery monitoring, retries, and an outbox are outside the current scope.
 
-| Name | Email | Role | Password |
-|---|---|---|---|
-| Sara Saad | `sara.saad@example.com` | Administrator | `Password123` |
-| Nora Ahmed | `nora.ahmed@example.com` | Employee | `Password123` |
-| Nouf Khaled | `nouf.khaled@example.com` | Administrator | `Password123` |
+## Testing and Quality Checks
 
-These are sample application credentials, not infrastructure or production credentials.
+### Backend
 
-## Current Core Features
-
-The following functionality is currently implemented:
-
-- Shared login page for administrators and employees
-- Authentication against users stored in PostgreSQL
-- BCrypt password verification
-- Rejection of invalid credentials and inactive users
-- Server-side session authentication using Spring Security
-- CSRF protection for state-changing requests
-- Session restoration through `/api/auth/me`
-- Logout with server-side session invalidation
-- Protected application layout
-- Role-based navigation and post-login redirects
-- Masar branding and base application layout
-- Flyway-managed database schema and development seed data
-- JPA entities and repositories for:
-  - Users
-  - Request types
-  - Requests
-  - Comments
-  - Status history
-  - Projects
-  - Project memberships
-- Create Request form
-- Request form validation and useful error handling
-- Active request types loaded from the backend database
-- Employee-only My Requests listing
-- Employee Assigned Tasks for currently assigned General Requests, kept separate from My Requests
-- Server-side pagination and newest-first request ordering
-- Employee and Admin Kanban Board and Table views
-- Kanban columns for New, In Progress, Waiting User, Completed, and Rejected
-- Request Details dialogs from Board and Table views
-- Direct Request Details routes retained for fallback access
-- Request Details with request metadata
-- Status Timeline based on persisted status history
-- Public requester-visible comments and Add Comment functionality
-- Request ownership enforcement
-- Employee identity derived from Spring Security rather than client-provided user IDs
-- Internal comments excluded from requester responses
-- Admin request list with title search and status, type, and priority filters
-- Server-side pagination for the Admin Table View
-- Admin status updates through Completed and Rejected
-- Owner assignment and unassignment by Admin
-- Any active user may be selected as an owner
-- Admin public comments and Admin-only internal notes
-- Admin Employee Management for listing, viewing, creating, editing, and deactivating Employee accounts
-- Employee deactivation preserves historical relationships; permanent Employee deletion is not implemented
-- Admin Project Management for creating, listing, viewing, editing, and archiving Projects
-- Project Team Management using explicit memberships with existing active Employees
-- Archived Projects and retained teams remain viewable but read-only
-- Project archive is final; project reactivation and hard deletion are not implemented
-- Employee Projects lists ACTIVE and retained ARCHIVED memberships without exposing unrelated Projects
-- Project Task boards contain only Tasks belonging to the selected Project
-- Active Project members can create assigned Project Tasks, add normal comments, explicitly change status, and reassign Tasks to eligible active Project members
-- Project collaboration is authorized by current active Employee membership, while Task creator and assignee remain separate identities
-- Project Tasks support Task, Bug, and Improvement work types instead of General Request types
-- Archived Projects preserve Tasks, comments, memberships, and status history while remaining fully read-only for Employees and Admin
-- Project Tasks remain separate from General My Requests and Assigned Tasks
-- Admin Requests identify General Request versus Project Task context; Project Tasks never appear in Assigned Tasks
-- Request records support General Requests (`project_id` and `work_type` are null, `type_id` is required) and Project Tasks (`project_id` and `work_type` are required, `type_id` is null)
-- The Request schema supports either an authenticated creator or a guest name/email identity, enforced by a database constraint
-- The existing Employee Create Request workflow remains General-only; Project Tasks are created contextually from an active Project
-- Request creation and update timestamps in Admin Request Details
-- Persisted status history for status changes
-- Explicit status changes may move freely among New, In Progress, Waiting User, Completed, and Rejected
-- Every real explicit status change creates StatusHistory; comments never change request status
-- Assigned Employees may view, comment on, and explicitly change the status of their currently assigned General Requests
-- Drag-and-drop, public Guest Submission, GuestCommunication, and email are not implemented yet
-
-Dashboard reporting remains outside the currently implemented scope.
-
-## Week 3 Foundation Status
-
-The completed Week 3 foundation includes:
-
-- Repository and project setup
-- Base frontend layout and navigation
-- Environment-based configuration
-- PostgreSQL connectivity
-- Flyway schema and seed-data migrations
-- JPA entities and repositories
-- Spring Security authentication and authorization foundations
-- Session and CSRF handling
-- Lombok integration
-
-## Week 4 Employee Request Workflow Status
-
-The completed Week 4 requester workflow includes:
-
-- Create Request workflow with validation
-- Request Types API integration
-- My Requests with server-side pagination
-- Request Details with request metadata
-- Persisted status-history timeline
-- Requester-visible comments and Add Comment
-- Request ownership and requester-only authorization
-- Integration tests for the Week 4 backend flows
-
-## Week 5 Administrator Workflow Status
-
-The completed Week 5 workflow includes:
-
-- Admin request list with title search and status, type, and priority filters
-- Server-side pagination and deterministic newest-first ordering
-- Admin status updates through Completed and Rejected
-- Owner assignment and unassignment, with all active users available as owners
-- Public comments and separate Admin-only internal notes
-- Persisted status history for status changes
-- Employee and Admin Kanban Board and Table views, with Kanban as the default
-- Request Details dialogs with direct detail routes retained as fallbacks
-- Explicit reopening through authorized status changes; comments remain status-neutral
-- Role, ownership, session, and CSRF enforcement for the completed workflows
-
-## Testing
-
-The backend includes integration tests covering authentication, employee workflows, Employee Management, administrator request workflows, Assigned Tasks, membership-based Project collaboration, archived read-only enforcement, comments, and explicit status changes.
-
-Frontend ESLint and the production build with TypeScript checks also pass.
-
-## Technology and Library Choices
-
-- **Flyway** owns forward-only database changes, avoiding application-managed or manual schema updates.
-- **Spring Data JPA** maps Projects and ProjectMemberships and supplies repository persistence and derived queries without custom JDBC infrastructure.
-- **Spring Security** enforces ADMIN-only project management while preserving the existing session and CSRF model.
-- **Jakarta Bean Validation** validates project and membership request DTOs using the application's existing validation/error pipeline.
-- **Next.js, React, Tailwind CSS, and lucide-react** provide routing, stateful UI, Masar-consistent styling, and maintained icons without introducing another UI framework.
-
-Phase 2 required no new dependency because the existing stack already supplies the necessary persistence, validation, authorization, routing, and presentation capabilities.
-
-Run the backend tests from the `backend` directory:
+From `backend`, provide the required database and Guest Tracking environment variables:
 
 ```powershell
 .\mvnw.cmd test
+.\mvnw.cmd package
 ```
 
-## Notes
+On macOS or Linux, use `./mvnw test` and `./mvnw package`.
 
-- The current setup is intended for local development.
-- Production deployment and production SSO are outside the current project scope.
+### Frontend
+
+From `frontend`:
+
+```powershell
+npm ci
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+### Repository formatting
+
+From the repository root:
+
+```powershell
+git diff --check
+```
+
+## Security Considerations
+
+- Spring Security enforces authenticated ADMIN and EMPLOYEE roles and route-level authorization.
+- Active-account validation invalidates sessions for deactivated or deleted users.
+- Project APIs enforce membership and archived-Project rules on the backend.
+- State-changing authenticated requests retain CSRF protection.
+- Public Guest submission is validated and rate limited.
+- Guest Tracking uses expiring OTPs, protected credential storage, a request-scoped session, and backend-enforced inactivity expiration.
+- Guest Tracking responses omit internal Comments, Internal Notes, Activity History, assignments, and membership data.
+- Internal Comments and Guest Communication are separate data and authorization paths.
+- Passwords are BCrypt hashes; plaintext passwords are never persisted or returned.
+- Secrets and credentials belong in environment variables, not source control.
+
+Production deployments should use HTTPS, set `MASAR_GUEST_COOKIE_SECURE=true`, provide a strong unique Guest Tracking secret, restrict database access, and configure a production SMTP provider outside this development setup.
+
+## Current Scope and Limitations
+
+- Mailpit provides development-only email capture; production deployment and production email delivery are not configured by this repository.
+- Guest Tracking and two-way Guest Communication support Project Guest Requests only. General Guest Requests receive a Request Number but cannot use the Guest portal.
+- Guest Tracking sessions are scoped to one verified Request and expire after thirty minutes of inactivity.
+- Archived Projects are read-only and cannot be unarchived through the current application.
