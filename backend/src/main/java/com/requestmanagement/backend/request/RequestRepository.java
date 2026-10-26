@@ -50,8 +50,8 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo", "project"})
     Optional<Request> findByIdAndProject_Id(Long id, Long projectId);
 
-    @EntityGraph(attributePaths = {"project", "workType", "projectStatus"})
-    Optional<Request> findByIdAndGuestEmailIgnoreCaseAndCreatedByIsNullAndProjectIsNotNull(Long id, String guestEmail);
+    @EntityGraph(attributePaths = {"type", "project", "workType", "projectStatus"})
+    Optional<Request> findByIdAndGuestEmailIgnoreCaseAndCreatedByIsNull(Long id, String guestEmail);
 
     @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo", "project"})
     Optional<Request> findAdminDetailsByIdAndProjectIsNull(Long id);

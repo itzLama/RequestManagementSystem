@@ -42,7 +42,7 @@ public final class GuestEmailNotificationEvent {
                 request.getId(),
                 request.getGuestName(),
                 request.statusDisplayName(),
-                null, request.isProjectTask(), null);
+                null, true, null);
     }
 
     public static GuestEmailNotificationEvent messageSent(GuestCommunication communication) {

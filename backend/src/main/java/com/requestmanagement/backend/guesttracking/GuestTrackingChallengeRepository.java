@@ -8,4 +8,5 @@ public interface GuestTrackingChallengeRepository extends JpaRepository<GuestTra
  @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select c from GuestTrackingChallenge c left join fetch c.request where c.id=:id") Optional<GuestTrackingChallenge> findLocked(@Param("id") UUID id);
  long countByLookupDigestAndCreatedAtAfter(String digest,LocalDateTime after);
  List<GuestTrackingChallenge> findByRequest_IdAndConsumedAtIsNullAndSupersededAtIsNull(Long requestId);
+ void deleteByRequest_IdIn(Collection<Long> requestIds);
 }

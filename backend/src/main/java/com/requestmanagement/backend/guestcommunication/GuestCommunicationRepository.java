@@ -1,5 +1,6 @@
 package com.requestmanagement.backend.guestcommunication;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -10,4 +11,5 @@ public interface GuestCommunicationRepository extends JpaRepository<GuestCommuni
 
     @EntityGraph(attributePaths = "sentBy")
     List<GuestCommunication> findByRequest_IdOrderBySentAtAscIdAsc(Long requestId);
+    void deleteByRequest_IdIn(Collection<Long> requestIds);
 }

@@ -4,5 +4,6 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 import java.util.*;
 public interface GuestTrackingSessionRepository extends JpaRepository<GuestTrackingSession,UUID>{
- @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select s from GuestTrackingSession s join fetch s.request r join fetch r.project join fetch r.workType join fetch r.projectStatus where s.tokenDigest=:digest") Optional<GuestTrackingSession> findLockedByTokenDigest(@Param("digest") String digest);
+ @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select s from GuestTrackingSession s join fetch s.request r left join fetch r.project left join fetch r.workType left join fetch r.projectStatus left join fetch r.type where s.tokenDigest=:digest") Optional<GuestTrackingSession> findLockedByTokenDigest(@Param("digest") String digest);
+ void deleteByRequest_IdIn(Collection<Long> requestIds);
 }

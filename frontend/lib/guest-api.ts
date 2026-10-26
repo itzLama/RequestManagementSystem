@@ -5,7 +5,7 @@ import type { ProjectWorkType, ProjectGuestForm } from "@/lib/project-api";
 export type GuestOption = { id: number; name: string };
 export type GuestCreatedResponse = { requestId: number };
 export type GuestIdentity = { guestName: string; guestEmail: string; title: string; description: string; priority: RequestPriority };
-export type TrackingRequest = { trackingNumber:string; title:string; statusName:string; workTypeName:string; priority:RequestPriority; submittedAt:string; description:string; answers:{label:string;type:string;displayOrder:number;value:string;optionLabel:string|null}[]; communicationWritable:boolean };
+export type TrackingRequest = { trackingNumber:string; title:string; statusName:string; requestTypeName:string|null; workTypeName:string|null; priority:RequestPriority; submittedAt:string; description:string; answers:{label:string;type:string;displayOrder:number;value:string;optionLabel:string|null}[]; projectRequest:boolean; communicationWritable:boolean };
 export type TrackingMessage = { id:number;message:string;senderName:string;senderRole:"ADMIN"|"EMPLOYEE"|null;senderType:"TEAM"|"GUEST";sentAt:string };
 
 export class GuestApiError extends Error {

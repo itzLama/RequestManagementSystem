@@ -85,7 +85,41 @@ class ProjectStatusIntegrationTests {
     }
 
     @Test
-    void populatedColumnCannotBeDeletedOrMoveTasks() throws Exception {
+    void adminCanInsertStatusBetweenColumnsWhileNewRemainsFirst() throws Exception {
+        long project = project("Status insertion", "ACTIVE");
+        Session admin = login("sara.saad@example.com");
+        MvcResult created = mvc.perform(post("/api/projects/{id}/statuses", project)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Triage\",\"position\":1}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.displayOrder").value(1)).andReturn();
+        long inserted = number(created, "$.id");
+
+        List<Long> ordered = jdbc.queryForList("SELECT status_id FROM project_status_columns WHERE project_id=? AND is_active ORDER BY display_order,status_id", Long.class, project);
+        assertThat(ordered.getFirst()).isEqualTo(statusId(project, "NEW"));
+        assertThat(ordered.get(1)).isEqualTo(inserted);
+
+        mvc.perform(post("/api/projects/{id}/statuses", project)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Before New\",\"position\":0}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void maximumOfTenActiveColumnsIsStillEnforced() throws Exception {
+        long project = project("Status maximum", "ACTIVE");
+        for (int order = 5; order < 10; order++) {
+            jdbc.update("INSERT INTO project_status_columns(project_id,status_name,display_order) VALUES (?,?,?)", project, "Custom " + order, order);
+        }
+        Session admin = login("sara.saad@example.com");
+        mvc.perform(post("/api/projects/{id}/statuses", project)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Too Many\",\"position\":10}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A project can have up to 10 status columns."));
+    }
+
+    @Test
+    void populatedColumnMovesTasksTransactionallyBeforeRetirement() throws Exception {
         long project = project("Status deletion", "ACTIVE");
         long actor = userId("nora.ahmed@example.com");
         long task = task(project, actor, "IN_PROGRESS");
@@ -93,15 +127,47 @@ class ProjectStatusIntegrationTests {
         long replacement = statusId(project, "WAITING_USER");
         Session admin = login("sara.saad@example.com");
 
+        long otherProject = project("Wrong destination", "ACTIVE");
         mvc.perform(delete("/api/projects/{project}/statuses/{status}", project, source)
                         .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
-                        .contentType("application/json").content("{\"replacementStatusId\":" + replacement + "}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Move all tasks to another status before deleting this column."));
-
+                        .contentType("application/json").content("{\"mode\":\"MOVE_TASKS\",\"replacementStatusId\":" + statusId(otherProject, "WAITING_USER") + "}"))
+                .andExpect(status().isNotFound());
         assertThat(jdbc.queryForObject("SELECT project_status_id FROM requests WHERE request_id=?", Long.class, task)).isEqualTo(source);
         assertThat(jdbc.queryForObject("SELECT is_active FROM project_status_columns WHERE status_id=?", Boolean.class, source)).isTrue();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Integer.class, task)).isZero();
+
+        mvc.perform(delete("/api/projects/{project}/statuses/{status}", project, source)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"mode\":\"MOVE_TASKS\",\"replacementStatusId\":" + replacement + "}"))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbc.queryForObject("SELECT project_status_id FROM requests WHERE request_id=?", Long.class, task)).isEqualTo(replacement);
+        assertThat(jdbc.queryForObject("SELECT is_active FROM project_status_columns WHERE status_id=?", Boolean.class, source)).isFalse();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Integer.class, task)).isOne();
+    }
+
+    @Test
+    void permanentDeletionRemovesOnlySelectedStatusTasksAndTheirDependencies() throws Exception {
+        long project = project("Permanent task deletion", "ACTIVE");
+        long otherProject = project("Deletion isolation", "ACTIVE");
+        long actor = userId("nora.ahmed@example.com");
+        long source = statusId(project, "IN_PROGRESS");
+        long selected = task(project, actor, "IN_PROGRESS");
+        long retained = task(project, actor, "WAITING_USER");
+        long other = task(otherProject, actor, "IN_PROGRESS");
+        jdbc.update("INSERT INTO comments(request_id,user_id,comment_text,is_internal) VALUES (?,?,?,false)", selected, actor, "Delete with task");
+        jdbc.update("INSERT INTO status_history(request_id,old_project_status_id,new_project_status_id,changed_by) VALUES (?,?,?,?)", selected, statusId(project, "NEW"), source, actor);
+        Session admin = login("sara.saad@example.com");
+
+        mvc.perform(delete("/api/projects/{project}/statuses/{status}", project, source)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"mode\":\"DELETE_TASKS\"}"))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM requests WHERE request_id=?", Integer.class, selected)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM comments WHERE request_id=?", Integer.class, selected)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM status_history WHERE request_id=?", Integer.class, selected)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM requests WHERE request_id IN (?,?)", Integer.class, retained, other)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT is_active FROM project_status_columns WHERE status_id=?", Boolean.class, source)).isFalse();
     }
 
     @Test
