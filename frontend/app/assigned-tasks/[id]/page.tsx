@@ -7,5 +7,5 @@ import { EmployeeRequestDetails } from "@/components/employee/EmployeeRequestDet
 
 export default function AssignedTaskDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  return <div className="space-y-5"><Link href="/assigned-tasks" className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"><ArrowLeft size={16} aria-hidden="true" />Back to Assigned Tasks</Link><EmployeeRequestDetails requestId={id} mode="assigned" /></div>;
+  return <div className="space-y-5"><Link href="/assigned-tasks" className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"><ArrowLeft size={16} aria-hidden="true" className="rtl:scale-x-negative" />Back to Assigned Tasks</Link><EmployeeRequestDetails requestId={id} mode="assigned" /></div>;
 }

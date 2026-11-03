@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
 import {
-  formatRequestDate,
+  formatRequestDate as formatDate,
   REQUEST_PRIORITY_LABELS,
   REQUEST_STATUSES,
   REQUEST_STATUS_LABELS,
   type RequestPriority,
   type RequestStatus,
 } from "@/lib/request-display";
+import { useI18n } from "@/lib/i18n";
 
 type StatusCount = { status: RequestStatus; count: number };
 type LatestRequest = { id: number; title: string; typeName: string; priority: RequestPriority; status: RequestStatus; createdAt: string };
@@ -73,6 +74,7 @@ function DashboardLoading() {
 }
 
 export default function DashboardPage() {
+  const { locale } = useI18n(); const formatRequestDate = (value: string) => formatDate(value, locale);
   const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,8 +146,8 @@ export default function DashboardPage() {
           <thead className="bg-background text-xs font-medium text-secondary"><tr><th scope="col" className="px-4 py-4">ID</th><th scope="col" className="px-5 py-4">Title</th><th scope="col" className="px-5 py-4">Type</th><th scope="col" className="px-5 py-4">Priority</th><th scope="col" className="px-5 py-4">Status</th><th scope="col" className="px-5 py-4">Created Date</th></tr></thead>
           <tbody>{dashboard.latestRequests.map((request) => <tr key={request.id} className="border-t border-divider">
             <td className="px-4 py-5 font-medium text-secondary">{request.id}</td>
-            <td className="max-w-64 px-5 py-5 font-medium text-foreground"><span className="line-clamp-2">{request.title}</span></td>
-            <td className="max-w-52 px-5 py-5 text-secondary"><span className="line-clamp-2">{request.typeName}</span></td>
+            <td className="max-w-64 px-5 py-5 font-medium text-foreground"><span data-i18n-skip className="line-clamp-2">{request.title}</span></td>
+            <td className="max-w-52 px-5 py-5 text-secondary"><span data-i18n-skip className="line-clamp-2">{request.typeName}</span></td>
             <td className={`whitespace-nowrap px-5 py-5 font-medium ${priorityClasses[request.priority]}`}>{REQUEST_PRIORITY_LABELS[request.priority]}</td>
             <td className="whitespace-nowrap px-5 py-5 font-medium text-foreground">{REQUEST_STATUS_LABELS[request.status]}</td>
             <td className="whitespace-nowrap px-5 py-5 text-secondary">{formatRequestDate(request.createdAt)}</td>

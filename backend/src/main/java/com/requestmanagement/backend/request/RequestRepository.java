@@ -15,6 +15,7 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     boolean existsByAssignedTo_Id(Long assigneeId);
 
     boolean existsByProject_Id(Long projectId);
+    boolean existsByWorkType_Id(Long workTypeId);
     long countByProjectStatus_Id(Long statusId);
     List<Request> findByProjectStatus_Id(Long statusId);
 

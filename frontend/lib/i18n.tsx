@@ -1,0 +1,769 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
+
+export type Locale = "en" | "ar";
+
+const STORAGE_KEY = "masar-language";
+const localizedText = new WeakMap<Text, { original: string; rendered: string }>();
+const localizedAttributes = new WeakMap<Element, Map<string, { original: string; rendered: string }>>();
+
+const ARABIC: Record<string, string> = {
+  "Masar": "مسار",
+  "Admin": "مسؤول",
+  "Employee": "موظف",
+  "Dashboard": "لوحة المعلومات",
+  "Overview of service requests": "نظرة عامة على طلبات الخدمة",
+  "Requests": "الطلبات",
+  "Manage all service requests": "إدارة جميع طلبات الخدمة",
+  "My Requests": "طلباتي",
+  "View and create your requests": "عرض طلباتك وإنشاؤها",
+  "Assigned Tasks": "المهام المسندة",
+  "General Requests assigned to you": "الطلبات العامة المسندة إليك",
+  "Projects": "المشاريع",
+  "Manage projects and project teams": "إدارة المشاريع وفرقها",
+  "My Projects": "مشاريعي",
+  "Projects you are assigned to": "المشاريع المسندة إليك",
+  "Employees": "الموظفون",
+  "Manage employee accounts": "إدارة حسابات الموظفين",
+  "Create Request": "إنشاء طلب",
+  "Submit a new service request": "إرسال طلب خدمة جديد",
+  "Log Out": "تسجيل الخروج",
+  "Loading your workspace...": "جارٍ تحميل مساحة العمل...",
+  "Retry": "إعادة المحاولة",
+  "Redirecting to your requests...": "جارٍ التحويل إلى طلباتك...",
+  "Redirecting to the dashboard...": "جارٍ التحويل إلى لوحة المعلومات...",
+  "Submit Request": "إرسال طلب",
+  "Track Request": "تتبع طلب",
+  "Track Your Request": "تتبع طلبك",
+  "Submit another request": "إرسال طلب آخر",
+  "Submit a Request": "إرسال طلب",
+  "Send a service request without creating an account.": "أرسل طلب خدمة دون إنشاء حساب.",
+  "Request Submitted Successfully": "تم إرسال الطلب بنجاح",
+  "Thank you": "شكرًا لك",
+  "Save this tracking number. You will need it with your submitted email address to securely access the request.": "احتفظ برقم التتبع. ستحتاج إليه مع بريدك الإلكتروني للوصول إلى الطلب بأمان.",
+  "Tracking Number": "رقم التتبع",
+  "Name": "الاسم",
+  "Email": "البريد الإلكتروني",
+  "Request For": "نوع الطلب",
+  "General": "عام",
+  "Project": "مشروع",
+  "Title": "العنوان",
+  "Request Type": "نوع الطلب",
+  "Select request type": "اختر نوع الطلب",
+  "Priority": "الأولوية",
+  "Select priority": "اختر الأولوية",
+  "Default: Medium": "الافتراضي: متوسطة",
+  "Description": "الوصف",
+  "Work Type": "نوع العمل",
+  "Select Work Type": "اختر نوع العمل",
+  "Select active project": "اختر مشروعًا نشطًا",
+  "Loading request options...": "جارٍ تحميل خيارات الطلب...",
+  "Loading Project form...": "جارٍ تحميل نموذج المشروع...",
+  "Back to Sign In": "العودة إلى تسجيل الدخول",
+  "Submitting...": "جارٍ الإرسال...",
+  "Optional": "اختياري",
+  "required": "مطلوب",
+  "Sign In": "تسجيل الدخول",
+  "Welcome back": "مرحبًا بعودتك",
+  "Sign in to continue to Masar": "سجّل الدخول للمتابعة إلى مسار",
+  "Password": "كلمة المرور",
+  "Signing in...": "جارٍ تسجيل الدخول...",
+  "Total Requests": "إجمالي الطلبات",
+  "Open Requests": "الطلبات المفتوحة",
+  "Completed Requests": "الطلبات المكتملة",
+  "Requests by Status": "الطلبات حسب الحالة",
+  "Distribution of all service requests by current status": "توزيع جميع طلبات الخدمة حسب الحالة الحالية",
+  "Latest Requests": "أحدث الطلبات",
+  "No requests available yet.": "لا توجد طلبات حتى الآن.",
+  "Unable to load dashboard": "تعذر تحميل لوحة المعلومات",
+  "ID": "المعرّف",
+  "Type": "النوع",
+  "Status": "الحالة",
+  "Created Date": "تاريخ الإنشاء",
+  "Actions": "الإجراءات",
+  "No": "الرقم",
+  "Search": "بحث",
+  "Search requests...": "البحث في الطلبات...",
+  "Search projects...": "البحث في المشاريع...",
+  "Search employees...": "البحث في الموظفين...",
+  "Filters": "عوامل التصفية",
+  "All": "الكل",
+  "Active": "نشط",
+  "Inactive": "غير نشط",
+  "Archived": "مؤرشف",
+  "Newest First": "الأحدث أولًا",
+  "Oldest First": "الأقدم أولًا",
+  "Clear Search & Filters": "مسح البحث وعوامل التصفية",
+  "No requests found": "لم يتم العثور على طلبات",
+  "Try changing your search or filters.": "جرّب تغيير البحث أو عوامل التصفية.",
+  "No projects found": "لم يتم العثور على مشاريع",
+  "No employees found": "لم يتم العثور على موظفين",
+  "No assigned tasks": "لا توجد مهام مسندة",
+  "Loading assigned tasks...": "جارٍ تحميل المهام المسندة...",
+  "Loading projects...": "جارٍ تحميل المشاريع...",
+  "Loading employees...": "جارٍ تحميل الموظفين...",
+  "Loading request details...": "جارٍ تحميل تفاصيل الطلب...",
+  "Request not found": "الطلب غير موجود",
+  "Project not found.": "المشروع غير موجود.",
+  "Board": "اللوحة",
+  "Table": "الجدول",
+  "Board view": "عرض اللوحة",
+  "Table view": "عرض الجدول",
+  "Create Task": "إنشاء مهمة",
+  "Add Status": "إضافة حالة",
+  "Edit Status": "تعديل الحالة",
+  "Delete Status": "حذف الحالة",
+  "Status Name": "اسم الحالة",
+  "Position": "الموضع",
+  "Save Changes": "حفظ التغييرات",
+  "Saving changes...": "جارٍ حفظ التغييرات...",
+  "Saving...": "جارٍ الحفظ...",
+  "Cancel": "إلغاء",
+  "Delete": "حذف",
+  "Deleting...": "جارٍ الحذف...",
+  "Delete Permanently": "حذف نهائي",
+  "Permanently Delete Tasks": "حذف المهام نهائيًا",
+  "Move Tasks": "نقل المهام",
+  "Move tasks to another Status": "نقل المهام إلى حالة أخرى",
+  "This action cannot be undone.": "لا يمكن التراجع عن هذا الإجراء.",
+  "Team Members": "أعضاء الفريق",
+  "Work Types": "أنواع العمل",
+  "Project Work Types": "أنواع عمل المشروع",
+  "Guest Form": "نموذج الضيف",
+  "Project Details": "تفاصيل المشروع",
+  "Admin Project workspace": "مساحة عمل المشروع للمسؤول",
+  "Add Work Type": "إضافة نوع عمل",
+  "Edit": "تعديل",
+  "Archive": "أرشفة",
+  "Created": "تاريخ الإنشاء",
+  "Last Updated": "آخر تحديث",
+  "No description provided.": "لا يوجد وصف.",
+  "No team members have been added.": "لم تتم إضافة أعضاء إلى الفريق.",
+  "Add Employee": "إضافة موظف",
+  "Edit Employee": "تعديل الموظف",
+  "Employee Details": "تفاصيل الموظف",
+  "Full Name": "الاسم الكامل",
+  "Initial Password": "كلمة المرور الأولية",
+  "Deactivate": "إلغاء التنشيط",
+  "Guest": "ضيف",
+  "Guest Request": "طلب ضيف",
+  "Guest Tracking": "تتبع طلب الضيف",
+  "Guest Communication": "التواصل مع الضيف",
+  "Request #": "الطلب رقم",
+  "Communication with the team": "التواصل مع فريق العمل",
+  "Expand": "توسيع",
+  "Collapse": "طي",
+  "Select an active employee": "اختر موظفًا نشطًا",
+  "No eligible employees available": "لا يوجد موظفون متاحون للإضافة",
+  "Messages shared between the Guest and the Project team.": "الرسائل المتبادلة بين الضيف وفريق المشروع.",
+  "Send Message": "إرسال رسالة",
+  "Send Message to Guest": "إرسال رسالة إلى الضيف",
+  "This message will be saved in Masar and emailed to the Guest.": "ستُحفظ هذه الرسالة في مسار وتُرسل إلى الضيف عبر البريد الإلكتروني.",
+  "Message": "الرسالة",
+  "Write a message for the Guest...": "اكتب رسالة إلى الضيف...",
+  "Saving message...": "جارٍ حفظ الرسالة...",
+  "Message saved": "تم حفظ الرسالة",
+  "Loading communication history...": "جارٍ تحميل سجل التواصل...",
+  "No messages have been sent to this Guest yet.": "لم تُرسل أي رسائل إلى الضيف حتى الآن.",
+  "Comments": "التعليقات",
+  "Internal Comments": "التعليقات الداخلية",
+  "Internal Notes": "الملاحظات الداخلية",
+  "Internal Notes (Admin Only)": "الملاحظات الداخلية (للمسؤول فقط)",
+  "No comments yet.": "لا توجد تعليقات حتى الآن.",
+  "No internal notes yet.": "لا توجد ملاحظات داخلية حتى الآن.",
+  "Add a public comment...": "أضف تعليقًا عامًا...",
+  "Add an internal note...": "أضف ملاحظة داخلية...",
+  "Activity History": "سجل النشاط",
+  "Additional Information": "معلومات إضافية",
+  "Show more": "عرض المزيد",
+  "Show less": "عرض أقل",
+  "View all": "عرض الكل",
+  "Request Information": "معلومات الطلب",
+  "Project Task": "مهمة مشروع",
+  "Task": "مهمة",
+  "Requester": "مقدم الطلب",
+  "Created by": "أنشأه",
+  "Scope": "النطاق",
+  "Assignee": "الموظف المسؤول",
+  "Unassigned": "غير مسند",
+  "Assign Owner": "إسناد المسؤول",
+  "Task Assignee": "الموظف المسؤول عن المهمة",
+  "Admin Actions": "إجراءات المسؤول",
+  "Timestamps": "الطوابع الزمنية",
+  "Created At": "تاريخ الإنشاء",
+  "Updated At": "تاريخ التحديث",
+  "Back to Requests": "العودة إلى الطلبات",
+  "Back to Assigned Tasks": "العودة إلى المهام المسندة",
+  "Back to Projects": "العودة إلى المشاريع",
+  "New": "جديد",
+  "In Progress": "قيد التنفيذ",
+  "Waiting User": "بانتظار المستخدم",
+  "Completed": "مكتمل",
+  "Rejected": "مرفوض",
+  "Low": "منخفضة",
+  "Medium": "متوسطة",
+  "High": "عالية",
+  "Loading...": "جارٍ التحميل...",
+  "Close": "إغلاق",
+  "Previous page": "الصفحة السابقة",
+  "Next page": "الصفحة التالية",
+  "Start": "البداية",
+  "End": "النهاية",
+  "Track a Request": "تتبع طلب",
+  "Enter your tracking number and submitted email to receive a verification code.": "أدخل رقم التتبع والبريد الإلكتروني المستخدم عند الإرسال لاستلام رمز التحقق.",
+  "Send Verification Code": "إرسال رمز التحقق",
+  "Verification Code": "رمز التحقق",
+  "Verify": "تحقق",
+  "Verifying...": "جارٍ التحقق...",
+  "Sending...": "جارٍ الإرسال...",
+  "Exit Tracking": "إنهاء التتبع",
+  "Copy tracking number": "نسخ رقم التتبع",
+  "Copied": "تم النسخ",
+  "Request Details": "تفاصيل الطلب",
+  "No messages yet.": "لا توجد رسائل حتى الآن.",
+  "Send a message...": "أرسل رسالة...",
+  "Main navigation": "التنقل الرئيسي",
+  "Guest request navigation": "التنقل في خدمات الضيف",
+  "Request pages": "صفحات الطلبات",
+  "Request view": "عرض الطلبات",
+  "Close request details": "إغلاق تفاصيل الطلب",
+  "Loading dashboard": "جارٍ تحميل لوحة المعلومات",
+  "Request summary": "ملخص الطلبات",
+  "Total requests": "إجمالي الطلبات",
+  "Project workspace": "مساحة عمل المشروع",
+  "Loading project workspace...": "جارٍ تحميل مساحة عمل المشروع...",
+  "Column order saved.": "تم حفظ ترتيب الأعمدة.",
+  "Maximum of 10 status columns reached.": "تم بلوغ الحد الأقصى وهو 10 أعمدة حالة.",
+  "Add Custom Field": "إضافة حقل مخصص",
+  "Edit Custom Field": "تعديل الحقل المخصص",
+  "Custom Fields": "الحقول المخصصة",
+  "Field Label": "تسمية الحقل",
+  "Field Type": "نوع الحقل",
+  "Required": "مطلوب",
+  "Add Option": "إضافة خيار",
+  "Remove option": "إزالة الخيار",
+  "Text": "نص",
+  "Textarea": "نص متعدد الأسطر",
+  "Number": "رقم",
+  "Dropdown": "قائمة منسدلة",
+  "Date": "تاريخ",
+  "Checkbox": "مربع اختيار",
+  "Project Form": "نموذج المشروع",
+  "Configure the information Guests provide when submitting requests to this Project.": "حدّد المعلومات التي يُدخلها الضيوف عند إرسال طلبات إلى هذا المشروع.",
+  "Project Task Fields": "حقول مهمة المشروع",
+  "Visible": "ظاهر",
+  "Required field": "حقل مطلوب",
+  "Add Team Member": "إضافة عضو فريق",
+  "Remove Member": "إزالة العضو",
+  "Create Project": "إنشاء مشروع",
+  "Edit Project": "تعديل المشروع",
+  "Project Name": "اسم المشروع",
+  "Add Project": "إضافة مشروع",
+  "Create Employee": "إنشاء موظف",
+  "Permanently Delete Employee": "حذف الموظف نهائيًا",
+  "Permanently Delete Project": "حذف المشروع نهائيًا",
+  "No projects available": "لا توجد مشاريع متاحة",
+  "Projects you belong to will appear here.": "ستظهر هنا المشاريع التي تنتمي إليها.",
+  "No projects match your current search or filters.": "لا توجد مشاريع تطابق البحث أو عوامل التصفية الحالية.",
+  "No employees match your current search or filters.": "لا يوجد موظفون يطابقون البحث أو عوامل التصفية الحالية.",
+  "Create the first employee account to get started.": "أنشئ أول حساب موظف للبدء.",
+  "General Requests assigned to you will appear here.": "ستظهر هنا الطلبات العامة المسندة إليك.",
+  "No General Requests are currently assigned to you.": "لا توجد طلبات عامة مسندة إليك حاليًا.",
+  "No requests match the selected filters.": "لا توجد طلبات تطابق عوامل التصفية المحددة.",
+  "No requests yet": "لا توجد طلبات حتى الآن",
+  "No requests": "لا توجد طلبات",
+  "No tasks": "لا توجد مهام",
+  "Request": "طلب",
+  "Your requests will appear here after you create them.": "ستظهر طلباتك هنا بعد إنشائها.",
+  "Unable to load request details. Please try again.": "تعذر تحميل تفاصيل الطلب. يرجى المحاولة مرة أخرى.",
+  "Unable to restore your session. Please try again.": "تعذرت استعادة جلستك. يرجى المحاولة مرة أخرى.",
+  "Unable to connect to the server. Please try again.": "تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.",
+  "You do not have permission to view this request.": "ليس لديك صلاحية لعرض هذا الطلب.",
+  "You do not have permission to manage employees.": "ليس لديك صلاحية لإدارة الموظفين.",
+  "This request is unavailable.": "هذا الطلب غير متاح.",
+  "Owner options are currently unavailable.": "خيارات الإسناد غير متاحة حاليًا.",
+  "Current owner": "المسؤول الحالي",
+  "Loading owners...": "جارٍ تحميل المسؤولين...",
+  "Archived Project Tasks cannot be modified.": "لا يمكن تعديل مهام المشاريع المؤرشفة.",
+  "This Project Task belongs to an archived Project and is read-only.": "تنتمي مهمة المشروع هذه إلى مشروع مؤرشف وهي للقراءة فقط.",
+  "This Project is archived. Tasks, team membership, and project settings are read-only.": "هذا المشروع مؤرشف. المهام وأعضاء الفريق وإعدادات المشروع للقراءة فقط.",
+  "This Project is archived. Existing Guest Communication remains available, but new messages cannot be sent.": "هذا المشروع مؤرشف. يظل سجل التواصل متاحًا، لكن لا يمكن إرسال رسائل جديدة.",
+  "Loading statuses...": "جارٍ تحميل الحالات...",
+  "Loading team members...": "جارٍ تحميل أعضاء الفريق...",
+  "Loading Work Types...": "جارٍ تحميل أنواع العمل...",
+  "No Work Types configured.": "لم تتم إضافة أنواع مهام.",
+  "Retired": "ملغى",
+  "Rename": "إعادة تسمية",
+  "Save": "حفظ",
+  "Close dialog": "إغلاق النافذة",
+  "Previous": "السابق",
+  "Next": "التالي",
+  "First": "الأولى",
+  "Last": "الأخيرة",
+  "Verification code sent": "تم إرسال رمز التحقق",
+  "Request access verified": "تم التحقق من الوصول إلى الطلب",
+  "Resend Code": "إعادة إرسال الرمز",
+  "Email Address": "البريد الإلكتروني",
+  "Enter tracking number": "أدخل رقم التتبع",
+  "Enter verification code": "أدخل رمز التحقق",
+  "Message sent": "تم إرسال الرسالة",
+  "Administrator": "مسؤول",
+  "You": "أنت",
+  "Project Team": "فريق المشروع",
+  "Masar Team": "فريق مسار",
+  "Submitted": "تاريخ الإرسال",
+  "Not specified": "غير محدد",
+  "No description was submitted.": "لم يتم إرسال وصف.",
+  "Yes": "نعم",
+  "Status History": "سجل الحالة",
+  "No activity yet.": "لا يوجد نشاط حتى الآن.",
+  "No additional information was provided.": "لم يتم تقديم معلومات إضافية.",
+  "Add Field": "إضافة حقل",
+  "Label": "التسمية",
+  "Options": "الخيارات",
+  "Change Note": "ملاحظة التغيير",
+  "Change Status": "تغيير الحالة",
+  "Existing Status": "الحالة الحالية",
+  "Destination Status": "الحالة الوجهة",
+  "All Priorities": "كل الأولويات",
+  "All Status": "كل الحالات",
+  "All Types": "كل الأنواع",
+  "Activity": "النشاط",
+  "Status Timeline": "التسلسل الزمني للحالة",
+  "Add a Comment": "إضافة تعليق",
+  "Add Note": "إضافة ملاحظة",
+  "Add Member": "إضافة عضو",
+  "Employees assigned to this project.": "الموظفون المسندون إلى هذا المشروع.",
+  "Current and retained members of this Project.": "الأعضاء الحاليون والمحتفظ بهم في هذا المشروع.",
+  "Select Project member": "اختر عضوًا في المشروع",
+  "Work Types available when creating Tasks and Guest Project Requests.": "أنواع العمل المتاحة عند إنشاء مهام المشروع وطلبات الضيوف.",
+  "Default Work Type": "نوع العمل الافتراضي",
+  "If the provided details match a request, a verification code will be sent to the registered email.": "إذا تطابقت البيانات المدخلة مع أحد الطلبات، فسيُرسل رمز تحقق إلى البريد الإلكتروني المسجّل.",
+  "Read only": "للقراءة فقط",
+  "No custom fields configured.": "لم يتم إعداد حقول مخصصة.",
+  "Custom fields appear after the standard fields.": "تظهر الحقول المخصصة بعد الحقول الأساسية.",
+  "Choose the information Guests provide for this Project.": "اختر المعلومات التي سيُدخلها الضيوف لهذا المشروع.",
+  "Loading Guest form settings...": "جارٍ تحميل إعدادات نموذج الضيف...",
+  "This Project is archived. Guest form configuration is read-only.": "هذا المشروع مؤرشف، لذا يمكن عرض إعدادات نموذج الضيف فقط.",
+  "This Project is archived. Work Types are read-only.": "هذا المشروع مؤرشف، لذا يمكن عرض أنواع العمل فقط.",
+  "This Project has no active Work Types.": "لا توجد أنواع مهام نشطة في هذا المشروع.",
+  "This Project has no active members eligible for assignment.": "لا يحتوي هذا المشروع على أعضاء نشطين مؤهلين للإسناد.",
+  "Loading requests...": "جارٍ تحميل الطلبات...",
+  "Loading your requests...": "جارٍ تحميل طلباتك...",
+  "Loading task details...": "جارٍ تحميل تفاصيل المهمة...",
+  "Loading project...": "جارٍ تحميل المشروع...",
+  "Task Details": "تفاصيل المهمة",
+  "Task not found": "المهمة غير موجودة",
+  "This task is unavailable or you no longer have Project access.": "هذه المهمة غير متاحة أو لم يعد لديك وصول إلى المشروع.",
+  "Back to My Requests": "العودة إلى طلباتي",
+  "Back to Project": "العودة إلى المشروع",
+  "View Details": "عرض التفاصيل",
+  "Request Title": "عنوان الطلب",
+  "Provide the details of your service request.": "أدخل تفاصيل طلب الخدمة.",
+  "Update this assigned General Request explicitly.": "حدّث هذا الطلب العام المسند بشكل صريح.",
+  "Request submitted": "تم إرسال الطلب",
+  "Task created": "تم إنشاء المهمة",
+  "Create your first service request to start tracking it here.": "أنشئ أول طلب خدمة لبدء متابعته هنا.",
+  "You have no requests yet.": "ليس لديك طلبات حتى الآن.",
+  "You have no requests yet": "ليس لديك طلبات حتى الآن",
+  "No request types are currently available.": "لا توجد أنواع طلبات متاحة حاليًا.",
+  "Continue as Guest": "المتابعة كضيف",
+  "Submit a request without signing in": "إرسال طلب دون تسجيل الدخول",
+  "Welcome to Masar": "مرحبًا بك في مسار",
+  "OR": "أو",
+  "Verify Code": "التحقق من الرمز",
+  "Verify the submitted email address to securely view one Guest Request.": "تحقق من البريد الإلكتروني المستخدم في الطلب للوصول إلى طلب الضيف بأمان.",
+  "Reply": "رد",
+  "Posting comment...": "جارٍ نشر التعليق...",
+  "Created at": "تاريخ الإنشاء",
+  "Preserve the Tasks and their related history.": "احتفظ بالمهام وسجلها المرتبط.",
+  "Choose how to handle them before deleting": "اختر كيفية التعامل معها قبل الحذف",
+  "All associated data will be removed. This operation cannot be undone.": "ستُحذف جميع البيانات المرتبطة. لا يمكن التراجع عن هذا الإجراء.",
+  "This action is permanent and cannot be undone.": "هذا الإجراء نهائي ولا يمكن التراجع عنه.",
+  "This empty column will be removed from the board.": "سيُزال هذا العمود الفارغ من اللوحة.",
+  "Define a clear piece of work for the Project team.": "حدّد عملًا واضحًا لفريق المشروع.",
+  "Sign in to manage your service requests": "سجّل الدخول لإدارة طلبات الخدمة الخاصة بك",
+  "This Project is archived. Previous messages remain available, but new messages cannot be sent.": "هذا المشروع مؤرشف. تظل الرسائل السابقة متاحة، لكن لا يمكن إرسال رسائل جديدة.",
+  "This Project is archived. Task activity is read-only.": "هذا المشروع مؤرشف. نشاط المهمة للقراءة فقط.",
+  "Maximum 30 options, 100 characters each. Their displayed order is preserved.": "الحد الأقصى 30 خيارًا، و100 حرف لكل خيار. يتم الاحتفاظ بترتيب العرض.",
+  "Unable to load request types. Please try again.": "تعذر تحميل أنواع الطلبات. يرجى المحاولة مرة أخرى.",
+  "Unable to submit your request. Please try again.": "تعذر إرسال طلبك. يرجى المحاولة مرة أخرى.",
+  "Unable to load the dashboard. Please try again.": "تعذر تحميل لوحة المعلومات. يرجى المحاولة مرة أخرى.",
+  "Unable to load request types.": "تعذر تحميل أنواع الطلبات.",
+  "Unable to load projects.": "تعذر تحميل المشاريع.",
+  "Unable to load Work Types.": "تعذر تحميل أنواع العمل.",
+  "Unable to load the Project Guest form.": "تعذر تحميل نموذج الضيف للمشروع.",
+  "Unable to submit request.": "تعذر إرسال الطلب.",
+  "Unable to request a verification code.": "تعذر طلب رمز التحقق.",
+  "Unable to verify the code.": "تعذر التحقق من الرمز.",
+  "Unable to resend the code.": "تعذرت إعادة إرسال الرمز.",
+  "Unable to load the request.": "تعذر تحميل الطلب.",
+  "Unable to load messages.": "تعذر تحميل الرسائل.",
+  "Unable to send the message.": "تعذر إرسال الرسالة.",
+  "Your tracking session has expired. Please verify again.": "انتهت جلسة التتبع. يرجى التحقق مرة أخرى.",
+  "Unable to obtain a CSRF token.": "تعذر الحصول على رمز الحماية.",
+  "Unable to read the CSRF token cookie.": "تعذرت قراءة رمز الحماية.",
+  "Add a Comment...": "أضف تعليقًا...",
+  "Add a comment...": "أضف تعليقًا...",
+  "Close Send Message dialog": "إغلاق نافذة إرسال الرسالة",
+  "Delete Work Type": "حذف نوع العمل",
+  "Edit Work Type": "تعديل نوع العمل",
+  "Describe the work, expected outcome, and useful context...": "صِف العمل والنتيجة المتوقعة وأي سياق مفيد...",
+  "Describe what you need": "صِف ما تحتاج إليه",
+  "Employee Project workspace": "مساحة عمل المشروع للموظف",
+  "Employee to add": "الموظف المراد إضافته",
+  "Enter a short title": "أدخل عنوانًا مختصرًا",
+  "Enter your password": "أدخل كلمة المرور",
+  "No projects yet": "لا توجد مشاريع حتى الآن",
+  "Optional status change note": "ملاحظة اختيارية لتغيير الحالة",
+  "Search by title...": "البحث حسب العنوان...",
+  "Select default": "اختر الافتراضي",
+  "Send": "إرسال",
+  "Status activity": "نشاط الحالة",
+  "Task status": "حالة المهمة",
+  "This project is archived. Its Tasks and Team Members remain available for viewing, but collaboration is read-only.": "هذا المشروع مؤرشف. تظل المهام وأعضاء الفريق متاحين للعرض، لكن التعاون للقراءة فقط.",
+  "Title is required.": "العنوان مطلوب.",
+  "Title must be at most 200 characters.": "يجب ألا يتجاوز العنوان 200 حرف.",
+  "View assigned task details": "عرض تفاصيل المهمة المسندة",
+  "View request details": "عرض تفاصيل الطلب",
+  "What needs to be done?": "ما العمل المطلوب؟",
+  "Tasks": "مهام",
+  "This column contains": "يحتوي هذا العمود على",
+  "Delete all": "حذف جميع",
+  "Tasks and their associated records. This cannot be undone.": "المهام وسجلاتها المرتبطة. لا يمكن التراجع عن ذلك.",
+  "Permanently delete": "حذف نهائي لـ",
+  "Delete Status with Tasks": "حذف حالة تحتوي على مهام",
+  "New Status Name": "اسم الحالة الجديد",
+  "New status position": "موضع الحالة الجديدة",
+  "Destination status": "الحالة الوجهة",
+  "Status name is required.": "اسم الحالة مطلوب.",
+  "Status name must not exceed 50 characters.": "يجب ألا يتجاوز اسم الحالة 50 حرفًا.",
+  "Unable to update Project statuses.": "تعذر تحديث حالات المشروع.",
+  "A status with this name already exists.": "توجد حالة بهذا الاسم بالفعل.",
+  "A Project can have up to 10 status columns.": "يمكن أن يحتوي المشروع على 10 أعمدة حالة كحد أقصى.",
+  "Its tasks, information, and team will become read-only.": "ستصبح مهامه ومعلوماته وفريقه للقراءة فقط.",
+  "Remove": "إزالة",
+  "from this project?": "من هذا المشروع؟",
+  "The Employee account will not be deleted.": "لن يُحذف حساب الموظف.",
+  "from future selections?": "من الاختيارات المستقبلية؟",
+  "Existing Tasks will keep this Work Type.": "ستحتفظ المهام الحالية بنوع العمل هذا.",
+  "Existing history and assignments will be preserved.": "سيتم الاحتفاظ بالسجل والإسنادات الحالية.",
+  "Home": "الرئيسية",
+  "Access and manage your service requests": "الوصول إلى طلبات الخدمة وإدارتها",
+  "Overview of service request activity": "نظرة عامة على نشاط طلبات الخدمة",
+  "Manage and review all service requests": "إدارة جميع طلبات الخدمة ومراجعتها",
+  "Manage employee accounts and access": "إدارة حسابات الموظفين وصلاحياتهم",
+  "View and track your service requests": "عرض طلبات الخدمة ومتابعتها",
+  "View and manage General Requests assigned to you": "عرض الطلبات العامة المسندة إليك وإدارتها",
+  "View your projects and collaborate on project tasks": "عرض مشاريعك والتعاون في مهامها",
+  "Service Requests": "طلبات الخدمة",
+  "Internal Service Request Management System": "نظام إدارة طلبات الخدمة الداخلية",
+  "Project Workspace": "مساحة عمل المشروع",
+  "View Project Task details and activity": "عرض تفاصيل مهمة المشروع ونشاطها",
+  "View and collaborate on project tasks and team": "عرض مهام المشروع وفريقه والتعاون معهم",
+  "Manage project tasks, team, and project information": "إدارة مهام المشروع وفريقه ومعلوماته",
+  "Manage request details and activity": "إدارة تفاصيل الطلب ونشاطه",
+  "View request details and activity": "عرض تفاصيل الطلب ونشاطه",
+  "View assigned task details and activity": "عرض تفاصيل المهمة المسندة ونشاطها",
+  "No description": "لا يوجد وصف",
+  "Hidden": "مخفي",
+  "Save Existing Fields": "حفظ الحقول الحالية",
+  "Save Field": "حفظ الحقل",
+  "from future Guest submissions": "من طلبات الضيوف المستقبلية",
+  "Existing answers will remain unchanged.": "ستبقى الإجابات الحالية دون تغيير.",
+  "Assigned To": "مسند إلى",
+  "General Request": "طلب عام",
+  "No requests available": "لا توجد طلبات متاحة",
+  "Requests will appear here when they are submitted.": "ستظهر الطلبات هنا بعد إرسالها.",
+  "Create the first project to begin managing its team.": "أنشئ أول مشروع للبدء في إدارة فريقه.",
+  "Request created": "تم إنشاء الطلب",
+  "Save Employee": "حفظ الموظف",
+  "Saving entry": "جارٍ الحفظ",
+  "Select an option": "اختر خيارًا",
+  "Rename Work Type": "إعادة تسمية نوع العمل",
+  "Update Status": "تحديث الحالة",
+  "Unknown status": "حالة غير معروفة",
+  "Custom field type": "نوع الحقل المخصص",
+  "Add at least one Dropdown option.": "أضف خيارًا واحدًا على الأقل للقائمة المنسدلة.",
+  "Dropdown options must be unique.": "يجب ألا تتكرر خيارات القائمة المنسدلة.",
+  "Each option must be at most 100 characters.": "يجب ألا يتجاوز كل خيار 100 حرف.",
+  "Review the error shown in Guest Form settings.": "راجع الخطأ الظاهر في إعدادات نموذج الضيف.",
+  "Comment is required.": "التعليق مطلوب.",
+  "Comment must be at most 10000 characters.": "يجب ألا يتجاوز التعليق 10,000 حرف.",
+  "Description is required.": "الوصف مطلوب.",
+  "Email is required.": "البريد الإلكتروني مطلوب.",
+  "Enter a valid email address.": "أدخل بريدًا إلكترونيًا صحيحًا.",
+  "Internal note is required.": "الملاحظة الداخلية مطلوبة.",
+  "Label is required.": "تسمية الحقل مطلوبة.",
+  "Message is required.": "الرسالة مطلوبة.",
+  "Message must be at most 10,000 characters.": "يجب ألا تتجاوز الرسالة 10,000 حرف.",
+  "Name is required.": "الاسم مطلوب.",
+  "Name must be at most 150 characters.": "يجب ألا يتجاوز الاسم 150 حرفًا.",
+  "Priority is required.": "الأولوية مطلوبة.",
+  "Project form configuration is unavailable.": "إعدادات نموذج المشروع غير متاحة.",
+  "Project is required.": "المشروع مطلوب.",
+  "Request title is required.": "عنوان الطلب مطلوب.",
+  "Request title must be at most 200 characters.": "يجب ألا يتجاوز عنوان الطلب 200 حرف.",
+  "Request type is required.": "نوع الطلب مطلوب.",
+  "Task title must be at most 200 characters.": "يجب ألا يتجاوز عنوان المهمة 200 حرف.",
+  "Title, description, Work Type, and assignee are required.": "العنوان والوصف ونوع العمل والموظف المسؤول حقول مطلوبة.",
+  "Work Type is required.": "نوع العمل مطلوب.",
+  "Work Type name is required.": "اسم نوع العمل مطلوب.",
+  "Work Type name must be at most 100 characters.": "يجب ألا يتجاوز اسم نوع العمل 100 حرف.",
+  "Employee not found. The list has been refreshed.": "لم يتم العثور على الموظف. تم تحديث القائمة.",
+  "Unable to add custom field.": "تعذرت إضافة الحقل المخصص.",
+  "Unable to add status.": "تعذرت إضافة الحالة.",
+  "Unable to add team member.": "تعذرت إضافة عضو الفريق.",
+  "Unable to add Work Type.": "تعذرت إضافة نوع العمل.",
+  "Unable to add your comment. Please try again.": "تعذرت إضافة تعليقك. حاول مرة أخرى.",
+  "Unable to archive project.": "تعذرت أرشفة المشروع.",
+  "Unable to change request status.": "تعذر تغيير حالة الطلب.",
+  "Unable to change status.": "تعذر تغيير الحالة.",
+  "Unable to change status. Please try again.": "تعذر تغيير الحالة. حاول مرة أخرى.",
+  "Unable to change task status.": "تعذر تغيير حالة المهمة.",
+  "Unable to create project task.": "تعذر إنشاء مهمة المشروع.",
+  "Unable to create project.": "تعذر إنشاء المشروع.",
+  "Unable to deactivate employee.": "تعذر إلغاء تنشيط الموظف.",
+  "Unable to load employees.": "تعذر تحميل الموظفين.",
+  "Unable to load employees. Please try again.": "تعذر تحميل الموظفين. حاول مرة أخرى.",
+  "Unable to load Guest Communication history.": "تعذر تحميل سجل التواصل مع الضيف.",
+  "Unable to load Guest form settings.": "تعذر تحميل إعدادات نموذج الضيف.",
+  "Unable to load project members.": "تعذر تحميل أعضاء المشروع.",
+  "Unable to load Project statuses.": "تعذر تحميل حالات المشروع.",
+  "Unable to load project tasks.": "تعذر تحميل مهام المشروع.",
+  "Unable to load project team.": "تعذر تحميل فريق المشروع.",
+  "Unable to load project.": "تعذر تحميل المشروع.",
+  "Unable to load requests. Please try again.": "تعذر تحميل الطلبات. حاول مرة أخرى.",
+  "Unable to load task details.": "تعذر تحميل تفاصيل المهمة.",
+  "Unable to load task.": "تعذر تحميل المهمة.",
+  "Unable to load your assigned tasks. Please try again.": "تعذر تحميل المهام المسندة إليك. حاول مرة أخرى.",
+  "Unable to load your projects.": "تعذر تحميل مشاريعك.",
+  "Unable to load your requests. Please try again.": "تعذر تحميل طلباتك. حاول مرة أخرى.",
+  "Unable to reassign task.": "تعذر تغيير إسناد المهمة.",
+  "Unable to remove team member.": "تعذرت إزالة عضو الفريق.",
+  "Unable to rename status.": "تعذرت إعادة تسمية الحالة.",
+  "Unable to rename Work Type.": "تعذرت إعادة تسمية نوع العمل.",
+  "Unable to reorder custom fields.": "تعذر إعادة ترتيب الحقول المخصصة.",
+  "Unable to reorder statuses.": "تعذر إعادة ترتيب الحالات.",
+  "Unable to retire custom field.": "تعذر إيقاف الحقل المخصص.",
+  "Unable to save changes.": "تعذر حفظ التغييرات.",
+  "Unable to save comment.": "تعذر حفظ التعليق.",
+  "Unable to save employee.": "تعذر حفظ بيانات الموظف.",
+  "Unable to save entry.": "تعذر حفظ الإدخال.",
+  "Unable to save the message.": "تعذر حفظ الرسالة.",
+  "Unable to sign in. Please try again.": "تعذر تسجيل الدخول. حاول مرة أخرى.",
+  "Unable to update custom field.": "تعذر تحديث الحقل المخصص.",
+  "Unable to update Guest form settings.": "تعذر تحديث إعدادات نموذج الضيف.",
+  "Unable to update project.": "تعذر تحديث المشروع.",
+  "You do not have permission to view all requests.": "ليس لديك صلاحية لعرض جميع الطلبات.",
+};
+
+const TEMPLATE_RULES: Array<[RegExp, (...parts: string[]) => string]> = [
+  [/^(.+) is required\.$/, (value) => `${value} مطلوب.`],
+  [/^(.+) must be checked\.$/, (value) => `يجب تحديد ${value}.`],
+  [/^Maximum (.+) characters\.$/, (value) => `الحد الأقصى ${value} حرفًا.`],
+  [/^Task #(\d+)$/, (id) => `المهمة رقم ${id}`],
+  [/^Request #(\d+)$/, (id) => `الطلب رقم ${id}`],
+  [/^Changed by (.+)$/, (name) => `غيّرها ${name}`],
+  [/^Created by (.+)$/, (name) => `أنشأها ${name}`],
+  [/^(New|In Progress|Waiting User|Completed|Rejected) → (New|In Progress|Waiting User|Completed|Rejected)$/, (oldStatus, newStatus) => `${translateArabic(oldStatus)} ← ${translateArabic(newStatus)}`],
+  [/^Status changed from (NEW|IN_PROGRESS|WAITING_USER|COMPLETED|REJECTED) to (NEW|IN_PROGRESS|WAITING_USER|COMPLETED|REJECTED)\.$/, (oldStatus, newStatus) => `تغيّرت الحالة من ${translateArabic(oldStatus.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase()).replace(/\B\w/g, value => value.toLowerCase()))} إلى ${translateArabic(newStatus.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase()).replace(/\B\w/g, value => value.toLowerCase()))}.`],
+  [/^Task #(\d+) was created successfully\.$/, (id) => `تم إنشاء المهمة رقم ${id} بنجاح.`],
+  [/^Page (\d+)$/, (page) => `الصفحة ${page}`],
+  [/^(\d+) of 10000 characters used$/, (count) => `تم استخدام ${count} من 10000 حرف`],
+  [/^Option (\d+)$/, (number) => `الخيار ${number}`],
+  [/^Remove option (\d+)$/, (number) => `إزالة الخيار ${number}`],
+  [/^Edit (.+)$/, (name) => `تعديل ${name}`],
+  [/^Delete (.+)$/, (name) => `حذف ${name}`],
+  [/^Deactivate (.+)$/, (name) => `إلغاء تنشيط ${name}`],
+  [/^Permanently delete (.+)$/, (name) => `حذف ${name} نهائيًا`],
+  [/^Remove (.+) from project$/, (name) => `إزالة ${name} من المشروع`],
+  [/^Move (.+) up$/, (name) => `نقل ${name} إلى أعلى`],
+  [/^Move (.+) down$/, (name) => `نقل ${name} إلى أسفل`],
+  [/^Retire (.+)$/, (name) => `إيقاف ${name}`],
+  [/^Delete (.+)\?$/, (name) => `حذف ${name}؟`],
+  [/^(.+) was deleted permanently\.$/, (name) => `تم حذف ${name} نهائيًا.`],
+  [/^View (\d+) older message$/, (count) => `عرض ${count} رسالة أقدم`],
+  [/^View (\d+) older messages$/, (count) => `عرض ${count} رسائل أقدم`],
+  [/^View (\d+) older comment$/, (count) => `عرض ${count} تعليق أقدم`],
+  [/^View (\d+) older comments$/, (count) => `عرض ${count} تعليقات أقدم`],
+  [/^View all (\d+) events$/, (count) => `عرض جميع الأحداث (${count})`],
+  [/^Resend in (\d+)s$/, (seconds) => `إعادة الإرسال خلال ${seconds} ث`],
+  [/^Your request #(\d+) was created successfully\.$/, (id) => `تم إنشاء طلبك رقم ${id} بنجاح.`],
+  [/^Showing (\d+)-(\d+) of (\d+) requests$/, (start, end, total) => `عرض ${start}-${end} من ${total} طلبًا`],
+  [/^This column contains (\d+) Task\.$/, (count) => `يحتوي هذا العمود على مهمة واحدة (${count}).`],
+  [/^This column contains (\d+) Tasks\.$/, (count) => `يحتوي هذا العمود على ${count} مهام.`],
+  [/^Delete all (\d+) Tasks and their associated records\. This cannot be undone\.$/, (count) => `حذف جميع المهام (${count}) وسجلاتها المرتبطة. لا يمكن التراجع عن ذلك.`],
+  [/^Permanently delete (\d+) Task\?$/, (count) => `حذف المهمة نهائيًا (${count})؟`],
+  [/^Permanently delete (\d+) Tasks\?$/, (count) => `حذف ${count} مهام نهائيًا؟`],
+  [/^Move (\d+) and Delete Status$/, (count) => `نقل ${count} وحذف الحالة`],
+  [/^Permanently Delete (\d+) Task$/, (count) => `حذف المهمة نهائيًا (${count})`],
+  [/^Permanently Delete (\d+) Tasks$/, (count) => `حذف ${count} مهام نهائيًا`],
+];
+
+const managedProjectStatusSemantics = new Map<number, string>();
+export function getProjectStatusSemantic(id: number): string | null { return managedProjectStatusSemantics.get(id) ?? null; }
+export function localizedRecordLabel(english: string, arabic: string | null | undefined, locale: Locale): string {
+  return locale === "ar" && arabic?.trim() ? arabic : english;
+}
+export function registerProjectStatusSemantics(value: unknown): void {
+  if (Array.isArray(value)) { value.forEach(registerProjectStatusSemantics); return; }
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id === "number" && typeof record.name === "string" && typeof record.semanticKey === "string") {
+    managedProjectStatusSemantics.set(record.id, record.semanticKey);
+  }
+  Object.values(record).forEach(registerProjectStatusSemantics);
+}
+
+function translateArabic(value: string): string {
+  const direct = ARABIC[value];
+  if (direct) return direct;
+  for (const [pattern, render] of TEMPLATE_RULES) {
+    const match = value.match(pattern);
+    if (match) return render(...match.slice(1));
+  }
+  if (/^[A-Z][a-z]{2} \d{1,2}, \d{4}(?:, .+)?$/.test(value)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.valueOf())) {
+      return new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn", value.includes(":") ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }).format(parsed);
+    }
+  }
+  return value;
+}
+
+type I18nValue = {
+  locale: Locale;
+  direction: "ltr" | "rtl";
+  setLocale: (locale: Locale) => void;
+  toggleLocale: () => void;
+  t: (value: string) => string;
+  formatDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string;
+  formatNumber: (value: number) => string;
+};
+
+const I18nContext = createContext<I18nValue | null>(null);
+
+const localeListeners = new Set<() => void>();
+let memoryLocale: Locale = "en";
+function readStoredLocale(): Locale {
+  try { return localStorage.getItem(STORAGE_KEY) === "ar" ? "ar" : "en"; }
+  catch { return memoryLocale; }
+}
+function subscribeLocale(listener: () => void) {
+  localeListeners.add(listener);
+  return () => localeListeners.delete(listener);
+}
+function notifyLocaleListeners() { localeListeners.forEach((listener) => listener()); }
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const locale = useSyncExternalStore<Locale>(subscribeLocale, readStoredLocale, () => "en");
+
+  const setLocale = useCallback((next: Locale) => {
+    memoryLocale = next;
+    try { localStorage.setItem(STORAGE_KEY, next); } catch { /* Language still changes when storage is unavailable. */ }
+    notifyLocaleListeners();
+  }, []);
+
+  useEffect(() => {
+    function synchronize(event: StorageEvent) {
+      if (event.key === STORAGE_KEY && (event.newValue === "en" || event.newValue === "ar")) notifyLocaleListeners();
+    }
+    window.addEventListener("storage", synchronize);
+    return () => window.removeEventListener("storage", synchronize);
+  }, []);
+
+  useLayoutEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
+  }, [locale]);
+
+  useEffect(() => {
+    const attributes = ["aria-label", "title", "placeholder"];
+
+    function localizeElement(element: Element) {
+      if (element.closest("[data-i18n-skip]")) return;
+      let originals = localizedAttributes.get(element);
+      for (const attribute of attributes) {
+        const current = element.getAttribute(attribute);
+        if (current === null) continue;
+        if (!originals) {
+          originals = new Map<string, { original: string; rendered: string }>();
+          localizedAttributes.set(element, originals);
+        }
+        const previous = originals.get(attribute);
+        const original = previous && current === previous.rendered ? previous.original : current;
+        const rendered = locale === "ar" ? translateArabic(original) : original;
+        originals.set(attribute, { original, rendered });
+        if (current !== rendered) element.setAttribute(attribute, rendered);
+      }
+    }
+
+    function localizeText(node: Text) {
+      const previous = localizedText.get(node);
+      if (node.parentElement?.closest("[data-i18n-skip]")) return;
+      const original = previous && node.data === previous.rendered ? previous.original : node.data;
+      const leading = original.match(/^\s*/)?.[0] ?? "";
+      const trailing = original.match(/\s*$/)?.[0] ?? "";
+      const value = original.trim();
+      if (!value) return;
+      const translated = locale === "ar" && value === "Guest Communication" && window.location.pathname.startsWith("/track-request")
+        ? "التواصل مع فريق العمل"
+        : locale === "ar" ? translateArabic(value) : value;
+      const rendered = `${leading}${translated}${trailing}`;
+      localizedText.set(node, { original, rendered });
+      if (node.data !== rendered) node.data = rendered;
+    }
+
+    function localizeTree(node: Node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        localizeText(node as Text);
+        return;
+      }
+      if (!(node instanceof Element)) return;
+      localizeElement(node);
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+      let current: Node | null = walker.nextNode();
+      while (current) {
+        if (current.nodeType === Node.TEXT_NODE) localizeText(current as Text);
+        else localizeElement(current as Element);
+        current = walker.nextNode();
+      }
+    }
+
+    localizeTree(document.body);
+    const observer = new MutationObserver((records) => {
+      observer.disconnect();
+      for (const record of records) {
+        if (record.type === "characterData") localizeText(record.target as Text);
+        for (const node of record.addedNodes) localizeTree(node);
+      }
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [locale]);
+
+  const value = useMemo<I18nValue>(() => ({
+    locale,
+    direction: locale === "ar" ? "rtl" : "ltr",
+    setLocale,
+    toggleLocale: () => setLocale(locale === "en" ? "ar" : "en"),
+    t: (text) => locale === "ar" ? translateArabic(text) : text,
+    formatDate: (input, options) => new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", options).format(new Date(input)),
+    formatNumber: (input) => new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US").format(input),
+  }), [locale, setLocale]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const context = useContext(I18nContext);
+  if (!context) throw new Error("useI18n must be used inside I18nProvider");
+  return context;
+}
+
+export function translate(locale: Locale, value: string) {
+  return locale === "ar" ? translateArabic(value) : value;
+}

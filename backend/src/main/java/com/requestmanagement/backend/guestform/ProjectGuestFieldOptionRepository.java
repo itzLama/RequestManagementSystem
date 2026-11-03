@@ -6,5 +6,7 @@ public interface ProjectGuestFieldOptionRepository extends JpaRepository<Project
     List<ProjectGuestFieldOption> findByField_IdOrderByDisplayOrderAscIdAsc(Long fieldId);
     List<ProjectGuestFieldOption> findByField_IdAndActiveTrueOrderByDisplayOrderAscIdAsc(Long fieldId);
     Optional<ProjectGuestFieldOption> findByIdAndField_IdAndActiveTrue(Long id, Long fieldId);
+    Optional<ProjectGuestFieldOption> findByIdAndField_Id(Long id, Long fieldId);
+    void deleteAllByField_Id(Long fieldId);
     void deleteAllByField_Project_Id(Long projectId);
 }

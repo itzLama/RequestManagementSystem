@@ -11,6 +11,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -74,10 +76,10 @@ class CreateRequestIntegrationTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Priority is required."));
 
-        String extraCreator = """
+        String extraCreator = String.format(Locale.ROOT, """
                 {"title":"Title","description":"Description","typeId":%d,"priority":"LOW",
                  "createdBy":1,"projectId":999999,"guestName":"Injected Guest","guestEmail":"injected@example.com"}
-                """.formatted(typeId);
+                """, typeId);
         create(login, extraCreator)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.createdByUserId").value(2));

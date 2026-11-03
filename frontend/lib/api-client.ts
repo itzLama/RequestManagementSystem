@@ -1,3 +1,5 @@
+import { translate, type Locale } from "@/lib/i18n";
+
 const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -84,7 +86,11 @@ export async function apiFetch(
 
 export async function getApiErrorMessage(response: Response, fallback: string) {
   const body: { message?: unknown; detail?: unknown } = await response.json().catch(() => ({}));
-  if (typeof body.message === "string" && body.message.trim()) return body.message;
-  if (typeof body.detail === "string" && body.detail.trim()) return body.detail;
-  return fallback;
+  const message = typeof body.message === "string" && body.message.trim()
+    ? body.message
+    : typeof body.detail === "string" && body.detail.trim()
+      ? body.detail
+      : fallback;
+  const locale: Locale = typeof document !== "undefined" && document.documentElement.lang === "ar" ? "ar" : "en";
+  return translate(locale, message);
 }

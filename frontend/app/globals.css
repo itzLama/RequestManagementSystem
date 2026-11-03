@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+html[dir="rtl"] body { font-family: var(--font-poppins), "Tahoma", "Arial", sans-serif; }
+html[dir="rtl"] .text-left { text-align: right; }
+html[dir="rtl"] .text-right { text-align: left; }
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select { text-align: right; }
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="number"],
+html[dir="rtl"] input[inputmode="numeric"],
+html[dir="rtl"] input[inputmode="decimal"] { direction: ltr; text-align: right; }
+html[dir="rtl"] .rtl\:scale-x-negative { transform: scaleX(-1); }
+
 :root {
   --background: #f5f5f5;
   --foreground: #0f1020;

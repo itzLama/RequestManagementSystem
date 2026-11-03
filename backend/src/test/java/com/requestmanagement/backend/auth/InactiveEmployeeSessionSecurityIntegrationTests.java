@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,11 +114,11 @@ class InactiveEmployeeSessionSecurityIntegrationTests {
                             return request;
                         })
                         .contentType("application/json")
-                        .content("""
+                        .content(String.format(Locale.ROOT, """
                                 {"guestName":"Phase 9 Guest","guestEmail":"phase9@example.com",
                                  "title":"Public submission remains available","description":"Security regression test",
                                  "typeId":%d,"priority":"LOW"}
-                                """.formatted(typeId)))
+                                """, typeId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.requestId").isNumber());
     }

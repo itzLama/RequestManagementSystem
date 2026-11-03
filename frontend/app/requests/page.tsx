@@ -9,18 +9,21 @@ import { RequestDetailsDialog } from "@/components/RequestDetailsDialog";
 import { RequestViewToggle, type RequestView } from "@/components/RequestViewToggle";
 import { AdminRequestDetails } from "@/components/admin/AdminRequestDetails";
 import { apiFetch } from "@/lib/api-client";
-import { formatRequestDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { formatRequestDate as formatDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 import { requestStatusApi, RequestStatusApiError } from "@/lib/request-status-api";
 import { GuestBadge } from "@/components/GuestBadge";
+import { localizedRecordLabel, useI18n } from "@/lib/i18n";
 
 type RequestType = { id: number; name: string };
-type AdminRequest = { id: number; title: string; requesterName: string; typeName: string; priority: RequestPriority; status: RequestStatus; createdAt: string; assignedToId: number | null; assignedToName: string | null; projectName?: string | null; workTypeId?: number | null; workTypeName?: string | null; guest: boolean };
+type AdminRequest = { id: number; title: string; requesterName: string; typeName: string; priority: RequestPriority; status: RequestStatus; createdAt: string; assignedToId: number | null; assignedToName: string | null; projectName?: string | null; workTypeId?: number | null; workTypeName?: string | null; workTypeNameAr?: string | null; guest: boolean };
 type AdminRequestsPage = { content: AdminRequest[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean };
 
 const priorityClasses: Record<RequestPriority, string> = { LOW: "text-secondary", MEDIUM: "text-[#B7791F]", HIGH: "text-[#D6455D]" };
 const controlClass = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm text-foreground outline-none focus:border-accent";
 
 export default function RequestsPage() {
+  const { locale } = useI18n();
+  const formatRequestDate = (value: string) => formatDate(value, locale);
   const router = useRouter();
   const [view, setView] = useState<RequestView>("board");
   const [boardRequests, setBoardRequests] = useState<AdminRequest[]>([]);
@@ -39,6 +42,7 @@ export default function RequestsPage() {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [reload, setReload] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
+  const [success, setSuccess] = useState("");
   const closeDetails = useCallback(() => setSelectedRequestId(null), []);
   const refreshRequests = useCallback(() => setReload((value) => value + 1), []);
 
@@ -84,9 +88,9 @@ export default function RequestsPage() {
         if (response.status === 403) throw new Error("You do not have permission to view all requests.");
         if (!response.ok) throw new Error("Unable to load requests. Please try again.");
         if (view === "board") {
-          setBoardRequests(await response.json());
+          const data = await response.json(); setBoardRequests(data);
         } else {
-          setResult(await response.json());
+          const data = await response.json(); setResult(data);
         }
       } catch (cause) {
         if (!(cause instanceof DOMException && cause.name === "AbortError")) setError(cause instanceof Error ? cause.message : "Unable to load requests. Please try again.");
@@ -129,9 +133,10 @@ export default function RequestsPage() {
   const rangeEnd = result ? result.page * result.size + result.content.length : 0;
 
   return <div className="space-y-6">
+    {success && <p role="status" className="rounded-[9px] bg-[#E9F8F0] px-4 py-3 text-sm text-[#227A4B]">{success}</p>}
     <section className="rounded-xl border border-divider bg-surface p-5 sm:p-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr_auto] xl:items-end">
-        <div><label htmlFor="request-search" className="mb-2 block text-xs font-medium">Search</label><div className="relative"><Search aria-hidden="true" size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary" /><input id="request-search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search by title..." className={`${controlClass} pl-10`} /></div></div>
+        <div><label htmlFor="request-search" className="mb-2 block text-xs font-medium">Search</label><div className="relative"><Search aria-hidden="true" size={18} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-secondary" /><input id="request-search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search by title..." className={`${controlClass} pe-3.5 ps-10`} /></div></div>
         <div><label htmlFor="status-filter" className="mb-2 block text-xs font-medium">Status</label><select id="status-filter" value={status} onChange={(event) => { setStatus(event.target.value as RequestStatus | ""); setPage(0); }} className={controlClass}><option value="">All Status</option>{Object.entries(REQUEST_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
         <div><label htmlFor="type-filter" className="mb-2 block text-xs font-medium">Type</label><select id="type-filter" value={typeId} onChange={(event) => { setTypeId(event.target.value); setPage(0); }} className={controlClass}><option value="">All Types</option>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select>{typesError && <p role="alert" className="mt-1 text-xs text-[#B42318]">{typesError}</p>}</div>
         <div><label htmlFor="priority-filter" className="mb-2 block text-xs font-medium">Priority</label><select id="priority-filter" value={priority} onChange={(event) => { setPriority(event.target.value as RequestPriority | ""); setPage(0); }} className={controlClass}><option value="">All Priorities</option>{Object.entries(REQUEST_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
@@ -147,11 +152,11 @@ export default function RequestsPage() {
       {!loading && !error && view === "board" && boardError && <p role="alert" className="mb-4 rounded-[9px] bg-[#FFF1F0] px-4 py-3 text-sm text-[#B42318]">{boardError}</p>}
       {!loading && !error && view === "board" && boardRequests.length > 0 && <RequestKanbanBoard requests={boardRequests} onRequestClick={setSelectedRequestId} dragEnabled statusUpdatePending={statusUpdating} onStatusDrop={moveRequest} />}
       {!loading && !error && view === "table" && result && result.content.length === 0 && <p className="px-6 py-10 text-sm text-secondary">No requests match the selected filters.</p>}
-      {!loading && !error && view === "table" && result && result.content.length > 0 && <><div className="px-6 pb-6 pt-7 text-sm text-secondary">Showing {rangeStart}-{rangeEnd} of {result.totalElements} requests</div><div className="overflow-x-auto px-6 pb-5"><table className="w-full min-w-[980px] border-collapse text-left text-sm"><thead className="bg-background text-xs font-medium text-secondary"><tr><th className="px-4 py-5">ID</th><th className="px-5 py-5">Title</th><th className="px-5 py-5">Requester</th><th className="px-5 py-5">Scope</th><th className="px-5 py-5">Type</th><th className="px-5 py-5">Priority</th><th className="px-5 py-5">Status</th><th className="px-5 py-5">Created Date</th></tr></thead><tbody>{result.content.map((request) => <tr key={request.id} className="border-t border-divider"><td className="px-4 py-5 font-medium">{request.id}</td><td className="max-w-56 truncate px-5 py-5 font-medium"><button type="button" onClick={() => setSelectedRequestId(request.id)} className="text-left hover:text-accent hover:underline">{request.title}</button></td><td className="px-5 py-5"><div className="flex items-center gap-2"><span>{request.requesterName}</span>{request.guest && <GuestBadge />}</div></td><td className="px-5 py-5 text-secondary">{request.projectName ? `Project Task · ${request.projectName}` : "General Request"}</td><td className="max-w-44 px-5 py-5 text-secondary">{request.workTypeName ?? request.typeName}</td><td className={`px-5 py-5 font-medium ${priorityClasses[request.priority]}`}>{REQUEST_PRIORITY_LABELS[request.priority]}</td><td className="whitespace-nowrap px-5 py-5 font-medium">{REQUEST_STATUS_LABELS[request.status]}</td><td className="whitespace-nowrap px-5 py-5 text-secondary">{formatRequestDate(request.createdAt)}</td></tr>)}</tbody></table></div></>}
+      {!loading && !error && view === "table" && result && result.content.length > 0 && <><div className="px-6 pb-6 pt-7 text-sm text-secondary">Showing {rangeStart}-{rangeEnd} of {result.totalElements} requests</div><div className="overflow-x-auto px-6 pb-5"><table className="w-full min-w-[980px] border-collapse text-left text-sm"><thead className="bg-background text-xs font-medium text-secondary"><tr><th className="px-4 py-5">ID</th><th className="px-5 py-5">Title</th><th className="px-5 py-5">Requester</th><th className="px-5 py-5">Scope</th><th className="px-5 py-5">Type</th><th className="px-5 py-5">Priority</th><th className="px-5 py-5">Status</th><th className="px-5 py-5">Created Date</th></tr></thead><tbody>{result.content.map((request) => <tr key={request.id} className="border-t border-divider"><td className="px-4 py-5 font-medium">{request.id}</td><td className="max-w-56 truncate px-5 py-5 font-medium"><button type="button" onClick={() => setSelectedRequestId(request.id)} className="text-left hover:text-accent hover:underline">{request.title}</button></td><td className="px-5 py-5"><div className="flex items-center gap-2"><span>{request.requesterName}</span>{request.guest && <GuestBadge />}</div></td><td className="px-5 py-5 text-secondary">{request.projectName ? `Project Task · ${request.projectName}` : "General Request"}</td><td data-i18n-skip={request.workTypeName ? true : undefined} className="max-w-44 px-5 py-5 text-secondary">{request.workTypeName ? localizedRecordLabel(request.workTypeName, request.workTypeNameAr, locale) : request.typeName}</td><td className={`px-5 py-5 font-medium ${priorityClasses[request.priority]}`}>{REQUEST_PRIORITY_LABELS[request.priority]}</td><td className="whitespace-nowrap px-5 py-5 font-medium">{REQUEST_STATUS_LABELS[request.status]}</td><td className="whitespace-nowrap px-5 py-5 text-secondary">{formatRequestDate(request.createdAt)}</td></tr>)}</tbody></table></div></>}
       {!loading && !error && view === "table" && result && result.totalPages > 0 && <div className="border-t border-divider px-6 py-5"><Pagination page={result.page} totalPages={result.totalPages} onPageChange={setPage} /></div>}
     </section>
     {selectedRequestId !== null && <RequestDetailsDialog title={`Request #${selectedRequestId}`} onClose={closeDetails}>
-      <AdminRequestDetails requestId={String(selectedRequestId)} onRequestUpdated={refreshRequests} />
+      <AdminRequestDetails requestId={String(selectedRequestId)} onRequestUpdated={refreshRequests} onDeleted={() => { closeDetails(); setSuccess("Request deleted permanently."); refreshRequests(); }} />
     </RequestDetailsDialog>}
   </div>;
 }

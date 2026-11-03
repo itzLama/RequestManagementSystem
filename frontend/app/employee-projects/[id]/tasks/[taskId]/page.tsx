@@ -7,5 +7,5 @@ import { ProjectTaskDetails } from "@/components/employee/ProjectTaskDetails";
 
 export default function ProjectTaskDetailsPage() {
   const { id, taskId } = useParams<{ id: string; taskId: string }>();
-  return <div className="space-y-5"><Link href={`/employee-projects/${id}`} className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"><ArrowLeft size={17} />Back to Project</Link><ProjectTaskDetails projectId={Number(id)} taskId={taskId} /></div>;
+  return <div className="space-y-5"><Link href={`/employee-projects/${id}`} className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"><ArrowLeft size={17} aria-hidden="true" className="rtl:scale-x-negative" />Back to Project</Link><ProjectTaskDetails projectId={Number(id)} taskId={taskId} /></div>;
 }

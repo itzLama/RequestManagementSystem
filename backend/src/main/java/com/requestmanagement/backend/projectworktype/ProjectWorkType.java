@@ -25,6 +25,9 @@ public class ProjectWorkType {
     @Column(name = "work_type_name", nullable = false, length = 100)
     private String name;
 
+    @Column(name = "work_type_name_ar", length = 100)
+    private String nameAr;
+
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
@@ -35,10 +38,15 @@ public class ProjectWorkType {
     private LocalDateTime updatedAt;
 
     public static ProjectWorkType create(Project project, String name) {
+        return create(project, name, null);
+    }
+
+    public static ProjectWorkType create(Project project, String name, String nameAr) {
         ProjectWorkType type = new ProjectWorkType();
         LocalDateTime now = LocalDateTime.now();
         type.project = project;
         type.name = name;
+        type.nameAr = nameAr;
         type.active = true;
         type.createdAt = now;
         type.updatedAt = now;
@@ -46,7 +54,12 @@ public class ProjectWorkType {
     }
 
     public void rename(String name) {
+        rename(name, this.nameAr);
+    }
+
+    public void rename(String name, String nameAr) {
         this.name = name;
+        this.nameAr = nameAr;
         this.updatedAt = LocalDateTime.now();
     }
 

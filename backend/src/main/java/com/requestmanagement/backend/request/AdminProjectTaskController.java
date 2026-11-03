@@ -37,6 +37,16 @@ public class AdminProjectTaskController {
         return projectTaskService.adminDetails(projectId, taskId, principal.userId());
     }
 
+    @DeleteMapping("/{taskId}")
+    public ResponseEntity<Void> permanentlyDelete(
+            @PathVariable Long projectId,
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        projectTaskService.permanentlyDeleteAdminTask(projectId, taskId, principal.userId());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{taskId}/guest-communications")
     public List<GuestCommunicationResponse> guestCommunications(
             @PathVariable Long projectId,

@@ -1,19 +1,20 @@
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
+import { registerProjectStatusSemantics } from "@/lib/i18n";
 
 export type ProjectStatus = "ACTIVE" | "ARCHIVED";
 export type Project = { id: number; name: string; description: string | null; status: ProjectStatus; createdAt: string; updatedAt: string };
 export type ProjectMember = { membershipId: number; employeeId: number; fullName: string; email: string; active: boolean; createdAt: string };
 export type EmployeeOption = { id: number; fullName: string; email: string; active: boolean };
 export type ProjectInput = { name: string; description: string };
-export type ProjectWorkType = { id: number; name: string; active: boolean };
+export type ProjectWorkType = { id: number; name: string; nameAr: string | null; active: boolean };
 export type ProjectStatusColumn = { id: number; name: string; displayOrder: number; active: boolean; protectedNew: boolean; semanticKey: string | null };
 export type GuestFieldType = "TEXT" | "TEXTAREA" | "NUMBER" | "DROPDOWN" | "DATE" | "CHECKBOX";
-export type GuestFieldOption = { id: number; label: string };
-export type ProjectGuestField = { id: number; label: string; type: GuestFieldType; required: boolean; displayOrder: number; active: boolean; options: GuestFieldOption[] };
+export type GuestFieldOption = { id: number; label: string; labelAr: string | null };
+export type ProjectGuestField = { id: number; label: string; labelAr: string | null; type: GuestFieldType; required: boolean; displayOrder: number; active: boolean; options: GuestFieldOption[] };
 export type ProjectGuestForm = { workTypeVisible: boolean; defaultWorkTypeId: number | null; priorityVisible: boolean; priorityRequired: boolean; descriptionVisible: boolean; descriptionRequired: boolean; fields: ProjectGuestField[] };
-export type GuestFieldInput = { label: string; type: GuestFieldType; required: boolean; options: string[]; optionIds?: (number | null)[] };
+export type GuestFieldInput = { label: string; labelAr?: string | null; type: GuestFieldType; required: boolean; options: string[]; optionsAr?: string[]; optionIds?: (number | null)[] };
 export type ProjectTaskMember = { employeeId: number; fullName: string; email: string; active: boolean };
-export type ProjectTask = { id: number; title: string; workTypeId: number; workTypeName: string; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean };
+export type ProjectTask = { id: number; title: string; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean };
 export type ProjectTaskStatus = number;
 export type ProjectTaskStatusResponse = { statusId: number; statusName: string; statusSemantic: string | null };
 
@@ -25,7 +26,9 @@ async function request<T>(url: string, init: RequestInit = {}, fallback: string)
   const response = await apiFetch(url, { cache: "no-store", ...init });
   if (!response.ok) throw new ProjectApiError(response.status, await getApiErrorMessage(response, fallback));
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const data = await response.json() as T;
+  registerProjectStatusSemantics(data);
+  return data;
 }
 
 export const projectApi = {
@@ -39,8 +42,8 @@ export const projectApi = {
   addMember: (projectId: number, employeeId: number) => request<ProjectMember>(`/api/projects/${projectId}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employeeId }) }, "Unable to add team member."),
   removeMember: (projectId: number, employeeId: number) => request<void>(`/api/projects/${projectId}/members/${employeeId}`, { method: "DELETE" }, "Unable to remove team member."),
   workTypes: (id: string | number) => request<ProjectWorkType[]>(`/api/projects/${id}/work-types`, {}, "Unable to load Work Types."),
-  createWorkType: (id: string | number, name: string) => request<ProjectWorkType>(`/api/projects/${id}/work-types`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to add Work Type."),
-  renameWorkType: (projectId: string | number, workTypeId: number, name: string) => request<ProjectWorkType>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to rename Work Type."),
+  createWorkType: (id: string | number, input: { name: string; nameAr: string }) => request<ProjectWorkType>(`/api/projects/${id}/work-types`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to add Work Type."),
+  renameWorkType: (projectId: string | number, workTypeId: number, input: { name: string; nameAr: string }) => request<ProjectWorkType>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to rename Work Type."),
   retireWorkType: (projectId: string | number, workTypeId: number) => request<void>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "DELETE" }, "Unable to delete Work Type."),
   statuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/${id}/statuses`, {}, "Unable to load Project statuses."),
   myStatuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/mine/${id}/statuses`, {}, "Unable to load Project statuses."),

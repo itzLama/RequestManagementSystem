@@ -26,6 +26,23 @@ class ProjectWorkTypeIntegrationTests {
     @Autowired EntityManager entityManager;
 
     @Test
+    void deletingUnusedWorkTypeRemovesItWhileUsedWorkTypeIsRetired() throws Exception {
+        Session admin = login("sara.saad@example.com");
+        long project = project("Work Type Deletion", "ACTIVE");
+        long unused = createType(admin, project, "Unused Type");
+        long used = createType(admin, project, "Used Type");
+        createType(admin, project, "Remaining Type");
+
+        retire(admin, project, unused);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM project_work_types WHERE work_type_id=?", Long.class, unused)).isZero();
+
+        task(project, used);
+        retire(admin, project, used);
+        assertThat(jdbc.queryForObject("SELECT is_active FROM project_work_types WHERE work_type_id=?", Boolean.class, used)).isFalse();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM requests WHERE project_work_type_id=?", Long.class, used)).isEqualTo(1);
+    }
+
+    @Test
     void newProjectReceivesExactlyThreeDefaults() throws Exception {
         Session admin = login("sara.saad@example.com");
         MvcResult result = mvc.perform(post("/api/projects").session(admin.session()).cookie(admin.csrf())
@@ -37,9 +54,39 @@ class ProjectWorkTypeIntegrationTests {
 
         mvc.perform(get("/api/projects/{projectId}/work-types", projectId).session(admin.session()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[?(@.name == 'Task' && @.active == true)]").exists())
-                .andExpect(jsonPath("$[?(@.name == 'Bug' && @.active == true)]").exists())
-                .andExpect(jsonPath("$[?(@.name == 'Improvement' && @.active == true)]").exists());
+                .andExpect(jsonPath("$[?(@.name == 'Task' && @.nameAr == 'مهمة' && @.active == true)]").exists())
+                .andExpect(jsonPath("$[?(@.name == 'Bug' && @.nameAr == 'خلل' && @.active == true)]").exists())
+                .andExpect(jsonPath("$[?(@.name == 'Improvement' && @.nameAr == 'تحسين' && @.active == true)]").exists());
+    }
+
+    @Test
+    void adminCreatesAndRenamesBilingualTypeWhileLegacyTypeFallsBackToEnglish() throws Exception {
+        long project = project("Bilingual Types", "ACTIVE");
+        Session admin = login("sara.saad@example.com");
+
+        MvcResult created = mvc.perform(post("/api/projects/{project}/work-types", project)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json")
+                        .content("{\"name\":\"IT Support\",\"nameAr\":\"الدعم الفني\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("IT Support"))
+                .andExpect(jsonPath("$.nameAr").value("الدعم الفني"))
+                .andReturn();
+        long bilingualId = ((Number) com.jayway.jsonpath.JsonPath.read(
+                created.getResponse().getContentAsString(), "$.id")).longValue();
+
+        mvc.perform(put("/api/projects/{project}/work-types/{type}", project, bilingualId)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json")
+                        .content("{\"name\":\"Service Desk\",\"nameAr\":\"مكتب الخدمة\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Service Desk"))
+                .andExpect(jsonPath("$.nameAr").value("مكتب الخدمة"));
+
+        long legacyId = createType(admin, project, "Legacy English Only");
+        mvc.perform(get("/api/projects/{project}/work-types", project).session(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + legacyId + " && @.name == 'Legacy English Only' && @.nameAr == null)]").exists());
     }
 
     @Test

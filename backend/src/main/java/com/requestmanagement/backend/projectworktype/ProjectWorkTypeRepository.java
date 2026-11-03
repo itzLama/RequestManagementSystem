@@ -12,6 +12,8 @@ public interface ProjectWorkTypeRepository extends JpaRepository<ProjectWorkType
     Optional<ProjectWorkType> findByIdAndProject_IdAndActiveTrue(Long id, Long projectId);
     boolean existsByProject_IdAndNameIgnoreCase(Long projectId, String name);
     boolean existsByProject_IdAndNameIgnoreCaseAndIdNot(Long projectId, String name, Long id);
+    boolean existsByProject_IdAndNameArIgnoreCase(Long projectId, String nameAr);
+    boolean existsByProject_IdAndNameArIgnoreCaseAndIdNot(Long projectId, String nameAr, Long id);
     long countByProject_IdAndActiveTrue(Long projectId);
     void deleteAllByProject_Id(Long projectId);
 }

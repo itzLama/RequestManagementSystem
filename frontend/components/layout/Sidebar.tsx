@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import type { NavigationIcon, NavigationItem } from "./layout-config";
+import { useI18n } from "@/lib/i18n";
 
 type SidebarProps = {
   navigation: NavigationItem[];
@@ -83,6 +84,7 @@ function isActiveRoute(pathname: string, href: string) {
 }
 
 export function Sidebar({ navigation }: SidebarProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -98,7 +100,7 @@ export function Sidebar({ navigation }: SidebarProps) {
   }
 
   return (
-    <aside className="flex min-h-screen w-60 shrink-0 flex-col border-r border-divider bg-surface px-5 py-7">
+    <aside className="flex min-h-screen w-60 shrink-0 flex-col border-e border-divider bg-surface px-5 py-7">
       <div className="px-2">
         <Image
           src="/masar-logo.png"
@@ -126,7 +128,7 @@ export function Sidebar({ navigation }: SidebarProps) {
               }`}
             >
               <NavigationIconGraphic icon={item.icon} />
-              <span>{item.label}</span>
+              <span>{t(item.label)}</span>
             </Link>
           );
         })}
@@ -135,12 +137,12 @@ export function Sidebar({ navigation }: SidebarProps) {
       <button
         type="button"
         onClick={handleLogout}
-        className="mt-auto flex w-full items-center gap-3 rounded-[9px] px-4 py-3 text-left text-[13px] font-medium text-muted hover:bg-nav-hover hover:text-foreground"
+        className="mt-auto flex w-full items-center gap-3 rounded-[9px] px-4 py-3 text-start text-[13px] font-medium text-muted hover:bg-nav-hover hover:text-foreground"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
           <path strokeLinecap="round" strokeLinejoin="round" d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4m5-4 3-3-3-3m3 3H9" />
         </svg>
-        <span>Log Out</span>
+        <span>{t("Log Out")}</span>
       </button>
     </aside>
   );

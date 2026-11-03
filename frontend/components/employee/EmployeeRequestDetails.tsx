@@ -5,15 +5,17 @@ import type { LucideIcon } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
-import { formatRequestDateTime, formatTimelineDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { formatRequestDateTime as formatDateTime, formatTimelineDate as formatTimeline, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 import { GuestBadge } from "@/components/GuestBadge";
 import { GuestCommunicationPanel } from "@/components/GuestCommunicationPanel";
+import { useI18n } from "@/lib/i18n";
 
 type TimelineEntry = { oldStatus: RequestStatus | null; newStatus: RequestStatus; changedByName: string; changeNote: string | null; changedAt: string };
 type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
 type Details = { id: number; title: string; status: RequestStatus; requesterName: string; requesterEmail: string; guest: boolean; typeName: string; priority: RequestPriority; assignedToName: string | null; description: string; createdAt: string; timeline: TimelineEntry[]; comments: Comment[] };
 
 function StatusTimeline({ details }: { details: Details }) {
+  const { locale } = useI18n(); const formatTimelineDate = (value: string) => formatTimeline(value, locale);
   const events = [
     { label: "New", timestamp: details.createdAt, note: "Request created", actor: null },
     ...details.timeline.map((entry) => ({
@@ -36,6 +38,7 @@ function Info({ icon: Icon, label, value }: { icon: LucideIcon; label: string; v
 }
 
 export function EmployeeRequestDetails({ requestId, mode = "creator", onRequestUpdated }: { requestId: string; mode?: "creator" | "assigned"; onRequestUpdated?: () => void }) {
+  const { locale } = useI18n(); const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
   const router = useRouter();
   const [details, setDetails] = useState<Details | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,7 +127,7 @@ export function EmployeeRequestDetails({ requestId, mode = "creator", onRequestU
     {details.guest && mode === "assigned" && <GuestCommunicationPanel target={{ access: "employee-general", requestId: details.id }} />}
     <section className={card}>
       <h2 className="text-lg font-semibold">Comments</h2>
-      <div className="mt-5 divide-y divide-divider border-y border-divider">{details.comments.length === 0 && <p className="py-5 text-sm text-secondary">No comments yet.</p>}{details.comments.map((comment) => <article key={comment.id} className="flex gap-3 py-5"><div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{comment.authorName.charAt(0).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><div><span className="text-sm font-semibold">{comment.authorName}</span><span className="ml-2 text-xs text-secondary">({comment.authorRole === "ADMIN" ? "Administrator" : "Employee"})</span></div><time className="text-xs text-secondary">{formatRequestDateTime(comment.createdAt)}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{comment.text}</p></div></article>)}</div>
+      <div className="mt-5 divide-y divide-divider border-y border-divider">{details.comments.length === 0 && <p className="py-5 text-sm text-secondary">No comments yet.</p>}{details.comments.map((comment) => <article key={comment.id} className="flex gap-3 py-5"><div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{comment.authorName.charAt(0).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><div><span data-i18n-skip className="text-sm font-semibold">{comment.authorName}</span><span className="ms-2 text-xs text-secondary">({comment.authorRole === "ADMIN" ? "Administrator" : "Employee"})</span></div><time className="text-xs text-secondary">{formatRequestDateTime(comment.createdAt)}</time></div><p data-i18n-skip className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{comment.text}</p></div></article>)}</div>
       <form className="mt-5" onSubmit={addComment} noValidate><label htmlFor={`comment-${requestId}`} className="sr-only">Add a Comment</label><div className="flex items-end gap-3"><textarea id={`comment-${requestId}`} rows={1} maxLength={10000} value={text} onChange={(event) => { setText(event.target.value); setCommentError(""); }} className="min-h-11 max-h-32 flex-1 resize-y rounded-[9px] border border-divider bg-surface px-3.5 py-3 text-sm outline-none focus:border-accent" placeholder="Add a Comment..." aria-invalid={Boolean(commentError)} /><button type="submit" disabled={submitting} aria-label={submitting ? "Posting comment" : "Send comment"} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] bg-accent text-white disabled:opacity-60"><Send size={18} strokeWidth={1.8} aria-hidden="true" /></button></div><div className="mt-2 flex items-start justify-between gap-4"><div>{commentError && <p role="alert" className="text-sm text-[#B42318]">{commentError}</p>}{submitting && <p role="status" aria-live="polite" className="text-xs text-secondary">Posting comment...</p>}</div><p className="text-xs text-secondary" aria-label={`${text.length} of 10000 characters used`}>{text.length}/10,000</p></div></form>
     </section>
   </div>;

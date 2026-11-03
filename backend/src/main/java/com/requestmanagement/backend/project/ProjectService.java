@@ -44,8 +44,10 @@ public class ProjectService {
     public ProjectResponse create(CreateProjectRequest input) {
         Project project = projectRepository.save(Project.create(
                 normalizeName(input.name()), normalizeDescription(input.description())));
-        projectWorkTypeRepository.saveAll(List.of("Task", "Bug", "Improvement").stream()
-                .map(name -> ProjectWorkType.create(project, name)).toList());
+        projectWorkTypeRepository.saveAll(List.of(
+                ProjectWorkType.create(project, "Task", "مهمة"),
+                ProjectWorkType.create(project, "Bug", "خلل"),
+                ProjectWorkType.create(project, "Improvement", "تحسين")));
         guestFormSettingsRepository.save(ProjectGuestFormSettings.defaults(project));
         projectStatusService.initialize(project);
         return ProjectResponse.from(project);

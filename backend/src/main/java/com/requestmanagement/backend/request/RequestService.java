@@ -32,6 +32,7 @@ public class RequestService {
     private final CommentRepository commentRepository;
     private final StatusHistoryRepository statusHistoryRepository;
     private final RequestStatusService requestStatusService;
+    private final RequestPermanentDeletionService permanentDeletionService;
 
     @Transactional(readOnly = true)
     public RequestDetailsResponse details(Long requestId, Long creatorId) {
@@ -166,6 +167,12 @@ public class RequestService {
         if (!java.util.Objects.equals(currentAssigneeId, newAssigneeId)) request.assignTo(assignee);
         requestRepository.save(request);
         return adminDetails(requestId);
+    }
+
+    @Transactional
+    public void permanentlyDeleteAdminRequest(Long requestId, Long adminId) {
+        requireActiveAdmin(adminId);
+        permanentDeletionService.delete(findAdminRequest(requestId));
     }
 
     private RequestDetailsResponse employeeDetails(Request request) {

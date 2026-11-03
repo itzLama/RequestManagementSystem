@@ -8,7 +8,7 @@ import java.util.List;
 import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
 
 public record AdminProjectTaskDetailsResponse(
-        Long id, String title, String description, Long workTypeId, String workTypeName,
+        Long id, String title, String description, Long workTypeId, String workTypeName, String workTypeNameAr,
         RequestPriority priority, RequestStatus status, Long statusId, String statusName, String statusSemantic,
         Long assignedToId, String assignedToName,
         Long createdById, String createdByName, String requesterName, String requesterEmail, boolean guest,
@@ -24,7 +24,7 @@ public record AdminProjectTaskDetailsResponse(
             List<CommentResponse> comments, List<CommentResponse> internalNotes, List<AnswerResponse> guestAnswers
     ) {
         return new AdminProjectTaskDetailsResponse(
-                task.getId(), task.getTitle(), task.getDescription(), task.getWorkType().getId(), task.getWorkType().getName(),
+                task.getId(), task.getTitle(), task.getDescription(), task.getWorkType().getId(), task.getWorkType().getName(), task.getWorkType().getNameAr(),
                 task.getPriority(), task.getStatus(), task.getProjectStatus().getId(), task.getProjectStatus().getName(), task.getProjectStatus().getSemanticKey()==null?null:task.getProjectStatus().getSemanticKey().name(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getId(),
                 task.getAssignedTo() == null ? null : task.getAssignedTo().getFullName(),

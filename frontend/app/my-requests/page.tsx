@@ -8,7 +8,8 @@ import { RequestDetailsDialog } from "@/components/RequestDetailsDialog";
 import { RequestViewToggle, type RequestView } from "@/components/RequestViewToggle";
 import { EmployeeRequestDetails } from "@/components/employee/EmployeeRequestDetails";
 import { apiFetch } from "@/lib/api-client";
-import { formatRequestDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { formatRequestDate as formatDate, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { useI18n } from "@/lib/i18n";
 
 type MyRequest = {
   id: number;
@@ -40,6 +41,7 @@ function RequestActions({ onOpen }: { onOpen: () => void }) {
 }
 
 export default function MyRequestsPage() {
+  const { locale } = useI18n(); const formatRequestDate = (value: string) => formatDate(value, locale);
   const router = useRouter();
   const [view, setView] = useState<RequestView>("board");
   const [boardRequests, setBoardRequests] = useState<MyRequest[]>([]);
@@ -136,8 +138,8 @@ export default function MyRequestsPage() {
                 {result.content.map((request, index) => (
                   <tr key={request.id} className="border-t border-divider text-foreground">
                     <td className="px-4 py-5 font-medium">{result.totalElements - (result.page * result.size + index)}</td>
-                    <td className="max-w-56 truncate px-5 py-5">{request.title}</td>
-                    <td className="px-5 py-5">{request.typeName}</td>
+                    <td data-i18n-skip className="max-w-56 truncate px-5 py-5">{request.title}</td>
+                    <td data-i18n-skip className="px-5 py-5">{request.typeName}</td>
                     <td className="px-5 py-5">{REQUEST_PRIORITY_LABELS[request.priority]}</td>
                     <td className="px-5 py-5">{REQUEST_STATUS_LABELS[request.status]}</td>
                     <td className="whitespace-nowrap px-5 py-5">{formatRequestDate(request.createdAt)}</td>

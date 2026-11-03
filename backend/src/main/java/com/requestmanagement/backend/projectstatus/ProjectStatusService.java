@@ -1,11 +1,6 @@
 package com.requestmanagement.backend.projectstatus;
 
 import com.requestmanagement.backend.notification.GuestEmailNotificationEvent;
-import com.requestmanagement.backend.comment.CommentRepository;
-import com.requestmanagement.backend.guestcommunication.GuestCommunicationRepository;
-import com.requestmanagement.backend.guestform.RequestGuestFieldAnswerRepository;
-import com.requestmanagement.backend.guesttracking.GuestTrackingChallengeRepository;
-import com.requestmanagement.backend.guesttracking.GuestTrackingSessionRepository;
 import com.requestmanagement.backend.project.*;
 import com.requestmanagement.backend.request.*;
 import com.requestmanagement.backend.statushistory.*;
@@ -26,11 +21,7 @@ public class ProjectStatusService {
  private final RequestRepository requestRepository; private final StatusHistoryRepository historyRepository;
  private final ApplicationEventPublisher events;
  private final UserRepository userRepository;
- private final CommentRepository commentRepository;
- private final GuestCommunicationRepository communicationRepository;
- private final RequestGuestFieldAnswerRepository answerRepository;
- private final GuestTrackingChallengeRepository challengeRepository;
- private final GuestTrackingSessionRepository sessionRepository;
+ private final RequestPermanentDeletionService permanentDeletionService;
  @Transactional public void initialize(Project project){if(repository.countByProject_IdAndActiveTrue(project.getId())>0)return;repository.saveAll(List.of(
   ProjectStatusColumn.create(project,"New",ProjectStatusColumn.SemanticKey.NEW,0),ProjectStatusColumn.create(project,"In Progress",ProjectStatusColumn.SemanticKey.IN_PROGRESS,1),ProjectStatusColumn.create(project,"Waiting User",ProjectStatusColumn.SemanticKey.WAITING_USER,2),ProjectStatusColumn.create(project,"Completed",ProjectStatusColumn.SemanticKey.COMPLETED,3),ProjectStatusColumn.create(project,"Rejected",ProjectStatusColumn.SemanticKey.REJECTED,4)));}
  @Transactional(readOnly=true) public List<ProjectStatusDtos.Response> list(Long projectId){project(projectId);return active(projectId).stream().map(ProjectStatusDtos.Response::from).toList();}
@@ -41,7 +32,7 @@ public class ProjectStatusService {
  @Transactional public boolean change(Request task,Long statusId,User actor,String note){if(!task.isProjectTask())throw new IllegalArgumentException("Project status requires a Project Task.");ProjectStatusColumn next=owned(task.getProject().getId(),statusId);if(!next.isActive())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Status is retired.");ProjectStatusColumn old=task.getProjectStatus();if(old.getId().equals(next.getId()))return false;task.changeProjectStatus(next);requestRepository.save(task);String normalized=note==null||note.isBlank()?"Status changed from "+old.getName()+" to "+next.getName()+".":note.trim();historyRepository.save(StatusHistory.createProject(task,old,next,actor,normalized));if(task.isGuest())events.publishEvent(GuestEmailNotificationEvent.statusChanged(task));return true;}
  public Long resolveStatusId(Long projectId,ProjectStatusDtos.StatusInput input){if(input.statusId()!=null)return input.statusId();if(input.status()!=null)return repository.findByProject_IdAndSemanticKey(projectId,ProjectStatusColumn.SemanticKey.valueOf(input.status().name())).filter(ProjectStatusColumn::isActive).map(ProjectStatusColumn::getId).orElseThrow(()->new ResponseStatusException(HttpStatus.BAD_REQUEST,"The requested semantic status is not active for this Project."));throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Status is required.");}
  public ProjectStatusColumn initial(Long projectId){return repository.findByProject_IdAndSemanticKey(projectId,ProjectStatusColumn.SemanticKey.NEW).filter(ProjectStatusColumn::isActive).orElseThrow(()->new IllegalStateException("Project NEW status is missing."));}
- private void permanentlyDeleteTasks(List<Request> tasks){List<Long> ids=tasks.stream().map(Request::getId).toList();sessionRepository.deleteByRequest_IdIn(ids);challengeRepository.deleteByRequest_IdIn(ids);communicationRepository.deleteByRequest_IdIn(ids);answerRepository.deleteByRequest_IdIn(ids);commentRepository.deleteByRequest_IdIn(ids);historyRepository.deleteByRequest_IdIn(ids);requestRepository.deleteAll(tasks);requestRepository.flush();}
+    private void permanentlyDeleteTasks(List<Request> tasks){permanentDeletionService.deleteAll(tasks);}
  private List<ProjectStatusColumn> active(Long id){return repository.findByProject_IdAndActiveTrueOrderByDisplayOrderAscIdAsc(id);} private ProjectStatusColumn owned(Long p,Long s){return repository.findByIdAndProject_Id(s,p).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project status not found."));}
  private Project project(Long id){return projectRepository.findById(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project not found."));} private void activeProject(Long id){if(!project(id).isActive())conflict("Archived projects cannot be modified.");}
  private String name(String raw){String value=raw.trim();if(value.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Status name is required.");if(value.length()>50)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Status name must not exceed 50 characters.");return value;} private void unique(Long p,String n,Long exclude){boolean found=exclude==null?repository.existsByProject_IdAndActiveTrueAndNameIgnoreCase(p,n):repository.existsByProject_IdAndActiveTrueAndNameIgnoreCaseAndIdNot(p,n,exclude);if(found)conflict("A status with this name already exists.");} private void conflict(String m){throw new ResponseStatusException(HttpStatus.CONFLICT,m);} private void notFound(){throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Project status not found.");}

@@ -8,6 +8,8 @@ public interface ProjectGuestFieldRepository extends JpaRepository<ProjectGuestF
     Optional<ProjectGuestField> findByIdAndProject_Id(Long id, Long projectId);
     boolean existsByProject_IdAndLabelIgnoreCase(Long projectId, String label);
     boolean existsByProject_IdAndLabelIgnoreCaseAndIdNot(Long projectId, String label, Long id);
+    boolean existsByProject_IdAndLabelArIgnoreCase(Long projectId, String labelAr);
+    boolean existsByProject_IdAndLabelArIgnoreCaseAndIdNot(Long projectId, String labelAr, Long id);
     long countByProject_IdAndActiveTrue(Long projectId);
     void deleteAllByProject_Id(Long projectId);
 }

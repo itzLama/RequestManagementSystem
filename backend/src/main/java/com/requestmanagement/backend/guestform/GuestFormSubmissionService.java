@@ -43,21 +43,21 @@ public class GuestFormSubmissionService {
         Set<Long> validIds=new HashSet<>();fields.forEach(f->validIds.add(f.getId()));if(!validIds.containsAll(byId.keySet()))throw bad("A custom field is unknown, retired, or belongs to another Project.");
         List<ResolvedAnswer> answers=new ArrayList<>();int textTotal=0;
         for(ProjectGuestField field:fields){AnswerInput input=byId.get(field.getId());String raw=input==null||input.value()==null?"":input.value().trim();if(field.isRequired()&&raw.isEmpty())throw bad(field.getLabel()+" is required.");if(raw.isEmpty()){if(field.getType()==GuestFieldType.CHECKBOX&&field.isRequired())throw bad(field.getLabel()+" must be checked.");continue;}
-            String value;String optionLabel=null;switch(field.getType()){
+            String value;String optionLabel=null;String optionLabelAr=null;switch(field.getType()){
                 case TEXT -> {if(raw.length()>500)throw bad(field.getLabel()+" must be at most 500 characters.");value=raw;textTotal+=raw.length();}
                 case TEXTAREA -> {if(raw.length()>5000)throw bad(field.getLabel()+" must be at most 5000 characters.");value=raw;textTotal+=raw.length();}
                 case NUMBER -> value=number(raw,field.getLabel());
                 case DATE -> {try{LocalDate date=LocalDate.parse(raw);if(date.isBefore(LocalDate.now(APPLICATION_ZONE)))throw bad(field.getLabel()+" cannot be in the past.");value=date.toString();}catch(DateTimeParseException e){throw bad(field.getLabel()+" must be a valid date in YYYY-MM-DD format.");}}
                 case CHECKBOX -> {if(!raw.equals("true")&&!raw.equals("false"))throw bad(field.getLabel()+" must be true or false.");if(field.isRequired()&&!Boolean.parseBoolean(raw))throw bad(field.getLabel()+" must be checked.");value=raw;}
-                case DROPDOWN -> {long optionId;try{optionId=Long.parseLong(raw);}catch(NumberFormatException e){throw bad(field.getLabel()+" has an invalid option.");}ProjectGuestFieldOption option=optionRepository.findByIdAndField_IdAndActiveTrue(optionId,field.getId()).orElseThrow(()->bad(field.getLabel()+" has an invalid option."));value=Long.toString(option.getId());optionLabel=option.getLabel();}
+                case DROPDOWN -> {long optionId;try{optionId=Long.parseLong(raw);}catch(NumberFormatException e){throw bad(field.getLabel()+" has an invalid option.");}ProjectGuestFieldOption option=optionRepository.findByIdAndField_IdAndActiveTrue(optionId,field.getId()).orElseThrow(()->bad(field.getLabel()+" has an invalid option."));value=Long.toString(option.getId());optionLabel=option.getLabel();optionLabelAr=option.getLabelAr();}
                 default -> throw bad("Unsupported custom field type.");
-            }answers.add(new ResolvedAnswer(field,value,optionLabel));}
+            }answers.add(new ResolvedAnswer(field,value,optionLabel,optionLabelAr));}
         if(textTotal>30000)throw bad("Custom text answers must total at most 30000 characters.");return new ResolvedSubmission(workType,priority,description,answers);
     }
-    public void saveAnswers(Request request,List<ResolvedAnswer> answers){answerRepository.saveAll(answers.stream().map(a->RequestGuestFieldAnswer.create(request,a.field(),a.value(),a.optionLabel())).toList());}
+    public void saveAnswers(Request request,List<ResolvedAnswer> answers){answerRepository.saveAll(answers.stream().map(a->RequestGuestFieldAnswer.create(request,a.field(),a.value(),a.optionLabel(),a.optionLabelAr())).toList());}
     private ProjectWorkType activeWorkType(Long p,Long w){return workTypeRepository.findByIdAndProject_IdAndActiveTrue(w,p).orElseThrow(()->bad("Work Type must exist, be active, and belong to this Project."));}
     private String number(String raw,String label){if(!raw.matches("-?\\d+(\\.\\d+)?"))throw bad(label+" must be a decimal number.");long digits=raw.chars().filter(Character::isDigit).count();if(digits>15)throw bad(label+" must contain at most 15 numeric digits.");try{BigDecimal n=new BigDecimal(raw).stripTrailingZeros();return n.signum()==0?"0":n.toPlainString();}catch(NumberFormatException e){throw bad(label+" must be a decimal number.");}}
     private ResponseStatusException bad(String m){return new ResponseStatusException(HttpStatus.BAD_REQUEST,m);}
     public record ResolvedSubmission(ProjectWorkType workType,RequestPriority priority,String description,List<ResolvedAnswer> answers){}
-    public record ResolvedAnswer(ProjectGuestField field,String value,String optionLabel){}
+    public record ResolvedAnswer(ProjectGuestField field,String value,String optionLabel,String optionLabelAr){}
 }

@@ -1,23 +1,26 @@
 "use client";
 
-import { FileText, Send } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FileText, Send, Trash2 } from "lucide-react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
-import { formatRequestDateTime, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { formatRequestDateTime as formatDateTime, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 import { GuestBadge } from "@/components/GuestBadge";
 import { GuestCommunicationPanel } from "@/components/GuestCommunicationPanel";
+import { localizedRecordLabel, useI18n } from "@/lib/i18n";
+import { DeleteConfirmationDialog } from "@/components/admin/DeleteConfirmationDialog";
 
 type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
 type Timeline = { oldStatus: RequestStatus | null; newStatus: RequestStatus; changedByName: string; changeNote: string | null; changedAt: string };
-type Details = { id: number; title: string; status: RequestStatus; requesterName: string; requesterEmail: string; guest: boolean; typeName: string | null; priority: RequestPriority; assignedToId: number | null; assignedToName: string | null; description: string; createdAt: string; updatedAt: string; projectId: number | null; projectName: string | null; projectStatus: "ACTIVE" | "ARCHIVED" | null; workTypeId: number | null; workTypeName: string | null; createdById: number | null; createdByName: string | null; timeline: Timeline[]; comments: Comment[]; internalNotes: Comment[] };
+type Details = { id: number; title: string; status: RequestStatus; requesterName: string; requesterEmail: string; guest: boolean; typeName: string | null; priority: RequestPriority; assignedToId: number | null; assignedToName: string | null; description: string; createdAt: string; updatedAt: string; projectId: number | null; projectName: string | null; projectStatus: "ACTIVE" | "ARCHIVED" | null; workTypeId: number | null; workTypeName: string | null; workTypeNameAr: string | null; createdById: number | null; createdByName: string | null; timeline: Timeline[]; comments: Comment[]; internalNotes: Comment[] };
 type Assignee = { id: number; fullName: string };
 
 const card = "rounded-xl border border-divider bg-surface p-6";
 const control = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent";
 
 function Conversation({ title, emptyMessage, items }: { title: string; emptyMessage: string; items: Comment[] }) {
-  return <div><h2 className="text-lg font-semibold">{title}</h2><div className="mt-4 divide-y divide-divider">{items.length === 0 && <p className="py-4 text-sm text-secondary">{emptyMessage}</p>}{items.map((item) => <article key={item.id} className="flex gap-3 py-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.authorName.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-semibold">{item.authorName} <span className="font-normal text-secondary">({item.authorRole === "ADMIN" ? "Admin" : "Employee"})</span></p><time className="text-xs text-secondary">{formatRequestDateTime(item.createdAt)}</time></div><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.text}</p></div></article>)}</div></div>;
+  const { locale } = useI18n(); const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
+  return <div><h2 className="text-lg font-semibold">{title}</h2><div className="mt-4 divide-y divide-divider">{items.length === 0 && <p className="py-4 text-sm text-secondary">{emptyMessage}</p>}{items.map((item) => <article key={item.id} className="flex gap-3 py-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.authorName.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p className="text-sm font-semibold"><span data-i18n-skip>{item.authorName}</span> <span className="font-normal text-secondary">({item.authorRole === "ADMIN" ? "Admin" : "Employee"})</span></p><time className="text-xs text-secondary">{formatRequestDateTime(item.createdAt)}</time></div><p data-i18n-skip className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.text}</p></div></article>)}</div></div>;
 }
 
 function Composer({ placeholder, submitting, error, onSubmit }: { placeholder: string; submitting: boolean; error: string; onSubmit: (text: string) => Promise<boolean> }) {
@@ -26,7 +29,10 @@ function Composer({ placeholder, submitting, error, onSubmit }: { placeholder: s
   return <form className="mt-4" onSubmit={submit}><div className="flex items-end gap-3"><textarea rows={2} maxLength={10000} value={text} onChange={(event) => setText(event.target.value)} placeholder={placeholder} className={`${control} min-h-11 flex-1 resize-y py-3`} /><button type="submit" disabled={submitting} aria-label={submitting ? "Saving entry" : "Send"} className="flex h-11 w-11 items-center justify-center rounded-[9px] bg-accent text-white disabled:opacity-60"><Send size={18} /></button></div><div className="mt-2 flex items-start justify-between gap-4"><div>{error && <p role="alert" className="text-sm text-[#B42318]">{error}</p>}{submitting && <p role="status" aria-live="polite" className="text-xs text-secondary">Saving...</p>}</div><p className="text-xs text-secondary" aria-label={`${text.length} of 10000 characters used`}>{text.length}/10,000</p></div></form>;
 }
 
-export function AdminRequestDetails({ requestId, onRequestUpdated }: { requestId: string; onRequestUpdated?: () => void }) {
+export function AdminRequestDetails({ requestId, onRequestUpdated, onDeleted }: { requestId: string; onRequestUpdated?: () => void; onDeleted?: () => void }) {
+  const { locale } = useI18n();
+  const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
+  const workTypeEnglishNameRef = useRef<string | null>(null);
   const router = useRouter();
   const [details, setDetails] = useState<Details | null>(null);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
@@ -46,6 +52,7 @@ export function AdminRequestDetails({ requestId, onRequestUpdated }: { requestId
   const [commentError, setCommentError] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteError, setNoteError] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false); const [deleteBusy, setDeleteBusy] = useState(false); const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -58,12 +65,19 @@ export function AdminRequestDetails({ requestId, onRequestUpdated }: { requestId
         if (detailsResponse.status === 404) { setNotFound(true); return; }
         if (!detailsResponse.ok) throw new Error("Unable to load request details. Please try again.");
         const loaded: Details = await detailsResponse.json();
+        workTypeEnglishNameRef.current = loaded.workTypeName;
         setDetails(loaded); setStatus(loaded.status); setAssignedToId(loaded.assignedToId?.toString() ?? "");
       } catch (cause) { if (!(cause instanceof DOMException && cause.name === "AbortError")) setError(cause instanceof Error ? cause.message : "Unable to load request details. Please try again."); }
       finally { if (!controller.signal.aborted) setLoading(false); }
     }
     load(); return () => controller.abort();
   }, [reload, requestId, router]);
+
+  useEffect(() => {
+    setDetails((current) => current && workTypeEnglishNameRef.current
+      ? { ...current, workTypeName: localizedRecordLabel(workTypeEnglishNameRef.current, current.workTypeNameAr, locale) }
+      : current);
+  }, [details?.id, locale]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,13 +123,24 @@ export function AdminRequestDetails({ requestId, onRequestUpdated }: { requestId
     finally { setBusy(false); }
   }
 
+  async function permanentlyDelete() {
+    if (!details || deleteBusy) return;
+    setDeleteBusy(true); setDeleteError("");
+    try {
+      const response = await apiFetch(`/api/requests/admin/${details.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to delete the Request."));
+      setDeleteOpen(false); onDeleted?.();
+    } catch (cause) { setDeleteError(cause instanceof Error ? cause.message : "Unable to delete the Request."); }
+    finally { setDeleteBusy(false); }
+  }
+
   if (loading) return <section className={card} role="status">Loading request details...</section>;
   if (notFound) return <section className={card}><h2 className="text-lg font-semibold">Request not found</h2><p className="mt-2 text-sm text-secondary">This request is unavailable.</p></section>;
   if (forbidden) return <section className={card} role="alert"><p className="text-sm text-[#B42318]">You do not have permission to view this request.</p></section>;
   if (error || !details) return <section className={card} role="alert"><p className="text-sm text-[#B42318]">{error || "Unable to load request details. Please try again."}</p><button type="button" onClick={() => setReload((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></section>;
   const archivedProject = details.projectStatus === "ARCHIVED";
-  return <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
-    <div className="space-y-6"><section className={card}><div className="flex items-center gap-2"><p className="text-xs font-semibold uppercase text-secondary">{details.projectId ? "Project Task" : "Request Information"}</p>{details.guest && <GuestBadge />}</div><div className="mt-4 flex justify-between gap-4"><div><h1 className="text-xl font-semibold">{details.title}</h1><p className="mt-1 text-sm text-secondary">{details.projectId ? `${details.workTypeName} · Task` : "Request"} #{details.id}</p></div><span className="h-fit rounded-full bg-nav-active px-3 py-1 text-xs font-semibold text-accent">{REQUEST_STATUS_LABELS[details.status]}</span></div>{archivedProject && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project Task belongs to an archived Project and is read-only.</p>}<dl className="mt-6 grid gap-5 border-t border-divider pt-6 sm:grid-cols-2"><div><dt className="text-xs text-secondary">{details.projectId ? "Created by" : "Requester"}</dt><dd className="mt-1 text-sm font-semibold">{details.createdByName ?? details.requesterName}</dd>{details.guest && <dd className="text-xs text-secondary">{details.requesterEmail}</dd>}</div><div><dt className="text-xs text-secondary">Scope</dt><dd className="mt-1 text-sm font-semibold">{details.projectName ? `Project Task · ${details.projectName}` : "General Request"}</dd></div><div><dt className="text-xs text-secondary">Assignee</dt><dd className="mt-1 text-sm font-semibold">{details.assignedToName ?? UNASSIGNED_LABEL}</dd></div><div><dt className="text-xs text-secondary">{details.projectId ? "Work Type" : "Type"}</dt><dd className="mt-1 text-sm font-semibold">{details.workTypeName ?? details.typeName}</dd></div><div><dt className="text-xs text-secondary">Priority</dt><dd className="mt-1 text-sm font-semibold">{REQUEST_PRIORITY_LABELS[details.priority]}</dd></div></dl><div className="mt-6 border-t border-divider pt-5"><h2 className="flex items-center gap-2 text-sm font-semibold"><FileText size={17} className="text-accent" />Description</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-secondary">{details.description}</p></div></section><section className={card}><Conversation title="Comments" emptyMessage="No comments yet." items={details.comments} />{!archivedProject && <Composer placeholder="Add a public comment..." submitting={commentBusy} error={commentError} onSubmit={(text) => addEntry(text, false)} />}</section>{details.guest && details.projectId === null && <GuestCommunicationPanel target={{ access: "admin-general", requestId: details.id }} />}</div>
+  return <><div className="mb-4 flex justify-end"><button type="button" onClick={() => { setDeleteError(""); setDeleteOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-[#F2B8B5] px-4 text-sm font-medium text-[#B42318] hover:bg-[#FFF1F0]"><Trash2 size={16} />{locale === "ar" ? "حذف الطلب" : "Delete Request"}</button></div><div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
+    <div className="space-y-6"><section className={card}><div className="flex items-center gap-2"><p className="text-xs font-semibold uppercase text-secondary">{details.projectId ? "Project Task" : "Request Information"}</p>{details.guest && <GuestBadge />}</div><div className="mt-4 flex justify-between gap-4"><div><h1 data-i18n-skip className="text-xl font-semibold">{details.title}</h1><p className="mt-1 text-sm text-secondary">{details.projectId ? <><span data-i18n-skip>{details.workTypeName}</span> · Task</> : "Request"} #{details.id}</p></div><span className="h-fit rounded-full bg-nav-active px-3 py-1 text-xs font-semibold text-accent">{REQUEST_STATUS_LABELS[details.status]}</span></div>{archivedProject && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project Task belongs to an archived Project and is read-only.</p>}<dl className="mt-6 grid gap-5 border-t border-divider pt-6 sm:grid-cols-2"><div><dt className="text-xs text-secondary">{details.projectId ? "Created by" : "Requester"}</dt><dd data-i18n-skip className="mt-1 text-sm font-semibold">{details.createdByName ?? details.requesterName}</dd>{details.guest && <dd className="text-xs text-secondary">{details.requesterEmail}</dd>}</div><div><dt className="text-xs text-secondary">Scope</dt><dd data-i18n-skip={details.projectName ? true : undefined} className="mt-1 text-sm font-semibold">{details.projectName ? `Project Task · ${details.projectName}` : "General Request"}</dd></div><div><dt className="text-xs text-secondary">Assignee</dt><dd data-i18n-skip={details.assignedToName ? true : undefined} className="mt-1 text-sm font-semibold">{details.assignedToName ?? UNASSIGNED_LABEL}</dd></div><div><dt className="text-xs text-secondary">{details.projectId ? "Work Type" : "Type"}</dt><dd data-i18n-skip={details.projectId ? true : undefined} className="mt-1 text-sm font-semibold">{details.workTypeName ?? details.typeName}</dd></div><div><dt className="text-xs text-secondary">Priority</dt><dd className="mt-1 text-sm font-semibold">{REQUEST_PRIORITY_LABELS[details.priority]}</dd></div></dl><div className="mt-6 border-t border-divider pt-5"><h2 className="flex items-center gap-2 text-sm font-semibold"><FileText size={17} className="text-accent" />Description</h2><p data-i18n-skip className="mt-3 whitespace-pre-wrap text-sm leading-6 text-secondary">{details.description}</p></div></section><section className={card}><Conversation title="Comments" emptyMessage="No comments yet." items={details.comments} />{!archivedProject && <Composer placeholder="Add a public comment..." submitting={commentBusy} error={commentError} onSubmit={(text) => addEntry(text, false)} />}</section>{details.guest && details.projectId === null && <GuestCommunicationPanel target={{ access: "admin-general", requestId: details.id }} />}</div>
     <div className="space-y-6"><section className={card}><h2 className="text-lg font-semibold">Admin Actions</h2>{archivedProject ? <p className="mt-4 text-sm text-secondary">Archived Project Tasks cannot be modified.</p> : <div className="mt-5 space-y-4"><div><label className="mb-2 block text-sm font-medium" htmlFor="admin-status">Status</label><select id="admin-status" value={status} disabled={saving} onChange={(event) => setStatus(event.target.value as RequestStatus)} className={control}>{REQUEST_STATUSES.map((value) => <option key={value} value={value}>{REQUEST_STATUS_LABELS[value]}</option>)}</select></div><div><label className="mb-2 block text-sm font-medium" htmlFor="admin-owner">{details.projectId ? "Task Assignee" : "Assign Owner"}</label><select id="admin-owner" value={assignedToId} disabled={assigneesLoading || Boolean(assigneesError) || saving} onChange={(event) => setAssignedToId(event.target.value)} className={control}><option value="" disabled={details.projectId !== null}>{assigneesLoading ? "Loading owners..." : UNASSIGNED_LABEL}</option>{details.projectId !== null && details.assignedToId && !assignees.some((user) => user.id === details.assignedToId) && <option value={details.assignedToId}>{details.assignedToName ?? "Current owner"}</option>}{assignees.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}</select>{assigneesError && <p role="alert" className="mt-2 text-xs text-[#B42318]">{assigneesError} <button type="button" onClick={() => setReloadAssignees((value) => value + 1)} className="font-medium underline">Retry</button></p>}</div>{saveError && <p role="alert" className="text-sm text-[#B42318]">{saveError}</p>}<button type="button" onClick={saveChanges} disabled={saving} aria-live="polite" className="h-11 w-full rounded-[9px] bg-accent text-sm font-medium text-white disabled:opacity-60">{saving ? "Saving changes..." : "Save Changes"}</button></div>}</section><section className={card}><h2 className="text-lg font-semibold">Timestamps</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-secondary">Created At</dt><dd>{formatRequestDateTime(details.createdAt)}</dd></div><div className="flex justify-between gap-3"><dt className="text-secondary">Updated At</dt><dd>{formatRequestDateTime(details.updatedAt)}</dd></div></dl></section><section className={card}><Conversation title="Internal Notes (Admin Only)" emptyMessage="No internal notes yet." items={details.internalNotes} />{!archivedProject && <Composer placeholder="Add an internal note..." submitting={noteBusy} error={noteError} onSubmit={(text) => addEntry(text, true)} />}</section></div>
-  </div>;
+  </div>{deleteOpen && <DeleteConfirmationDialog title={locale === "ar" ? `حذف الطلب رقم ${details.id}؟` : `Delete Request #${details.id}?`} description={locale === "ar" ? `حذف «${details.title}» نهائيًا مع جميع السجلات التابعة له حصريًا وسجلات وصول الضيف.` : `Permanently delete “${details.title}” and all of its exclusively owned history and Guest access records.`} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteOpen(false)} onConfirm={permanentlyDelete} />}</>;
 }

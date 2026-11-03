@@ -11,6 +11,7 @@ import com.requestmanagement.backend.project.ProjectRepository;
 import com.requestmanagement.backend.projectworktype.ProjectWorkType;
 import com.requestmanagement.backend.projectworktype.ProjectWorkTypeService;
 import com.requestmanagement.backend.guestform.RequestGuestFieldAnswerRepository;
+import com.requestmanagement.backend.guestform.GuestAnswerDisplayService;
 import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
 import com.requestmanagement.backend.projectstatus.*;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,8 @@ public class ProjectTaskService {
     private final ProjectWorkTypeService projectWorkTypeService;
     private final RequestGuestFieldAnswerRepository guestFieldAnswerRepository;
     private final ProjectStatusService projectStatusService;
+    private final GuestAnswerDisplayService guestAnswerDisplayService;
+    private final RequestPermanentDeletionService permanentDeletionService;
 
     @Transactional(readOnly = true)
     public List<ProjectTaskBoardResponse> board(Long projectId, Long employeeId) {
@@ -140,6 +143,13 @@ public class ProjectTaskService {
         return adminDetails(task);
     }
 
+    @Transactional
+    public void permanentlyDeleteAdminTask(Long projectId, Long taskId, Long adminId) {
+        requireActiveAdmin(adminId);
+        requireProject(projectId);
+        permanentDeletionService.delete(findTask(projectId, taskId));
+    }
+
     private Request findTask(Long projectId, Long taskId) {
         return requestRepository.findByIdAndProject_Id(taskId, projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
@@ -151,7 +161,7 @@ public class ProjectTaskService {
         var comments = commentRepository.findByRequest_IdAndInternalFalseOrderByCreatedAtAscIdAsc(task.getId())
                 .stream().map(CommentResponse::from).toList();
         var answers = guestFieldAnswerRepository.findByRequest_IdOrderByDisplayOrderAscIdAsc(task.getId()).stream()
-                .map(AnswerResponse::from).toList();
+                .map(guestAnswerDisplayService::currentLabels).toList();
         return ProjectTaskDetailsResponse.from(task, timeline, comments, answers);
     }
 
@@ -163,7 +173,7 @@ public class ProjectTaskService {
         var internalNotes = commentRepository.findByRequest_IdAndInternalTrueOrderByCreatedAtAscIdAsc(task.getId())
                 .stream().map(CommentResponse::from).toList();
         var answers = guestFieldAnswerRepository.findByRequest_IdOrderByDisplayOrderAscIdAsc(task.getId()).stream()
-                .map(AnswerResponse::from).toList();
+                .map(guestAnswerDisplayService::currentLabels).toList();
         return AdminProjectTaskDetailsResponse.from(task, timeline, comments, internalNotes, answers);
     }
 

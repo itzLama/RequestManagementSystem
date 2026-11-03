@@ -6,5 +6,7 @@ import jakarta.validation.constraints.Size;
 public record ProjectWorkTypeNameRequest(
         @NotBlank(message = "Work Type name is required.")
         @Size(max = 100, message = "Work Type name must be at most 100 characters.")
-        String name
+        String name,
+        @Size(max = 100, message = "Arabic Work Type name must be at most 100 characters.")
+        String nameAr
 ) { }

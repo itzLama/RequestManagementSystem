@@ -4,8 +4,9 @@ import { DragDropProvider, PointerSensor, type DragEndEvent, type DragStartEvent
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { useRef, type ReactNode } from "react";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
-import { REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { projectStatusDisplayName, REQUEST_PRIORITY_LABELS, REQUEST_STATUS_LABELS, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 import { GuestBadge } from "@/components/GuestBadge";
+import { getProjectStatusSemantic, localizedRecordLabel, useI18n } from "@/lib/i18n";
 
 export type KanbanRequest = {
   id: number;
@@ -18,6 +19,7 @@ export type KanbanRequest = {
   requesterName?: string;
   projectName?: string | null;
   workTypeName?: string | null;
+  workTypeNameAr?: string | null;
   assignedToName?: string | null;
   guest?: boolean;
 };
@@ -57,15 +59,18 @@ const priorityClasses: Record<RequestPriority, string> = {
 const cardClasses = "block w-full rounded-[10px] border border-divider bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#D7D9E8] hover:shadow-md";
 
 function CardContent({ request, variant, showAssignee = false }: { request: KanbanRequest; variant: "request" | "project-task"; showAssignee?: boolean }) {
+  const { locale, t } = useI18n();
+  const showsAssignee = variant === "project-task" || Boolean(request.projectName) || showAssignee;
+  const secondaryValue = showsAssignee ? request.assignedToName ?? t("Unassigned") : request.typeName;
   return <>
-    {(request.guest || (variant === "project-task" && request.workTypeName)) && <div className="mb-2 flex flex-wrap gap-2">{variant === "project-task" && request.workTypeName && <span className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{request.workTypeName}</span>}{request.guest && <GuestBadge />}</div>}
-    <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{request.title}</p>
-    <p className="mt-2 text-xs font-medium text-secondary">{variant === "project-task" || request.projectName ? "Task" : "Request"} #{request.id}</p>
-    {request.requesterName && <p className="mt-3 truncate text-xs text-foreground">{request.requesterName}</p>}
-    {request.projectName && <p className="mt-1 truncate text-xs text-accent">{request.projectName}</p>}
+    {(request.guest || (variant === "project-task" && request.workTypeName)) && <div className="mb-2 flex flex-wrap gap-2">{variant === "project-task" && request.workTypeName && <span data-i18n-skip className="rounded-full bg-nav-active px-2.5 py-1 text-[11px] font-semibold text-accent">{localizedRecordLabel(request.workTypeName, request.workTypeNameAr, locale)}</span>}{request.guest && <GuestBadge />}</div>}
+    <p data-i18n-skip className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">{request.title}</p>
+    <p className="mt-2 text-xs font-medium text-secondary">{t(variant === "project-task" || request.projectName ? "Task" : "Request")} <bdi>#{request.id}</bdi></p>
+    {request.requesterName && <p data-i18n-skip className="mt-3 truncate text-xs text-foreground">{request.requesterName}</p>}
+    {request.projectName && <p data-i18n-skip className="mt-1 truncate text-xs text-accent">{request.projectName}</p>}
     <div className="mt-3 flex items-end justify-between gap-2">
-      <span className="line-clamp-2 text-xs leading-4 text-secondary">{variant === "project-task" || request.projectName || showAssignee ? request.assignedToName ?? "Unassigned" : request.typeName}</span>
-      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[request.priority]}`}>{REQUEST_PRIORITY_LABELS[request.priority]}</span>
+      <span data-i18n-skip={showsAssignee ? (request.assignedToName ? true : undefined) : (request.typeName ? true : undefined)} className="line-clamp-2 text-xs leading-4 text-secondary">{secondaryValue}</span>
+      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${priorityClasses[request.priority]}`}>{t(REQUEST_PRIORITY_LABELS[request.priority])}</span>
     </div>
   </>;
 }
@@ -127,12 +132,16 @@ function ColumnShell({ column, count, variant, children }: { column: KanbanColum
 }
 
 function ColumnHeader({ column, count,reorderEnabled=false,onRename,onDelete }: { column: KanbanColumn; count: number;reorderEnabled?:boolean;onRename?:(c:KanbanColumn)=>void;onDelete?:(c:KanbanColumn)=>void }) {
+  const { t, locale } = useI18n();
   const {ref,isDragging}=useDraggable<DragData>({id:`column-drag-${column.id}`,data:{kind:"column",columnId:Number(column.id)},disabled:!reorderEnabled||Boolean(column.protectedNew)});
-  return <div className={`flex items-start justify-between gap-2 px-1 py-2 ${isDragging?"opacity-50":""}`}><div className="flex min-w-0 flex-1 items-start gap-1">{reorderEnabled&&!column.protectedNew&&<button ref={ref} type="button" aria-label={`Drag ${column.name} column`} className="mt-0.5 shrink-0 cursor-grab rounded p-1 text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-accent"><GripVertical size={15}/></button>}<h2 id={`column-${column.id}`} className="min-w-0 break-words text-xs font-semibold uppercase leading-5 tracking-wide text-foreground">{column.name}</h2></div><div className="flex shrink-0 items-center"><span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-surface px-2 text-xs font-semibold text-secondary">{count}</span>{onRename&&!column.protectedNew&&<button type="button" onClick={()=>onRename(column)} aria-label={`Rename ${column.name}`} className="p-1 text-secondary hover:text-accent"><Pencil size={14}/></button>}{onDelete&&!column.protectedNew&&<button type="button" onClick={()=>onDelete(column)} aria-label={`Delete ${column.name}`} className="p-1 text-secondary hover:text-[#B42318]"><Trash2 size={14}/></button>}</div></div>;
+  const custom = typeof column.id === "number";
+  const label = custom ? projectStatusDisplayName(column.name, getProjectStatusSemantic(column.id as number), locale) : t(column.name);
+  return <div className={`flex items-start justify-between gap-2 px-1 py-2 ${isDragging?"opacity-50":""}`}><div className="flex min-w-0 flex-1 items-start gap-1">{reorderEnabled&&!column.protectedNew&&<button ref={ref} type="button" aria-label={`${t("Position")} ${column.name}`} className="mt-0.5 shrink-0 cursor-grab rounded p-1 text-secondary hover:bg-surface focus-visible:outline-2 focus-visible:outline-accent"><GripVertical size={15}/></button>}<h2 data-i18n-skip={custom ? true : undefined} id={`column-${column.id}`} className="min-w-0 break-words text-xs font-semibold uppercase leading-5 tracking-wide text-foreground">{label}</h2></div><div className="flex shrink-0 items-center"><span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-surface px-2 text-xs font-semibold text-secondary">{count}</span>{onRename&&!column.protectedNew&&<button type="button" onClick={()=>onRename(column)} aria-label={`${t("Rename")} ${column.name}`} className="p-1 text-secondary hover:text-accent"><Pencil size={14}/></button>}{onDelete&&!column.protectedNew&&<button type="button" onClick={()=>onDelete(column)} aria-label={`${t("Delete")} ${column.name}`} className="p-1 text-secondary hover:text-[#B42318]"><Trash2 size={14}/></button>}</div></div>;
 }
 
 function EmptyColumn({ variant }: { variant: "request" | "project-task" }) {
-  return <p className="rounded-lg border border-dashed border-[#D8DAE2] px-3 py-6 text-center text-xs text-secondary">No {variant === "project-task" ? "tasks" : "requests"}</p>;
+  const { t } = useI18n();
+  return <p className="rounded-lg border border-dashed border-[#D8DAE2] px-3 py-6 text-center text-xs text-secondary">{t(variant === "project-task" ? "No tasks" : "No requests")}</p>;
 }
 
 export function RequestKanbanBoard(props: BoardProps) {

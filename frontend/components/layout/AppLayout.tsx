@@ -11,12 +11,15 @@ import {
   NAVIGATION_BY_ROLE,
 } from "./layout-config";
 import { Sidebar } from "./Sidebar";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/lib/i18n";
 
 type AppLayoutProps = {
   children: ReactNode;
 };
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
@@ -85,15 +88,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [isAdminProjectRoute, isEmployeeAssignedTaskRoute, isEmployeeProjectRoute, router, user]);
 
   if (isPublicRoute) {
-    return children;
+    return <><div className="fixed end-3 top-3 z-[100] sm:end-5 sm:top-5"><LanguageSwitcher /></div>{children}</>;
   }
 
   if (loadingUser && !user) {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Loading your workspace...</p></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">{t("Loading your workspace...")}</p></div>;
   }
 
   if (authError && !user) {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><div role="alert" className="rounded-xl border border-divider bg-surface px-6 py-5 text-center"><p className="text-sm text-[#B42318]">{authError}</p><button type="button" onClick={() => setReloadUser((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></div></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background"><div role="alert" className="rounded-xl border border-divider bg-surface px-6 py-5 text-center"><p className="text-sm text-[#B42318]">{t(authError)}</p><button type="button" onClick={() => setReloadUser((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">{t("Retry")}</button></div></div>;
   }
 
   if (!user) {
@@ -101,15 +104,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   if (isAdminProjectRoute && user.role !== "ADMIN") {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to your requests...</p></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">{t("Redirecting to your requests...")}</p></div>;
   }
 
   if (isEmployeeAssignedTaskRoute && user.role !== "EMPLOYEE") {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to the dashboard...</p></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">{t("Redirecting to the dashboard...")}</p></div>;
   }
 
   if (isEmployeeProjectRoute && user.role !== "EMPLOYEE") {
-    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">Redirecting to the dashboard...</p></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p role="status" aria-live="polite" className="rounded-xl border border-divider bg-surface px-6 py-4 text-sm text-secondary">{t("Redirecting to the dashboard...")}</p></div>;
   }
 
   const pageHeader = getPageHeader(pathname);

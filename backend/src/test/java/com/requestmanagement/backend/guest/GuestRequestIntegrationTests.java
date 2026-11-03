@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,11 +34,11 @@ class GuestRequestIntegrationTests {
         long typeId = activeTypeId();
         MvcResult created = mvc.perform(post("/api/guest/requests/general").cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
                         .with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
-                        .contentType("application/json").content("""
+                        .contentType("application/json").content(String.format(Locale.ROOT, """
                                 {"guestName":"  External Guest  ","guestEmail":"Guest@Example.COM ","title":" Guest access ",
                                  "description":" Please help ","typeId":%d,"priority":"HIGH",
                                  "status":"COMPLETED","assignedToId":1,"createdById":1}
-                                """.formatted(typeId)))
+                                """, typeId)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.requestId").isNumber()).andReturn();
         long requestId = Long.parseLong(created.getResponse().getContentAsString().replaceAll("\\D", ""));
         var row = jdbc.queryForMap("SELECT * FROM requests WHERE request_id=?", requestId);
@@ -70,10 +71,10 @@ class GuestRequestIntegrationTests {
         Cookie csrf = csrf();
         MvcResult created = mvc.perform(post("/api/guest/requests/projects/{projectId}", projectId).cookie(csrf)
                         .header("X-XSRF-TOKEN", csrf.getValue()).with(request -> { request.setRemoteAddr(uniqueIp()); return request; })
-                        .contentType("application/json").content("""
+                        .contentType("application/json").content(String.format(Locale.ROOT, """
                                 {"guestName":"Project Guest","guestEmail":"project.guest@example.com","title":"Guest project bug",
                                  "description":"Broken flow","workTypeId":%d,"priority":"MEDIUM","assignedToId":1,"status":"COMPLETED"}
-                                """.formatted(workTypeId(jdbc, projectId, "Bug"))))
+                                """, workTypeId(jdbc, projectId, "Bug"))))
                 .andExpect(status().isCreated()).andReturn();
         long requestId = Long.parseLong(created.getResponse().getContentAsString().replaceAll("\\D", ""));
         var row = jdbc.queryForMap("SELECT * FROM requests WHERE request_id=?", requestId);
