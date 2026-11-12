@@ -26,3 +26,7 @@ Thumbs.db
 # Logs and local build metadata
 *.log
 *.tsbuildinfo
+
+# Local assistant instructions
+CLAUDE.md
+.claude/
