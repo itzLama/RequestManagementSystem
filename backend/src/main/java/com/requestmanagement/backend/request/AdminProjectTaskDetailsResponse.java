@@ -3,6 +3,7 @@ package com.requestmanagement.backend.request;
 import com.requestmanagement.backend.comment.CommentResponse;
 import com.requestmanagement.backend.project.ProjectStatus;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
@@ -16,6 +17,7 @@ public record AdminProjectTaskDetailsResponse(
         Long createdById, String createdByName, String requesterName, String requesterEmail, boolean guest,
         Long projectId, String projectName, ProjectStatus projectStatus,
         Long parentTaskId, String parentTaskTitle,
+        LocalDate startDate, LocalDate dueDate,
         LocalDateTime createdAt, LocalDateTime updatedAt,
         List<RequestDetailsResponse.TimelineEntry> timeline,
         List<CommentResponse> comments,
@@ -40,6 +42,7 @@ public record AdminProjectTaskDetailsResponse(
                 task.getProject().getId(), task.getProject().getName(), task.getProject().getStatus(),
                 task.getParentTask() == null ? null : task.getParentTask().getId(),
                 task.getParentTask() == null ? null : task.getParentTask().getTitle(),
+                task.getStartDate(), task.getDueDate(),
                 task.getCreatedAt(), task.getUpdatedAt(), timeline, comments, internalNotes, guestAnswers,
                 subtasks, subtaskProgress);
     }

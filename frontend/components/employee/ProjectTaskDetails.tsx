@@ -16,12 +16,14 @@ import { SubtaskFormDialog } from "@/components/employee/SubtaskFormDialog";
 import { LinkedWorkSection } from "@/components/employee/LinkedWorkSection";
 import { RichDescriptionSection, type RichDescriptionSaveResult } from "@/components/rich-text/RichDescriptionSection";
 import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
+import { DateField } from "@/components/employee/ProjectTaskFormDialog";
+import { formatTaskDate, invalidDateRange } from "@/lib/task-dates";
 
 type RequestStatus = number | string;
 type TimelineEntry = { oldStatus: number | null; newStatus: number; oldProjectStatusId: number | null; oldProjectStatusName: string | null; oldProjectStatusSemantic: string | null; newProjectStatusId: number; newProjectStatusName: string; newProjectStatusSemantic: string | null; changedByName: string; changeNote: string | null; changedAt: string };
 type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
 type GuestAnswer = { label: string; labelAr: string | null; type: "TEXT" | "TEXTAREA" | "NUMBER" | "DROPDOWN" | "DATE" | "CHECKBOX"; displayOrder: number; value: string; optionLabel: string | null; optionLabelAr: string | null };
-type TaskDetails = { id: number; title: string; description: string; descriptionDocument: unknown | null; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: RequestPriority; status: number; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdById: number | null; createdByName: string | null; requesterName: string; requesterEmail: string; guest: boolean; projectId: number; projectName: string; projectStatus: "ACTIVE" | "ARCHIVED"; parentTaskId: number | null; parentTaskTitle: string | null; createdAt: string; updatedAt: string; timeline: TimelineEntry[]; comments: Comment[]; internalNotes?: Comment[]; guestAnswers: GuestAnswer[]; subtasks: SubtaskSummary[]; subtaskProgress: { completed: number; total: number; percentage: number } };
+type TaskDetails = { id: number; title: string; description: string; descriptionDocument: unknown | null; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: RequestPriority; status: number; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdById: number | null; createdByName: string | null; requesterName: string; requesterEmail: string; guest: boolean; projectId: number; projectName: string; projectStatus: "ACTIVE" | "ARCHIVED"; parentTaskId: number | null; parentTaskTitle: string | null; startDate: string | null; dueDate: string | null; createdAt: string; updatedAt: string; timeline: TimelineEntry[]; comments: Comment[]; internalNotes?: Comment[]; guestAnswers: GuestAnswer[]; subtasks: SubtaskSummary[]; subtaskProgress: { completed: number; total: number; percentage: number } };
 
 const card = "rounded-xl border border-divider bg-surface p-6";
 const control = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent";
@@ -100,6 +102,14 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     return saved;
   }
 
+  async function saveDates(startDate: string | null, dueDate: string | null) {
+    if (!task) return;
+    const expectedTaskId = task.id;
+    const saved = await projectApi.updateTaskDates(projectId, expectedTaskId, access, { startDate, dueDate });
+    setTask((current) => current?.id === expectedTaskId ? { ...current, startDate: saved.startDate, dueDate: saved.dueDate } : current);
+    onUpdated?.();
+  }
+
   async function permanentlyDelete() {
     if (!task || deleteBusy || access !== "admin") return;
     setDeleteBusy(true); setDeleteError("");
@@ -157,7 +167,7 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
         <Conversation title="Comments" items={task.comments} empty="No comments yet." initialVisibleCount={5} composer={!readOnly ? <Composer value={comment} onChange={setComment} busy={commentBusy} error={commentError} placeholder="Add a comment..." onSubmit={addComment} /> : null} />
       </main>
       <aside className="min-w-0 space-y-6">
-        <section className={card}><h2 className="text-lg font-semibold">Task Details</h2><dl className="mt-5 space-y-5"><div><dt className="text-xs text-secondary">Assignee</dt>{readOnly ? <dd className="mt-1 break-words text-sm font-semibold">{task.assignedToName ?? UNASSIGNED_LABEL}</dd> : <dd className="mt-2"><select value={task.assignedToId ?? ""} disabled={assigneeBusy} onChange={(event) => reassign(Number(event.target.value))} className={control}><option value="" disabled>Unassigned</option>{activeMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}</option>)}</select>{assigneeError && <p role="alert" className="mt-2 text-xs text-[#B42318]">{assigneeError}</p>}</dd>}</div><Detail label="Priority" value={REQUEST_PRIORITY_LABELS[task.priority]} /><Detail label="Work Type" value={workTypeLabel} dynamic /><div><dt className="text-xs text-secondary">Created by</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-words text-sm font-semibold"><UserRound size={16} className="shrink-0 text-accent" />{task.createdByName ?? task.requesterName}</dd>{task.guest && <dd className="mt-1 break-all text-xs text-secondary">{task.requesterEmail}</dd>}</div><div><dt className="text-xs text-secondary">Created at</dt><dd className="mt-1 flex items-center gap-2 text-sm font-semibold"><CalendarDays size={16} className="shrink-0 text-accent" />{formatRequestDateTime(task.createdAt)}</dd></div><Detail label="Project" value={task.projectName} dynamic /></dl></section>
+        <section className={card}><h2 className="text-lg font-semibold">Task Details</h2><dl className="mt-5 space-y-5"><div><dt className="text-xs text-secondary">Assignee</dt>{readOnly ? <dd className="mt-1 break-words text-sm font-semibold">{task.assignedToName ?? UNASSIGNED_LABEL}</dd> : <dd className="mt-2"><select value={task.assignedToId ?? ""} disabled={assigneeBusy} onChange={(event) => reassign(Number(event.target.value))} className={control}><option value="" disabled>Unassigned</option>{activeMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}</option>)}</select>{assigneeError && <p role="alert" className="mt-2 text-xs text-[#B42318]">{assigneeError}</p>}</dd>}</div><TaskDatesEditor key={`${task.id}:${task.startDate}:${task.dueDate}`} task={task} readOnly={readOnly} locale={locale} onSave={saveDates} /><Detail label="Priority" value={REQUEST_PRIORITY_LABELS[task.priority]} /><Detail label="Work Type" value={workTypeLabel} dynamic /><div><dt className="text-xs text-secondary">Created by</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-words text-sm font-semibold"><UserRound size={16} className="shrink-0 text-accent" />{task.createdByName ?? task.requesterName}</dd>{task.guest && <dd className="mt-1 break-all text-xs text-secondary">{task.requesterEmail}</dd>}</div><div><dt className="text-xs text-secondary">Created at</dt><dd className="mt-1 flex items-center gap-2 text-sm font-semibold"><CalendarDays size={16} className="shrink-0 text-accent" />{formatRequestDateTime(task.createdAt)}</dd></div><Detail label="Project" value={task.projectName} dynamic /></dl></section>
         {task.guest && <GuestCommunicationPanel target={access === "admin" ? { access: "admin-project", projectId, requestId: task.id } : { access: "employee-project", projectId, requestId: task.id }} readOnly={readOnly} initialVisibleCount={5} />}
       </aside>
     </div>
@@ -167,6 +177,22 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     {selectedSubtaskId !== null && <RequestDetailsDialog title={`Subtask #${selectedSubtaskId}`} onClose={() => setSelectedSubtaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedSubtaskId)} access={access} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedSubtaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
     {selectedLinkedTaskId !== null && <RequestDetailsDialog title={`Task #${selectedLinkedTaskId}`} onClose={() => setSelectedLinkedTaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedLinkedTaskId)} access={access} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedLinkedTaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
   </div>;
+}
+
+function TaskDatesEditor({ task, readOnly, locale, onSave }: { task: TaskDetails; readOnly: boolean; locale: "en" | "ar"; onSave: (startDate: string | null, dueDate: string | null) => Promise<void> }) {
+  const [startDate, setStartDate] = useState(task.startDate ?? ""); const [dueDate, setDueDate] = useState(task.dueDate ?? "");
+  const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  const changed = startDate !== (task.startDate ?? "") || dueDate !== (task.dueDate ?? "");
+  if (readOnly) return <><Detail label="Start date" value={task.startDate ? formatTaskDate(task.startDate, locale) : "Not set"} /><Detail label="Due date" value={task.dueDate ? formatTaskDate(task.dueDate, locale) : "Not set"} /></>;
+  async function save() {
+    if (busy || !changed) return;
+    if (invalidDateRange(startDate, dueDate)) { setError("Start date must be on or before the due date."); return; }
+    setBusy(true); setError("");
+    try { await onSave(startDate || null, dueDate || null); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save the dates."); }
+    finally { setBusy(false); }
+  }
+  return <div className="space-y-3"><DateField id={`task-${task.id}-start`} label="Start date" value={startDate} disabled={busy} onChange={setStartDate} /><DateField id={`task-${task.id}-due`} label="Due date" value={dueDate} min={startDate || undefined} disabled={busy} onChange={setDueDate} />{error && <p role="alert" className="text-xs text-[#B42318]">{error}</p>}{changed && <div className="flex gap-2"><button type="button" onClick={save} disabled={busy} className="h-9 rounded-[9px] bg-accent px-4 text-sm font-medium text-white disabled:opacity-60">{busy ? "Saving..." : "Save dates"}</button><button type="button" onClick={() => { setStartDate(task.startDate ?? ""); setDueDate(task.dueDate ?? ""); setError(""); }} disabled={busy} className="h-9 rounded-[9px] border border-divider px-4 text-sm font-medium">Cancel</button></div>}</div>;
 }
 
 function SubtasksSection({ task, readOnly, locale, onCreate, onOpen }: { task: TaskDetails; readOnly: boolean; locale: "en" | "ar"; onCreate: () => void; onOpen: (id: number) => void }) {

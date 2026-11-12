@@ -215,6 +215,13 @@ public class AdminProjectTaskController {
         return projectTaskService.adminUpdateStatus(projectId, taskId, principal.userId(), input);
     }
 
+    @PatchMapping("/{taskId}/dates")
+    public AdminProjectTaskDetailsResponse dates(@PathVariable Long projectId, @PathVariable Long taskId,
+                                                 @RequestBody TaskDatesInput input,
+                                                 @AuthenticationPrincipal AuthenticatedUser principal) {
+        return projectTaskService.adminUpdateDates(projectId, taskId, principal.userId(), input);
+    }
+
     @PatchMapping("/{taskId}/assignee")
     public AdminProjectTaskDetailsResponse assignee(@PathVariable Long projectId, @PathVariable Long taskId,
                                                     @Valid @RequestBody UpdateProjectTaskAssigneeRequest input,

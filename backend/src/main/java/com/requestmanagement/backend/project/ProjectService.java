@@ -8,6 +8,7 @@ import com.requestmanagement.backend.guestform.ProjectGuestFormSettingsRepositor
 import com.requestmanagement.backend.guestform.ProjectGuestFieldRepository;
 import com.requestmanagement.backend.guestform.ProjectGuestFieldOptionRepository;
 import com.requestmanagement.backend.projectstatus.*;
+import com.requestmanagement.backend.tasktemplate.ProjectTaskTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,7 @@ public class ProjectService {
     private final ProjectGuestFieldOptionRepository guestFieldOptionRepository;
     private final ProjectStatusService projectStatusService;
     private final ProjectStatusColumnRepository projectStatusRepository;
+    private final ProjectTaskTemplateRepository taskTemplateRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> list() {
@@ -82,6 +84,8 @@ public class ProjectService {
             guestFieldRepository.flush();
             guestFormSettingsRepository.deleteById(id);
             guestFormSettingsRepository.flush();
+            taskTemplateRepository.deleteAllByProject_Id(id);
+            taskTemplateRepository.flush();
             projectWorkTypeRepository.deleteAllByProject_Id(id);
             projectWorkTypeRepository.flush();
             projectStatusRepository.deleteAllByProject_Id(id);

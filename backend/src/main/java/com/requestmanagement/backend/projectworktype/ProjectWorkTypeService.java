@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import com.requestmanagement.backend.guestform.ProjectGuestFormSettingsRepository;
 import com.requestmanagement.backend.request.RequestRepository;
+import com.requestmanagement.backend.tasktemplate.ProjectTaskTemplateRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +23,7 @@ public class ProjectWorkTypeService {
     private final ProjectAccessService projectAccessService;
     private final ProjectGuestFormSettingsRepository guestFormSettingsRepository;
     private final RequestRepository requestRepository;
+    private final ProjectTaskTemplateRepository taskTemplateRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectWorkTypeResponse> listAdmin(Long projectId) {
@@ -85,7 +87,7 @@ public class ProjectWorkTypeService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "A Project must keep at least one active Work Type.");
         }
-        if (requestRepository.existsByWorkType_Id(workTypeId)) {
+        if (requestRepository.existsByWorkType_Id(workTypeId) || taskTemplateRepository.existsByWorkType_Id(workTypeId)) {
             type.retire();
             repository.saveAndFlush(type);
         } else {

@@ -26,14 +26,15 @@ public final class SubtaskDtos {
 
     public record Summary(Long id, String title, Long statusId, String statusName,
                           String statusSemantic, Long assignedToId, String assignedToName,
-                          boolean countsAsCompleted) {
+                          boolean countsAsCompleted, java.time.LocalDate startDate,
+                          java.time.LocalDate dueDate) {
         static Summary from(Request task) {
             return new Summary(task.getId(), task.getTitle(), task.getProjectStatus().getId(),
                     task.getProjectStatus().getName(),
                     task.getProjectStatus().getSemanticKey() == null ? null : task.getProjectStatus().getSemanticKey().name(),
                     task.getAssignedTo() == null ? null : task.getAssignedTo().getId(),
                     task.getAssignedTo() == null ? null : task.getAssignedTo().getFullName(),
-                    task.getProjectStatus().isCountsAsCompleted());
+                    task.getProjectStatus().isCountsAsCompleted(), task.getStartDate(), task.getDueDate());
         }
     }
 

@@ -1,5 +1,6 @@
 package com.requestmanagement.backend.request;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import com.requestmanagement.backend.project.Project;
@@ -97,6 +98,12 @@ public class Request {
 
     @Column(name = "attachment_cleanup_started_at")
     private LocalDateTime attachmentCleanupStartedAt;
+
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
 
     public static Request create(String title, String description, RequestType type,
                                  RequestPriority priority, User creator) {
@@ -239,6 +246,16 @@ public class Request {
         if (!isProjectTask()) throw new IllegalStateException("Rich descriptions require a Project Task.");
         this.descriptionDocument = document;
         this.description = plainText;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void schedule(LocalDate startDate, LocalDate dueDate) {
+        if (!isProjectTask()) throw new IllegalStateException("Planning dates require a Project Task.");
+        if (startDate != null && dueDate != null && startDate.isAfter(dueDate)) {
+            throw new IllegalArgumentException("Start date must be on or before the due date.");
+        }
+        this.startDate = startDate;
+        this.dueDate = dueDate;
         this.updatedAt = LocalDateTime.now();
     }
 

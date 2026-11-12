@@ -38,7 +38,8 @@ class ProjectServiceTest {
                 mock(ProjectGuestFieldRepository.class),
                 mock(ProjectGuestFieldOptionRepository.class),
                 mock(ProjectStatusService.class),
-                mock(ProjectStatusColumnRepository.class));
+                mock(ProjectStatusColumnRepository.class),
+                mock(com.requestmanagement.backend.tasktemplate.ProjectTaskTemplateRepository.class));
 
         assertThatThrownBy(() -> service.delete(42L))
                 .isInstanceOfSatisfying(ResponseStatusException.class, exception -> {

@@ -65,7 +65,18 @@ public class ProjectTaskService {
         Request task = Request.createProjectTask(title, description.plainText(), workType, input.priority(),
                 creator, assignee, project, projectStatusService.initial(projectId));
         if (description.document() != null) task.updateRichDescription(description.document(), description.plainText());
+        schedule(task, input.startDate(), input.dueDate());
         return ProjectTaskBoardResponse.from(requestRepository.save(task));
+    }
+
+    @Transactional
+    public ProjectTaskDetailsResponse updateDates(Long projectId, Long taskId, Long employeeId, TaskDatesInput input) {
+        projectAccessService.requireMutableProject(projectId, employeeId);
+        projectAccessService.requireActiveEmployee(employeeId);
+        Request task = findTask(projectId, taskId);
+        schedule(task, input.startDate(), input.dueDate());
+        requestRepository.save(task);
+        return details(task);
     }
 
     @Transactional
@@ -147,7 +158,20 @@ public class ProjectTaskService {
         Request task = Request.createProjectTask(title, description.plainText(), workType, input.priority(),
                 admin, assignee, project, projectStatusService.initial(projectId));
         if (description.document() != null) task.updateRichDescription(description.document(), description.plainText());
+        schedule(task, input.startDate(), input.dueDate());
         return ProjectTaskBoardResponse.from(requestRepository.save(task));
+    }
+
+    @Transactional
+    public AdminProjectTaskDetailsResponse adminUpdateDates(Long projectId, Long taskId, Long adminId,
+                                                            TaskDatesInput input) {
+        requireActiveAdmin(adminId);
+        Project project = requireProject(projectId);
+        projectAccessService.requireActive(project);
+        Request task = findTask(projectId, taskId);
+        schedule(task, input.startDate(), input.dueDate());
+        requestRepository.save(task);
+        return adminDetails(task);
     }
 
     @Transactional
@@ -314,6 +338,13 @@ public class ProjectTaskService {
         task.updateRichDescription(validated.document(), validated.plainText());
         requestRepository.saveAndFlush(task);
         return RichDescriptionDtos.Response.from(task);
+    }
+
+    private void schedule(Request task, java.time.LocalDate startDate, java.time.LocalDate dueDate) {
+        if (startDate != null && dueDate != null && startDate.isAfter(dueDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be on or before the due date.");
+        }
+        task.schedule(startDate, dueDate);
     }
 
     private String normalized(String value, String message) {
