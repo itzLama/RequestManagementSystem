@@ -21,6 +21,8 @@ export type ProjectTaskInput = RichCreationDescription & { title: string; workTy
 export type TaskDatesInput = { startDate: string | null; dueDate: string | null };
 export type TaskDatesResponse = { startDate: string | null; dueDate: string | null };
 export type TaskTemplate = { id: number; name: string; nameAr: string; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; workTypeActive: boolean; priority: "LOW" | "MEDIUM" | "HIGH"; defaultTitle: string; description: string; descriptionDocument: unknown; dueOffsetDays: number | null; createdAt: string; updatedAt: string };
+export type RoadmapProject = { projectId: number; projectName: string; status: ProjectStatus; startDate: string | null; endDate: string | null; totalTasks: number; scheduledTasks: number; overdueTasks: number };
+export type ProjectRoadmap = { today: string; projects: RoadmapProject[] };
 export type TaskTemplateInput = { name: string; nameAr: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; defaultTitle: string; descriptionDocument: unknown; dueOffsetDays: number | null };
 export type SubtaskInput = RichCreationDescription & { title: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number; statusId: number };
 export type SubtaskUpdateInput = { title: string; description?: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH" };
@@ -103,5 +105,7 @@ export const projectApi = {
   createTaskTemplate: (id: string | number, input: TaskTemplateInput) => request<TaskTemplate>(`/api/projects/${id}/task-templates`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to add Task Template."),
   updateTaskTemplate: (projectId: string | number, templateId: number, input: TaskTemplateInput) => request<TaskTemplate>(`/api/projects/${projectId}/task-templates/${templateId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to update Task Template."),
   deleteTaskTemplate: (projectId: string | number, templateId: number) => request<void>(`/api/projects/${projectId}/task-templates/${templateId}`, { method: "DELETE" }, "Unable to delete Task Template."),
+  roadmap: () => request<ProjectRoadmap>("/api/projects/roadmap", {}, "Unable to load the roadmap."),
+  myRoadmap: () => request<ProjectRoadmap>("/api/projects/mine/roadmap", {}, "Unable to load the roadmap."),
   updateTaskDescription: (projectId: string | number, taskId: number, access: "admin" | "employee", document: unknown) => request<RichDescriptionResponse>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/description-document`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ document }) }, "Unable to save the description."),
 };

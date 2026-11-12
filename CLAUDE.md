@@ -52,7 +52,12 @@ Masar is a bilingual (Arabic/English, RTL/LTR) internal Service Request & Projec
 - Attachment 358 already used its 3/3 attempts → leave it failed. Do not edit its row, mark it CLEAN, or bypass attempt limits.
 - Stage 3 committed locally as `81eb0b5` (not pushed).
 
-### Stage 4 — Visual Planning & Scheduling (not started)
+### Stage 4 — Visual Planning & Scheduling (implemented Nov 12, NOT committed, manual acceptance pending)
+- Project view switcher Kanban (unchanged) | Table | Calendar | Roadmap in admin + employee workspaces (`frontend/components/planning/`); views show root tasks only, reuse the board endpoints; archived = read-only.
+- Calendar: FullCalendar Standard 6.1.22 (core/react/daygrid/interaction, MIT, exact pins), client-only via next/dynamic; drag/resize/drop-from-unscheduled call `PATCH .../tasks/{id}/dates`, optimistic with rollback; Arabic locale with Latin digits + RTL.
+- Roadmaps: custom CSS grid + date-fns 4.4.0 (`RoadmapTimeline.tsx`). Global Roadmap: `GET /api/projects/roadmap` (admin) and `/api/projects/mine/roadmap` (member projects via EmployeeProjectService.listMine); spans from root tasks only; `masar.planning.time-zone` (default Asia/Riyadh).
+- Overdue = due < today(Asia/Riyadh) and status not countsAsCompleted; upcoming = due within today..today+7 and not completed (`lib/task-dates.ts`).
+- Original plan notes:
 Project Task Table view, Calendar view, Project Roadmap (tasks) + Global Roadmap (projects), date-only start/due fields, drag-to-reschedule where sensible, upcoming/overdue highlighting, shared data across views, keep Kanban unchanged, respect permissions, RTL/LTR. Candidate libs: FullCalendar Standard, date-fns; timeline via vis-timeline OR custom with existing @dnd-kit/react (choose the faster safe option and justify).
 
 ### Stage 5 — Project Insights & Collaboration (not started)
