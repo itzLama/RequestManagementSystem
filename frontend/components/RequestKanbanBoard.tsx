@@ -38,7 +38,7 @@ type BoardProps = {
   onColumnRename?: (column: KanbanColumn) => void;
   onColumnDelete?: (column: KanbanColumn) => void;
 };
-export type KanbanColumn = { id: number | RequestStatus; name: string; protectedNew?: boolean };
+export type KanbanColumn = { id: number | RequestStatus; name: string; protectedNew?: boolean; countsAsCompleted?: boolean };
 
 type DragData = { kind: "task"; taskId: number; columnId: number | RequestStatus } | { kind: "column"; columnId: number };
 type DropData = { columnId: number | RequestStatus };

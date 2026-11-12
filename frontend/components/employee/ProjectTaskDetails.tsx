@@ -1,21 +1,27 @@
 "use client";
 
-import { Activity, CalendarDays, CheckSquare2, ChevronDown, Send, Trash2, UserRound } from "lucide-react";
+import { Activity, CalendarDays, ChevronDown, Pencil, Plus, Send, Trash2, UserRound } from "lucide-react";
+import type { JSONContent } from "@tiptap/react";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
-import { projectApi, type ProjectStatusColumn, type ProjectTaskMember } from "@/lib/project-api";
+import { projectApi, type ProjectStatusColumn, type ProjectTaskMember, type ProjectWorkType, type SubtaskSummary } from "@/lib/project-api";
 import { formatRequestDateTime as formatDateTime, projectStatusDisplayName, REQUEST_PRIORITY_LABELS, UNASSIGNED_LABEL, type RequestPriority } from "@/lib/request-display";
 import { GuestBadge } from "@/components/GuestBadge";
 import { GuestCommunicationPanel } from "@/components/GuestCommunicationPanel";
 import { localizedRecordLabel, useI18n } from "@/lib/i18n";
 import { DeleteConfirmationDialog } from "@/components/admin/DeleteConfirmationDialog";
+import { RequestDetailsDialog } from "@/components/RequestDetailsDialog";
+import { SubtaskFormDialog } from "@/components/employee/SubtaskFormDialog";
+import { LinkedWorkSection } from "@/components/employee/LinkedWorkSection";
+import { RichDescriptionSection, type RichDescriptionSaveResult } from "@/components/rich-text/RichDescriptionSection";
+import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 
 type RequestStatus = number | string;
 type TimelineEntry = { oldStatus: number | null; newStatus: number; oldProjectStatusId: number | null; oldProjectStatusName: string | null; oldProjectStatusSemantic: string | null; newProjectStatusId: number; newProjectStatusName: string; newProjectStatusSemantic: string | null; changedByName: string; changeNote: string | null; changedAt: string };
 type Comment = { id: number; text: string; authorName: string; authorRole: "ADMIN" | "EMPLOYEE"; createdAt: string };
 type GuestAnswer = { label: string; labelAr: string | null; type: "TEXT" | "TEXTAREA" | "NUMBER" | "DROPDOWN" | "DATE" | "CHECKBOX"; displayOrder: number; value: string; optionLabel: string | null; optionLabelAr: string | null };
-type TaskDetails = { id: number; title: string; description: string; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: RequestPriority; status: number; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdById: number | null; createdByName: string | null; requesterName: string; requesterEmail: string; guest: boolean; projectId: number; projectName: string; projectStatus: "ACTIVE" | "ARCHIVED"; createdAt: string; updatedAt: string; timeline: TimelineEntry[]; comments: Comment[]; internalNotes?: Comment[]; guestAnswers: GuestAnswer[] };
+type TaskDetails = { id: number; title: string; description: string; descriptionDocument: unknown | null; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: RequestPriority; status: number; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdById: number | null; createdByName: string | null; requesterName: string; requesterEmail: string; guest: boolean; projectId: number; projectName: string; projectStatus: "ACTIVE" | "ARCHIVED"; parentTaskId: number | null; parentTaskTitle: string | null; createdAt: string; updatedAt: string; timeline: TimelineEntry[]; comments: Comment[]; internalNotes?: Comment[]; guestAnswers: GuestAnswer[]; subtasks: SubtaskSummary[]; subtaskProgress: { completed: number; total: number; percentage: number } };
 
 const card = "rounded-xl border border-divider bg-surface p-6";
 const control = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent";
@@ -26,12 +32,15 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
   const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
   const [task, setTask] = useState<TaskDetails | null>(null);
   const [members, setMembers] = useState<Pick<ProjectTaskMember, "employeeId" | "fullName" | "active">[]>([]);
+  const [workTypes, setWorkTypes] = useState<ProjectWorkType[]>([]);
   const [statuses, setStatuses] = useState<ProjectStatusColumn[]>([]);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [notFound, setNotFound] = useState(false); const [reload, setReload] = useState(0);
   const [status, setStatus] = useState<RequestStatus>(0); const [changeNote, setChangeNote] = useState(""); const [showNote, setShowNote] = useState(false); const [statusBusy, setStatusBusy] = useState(false); const [statusError, setStatusError] = useState("");
   const [assigneeBusy, setAssigneeBusy] = useState(false); const [assigneeError, setAssigneeError] = useState("");
   const [comment, setComment] = useState(""); const [commentBusy, setCommentBusy] = useState(false); const [commentError, setCommentError] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false); const [deleteBusy, setDeleteBusy] = useState(false); const [deleteError, setDeleteError] = useState("");
+  const [subtaskFormOpen, setSubtaskFormOpen] = useState(false); const [selectedSubtaskId, setSelectedSubtaskId] = useState<number | null>(null); const [editingSubtask, setEditingSubtask] = useState(false);
+  const [selectedLinkedTaskId, setSelectedLinkedTaskId] = useState<number | null>(null);
   const base = access === "admin" ? `/api/projects/${projectId}/tasks/${encodeURIComponent(taskId)}` : `/api/projects/mine/${projectId}/tasks/${encodeURIComponent(taskId)}`;
 
   useEffect(() => {
@@ -39,14 +48,14 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     async function load() {
       setLoading(true); setError(""); setNotFound(false);
       try {
-        const [response, statusData] = await Promise.all([apiFetch(base, { cache: "no-store" }), access === "admin" ? projectApi.statuses(projectId) : projectApi.myStatuses(projectId)]);
+        const [response, statusData, workTypeData] = await Promise.all([apiFetch(base, { cache: "no-store" }), access === "admin" ? projectApi.statuses(projectId) : projectApi.myStatuses(projectId), access === "admin" ? projectApi.workTypes(projectId) : projectApi.myWorkTypes(projectId)]);
         if (response.status === 401) { router.replace("/login"); return; }
         if (response.status === 404) { setNotFound(true); return; }
         if (!response.ok) throw new Error("Unable to load task details.");
         const raw = await response.json() as Omit<TaskDetails, "status">;
         const loaded: TaskDetails = { ...raw, status: raw.statusId, timeline: raw.timeline.map((entry) => ({ ...entry, oldStatus: entry.oldProjectStatusId, newStatus: entry.newProjectStatusId })) };
         const memberData = access === "admin" ? await projectApi.members(projectId) : await projectApi.taskMembers(projectId);
-        if (active) { setTask(loaded); setStatus(loaded.statusId); setStatuses(statusData); setMembers(memberData.map(({ employeeId, fullName, active: memberActive }) => ({ employeeId, fullName, active: memberActive }))); }
+        if (active) { setTask(loaded); setStatus(loaded.statusId); setStatuses(statusData); setWorkTypes(workTypeData); setMembers(memberData.map(({ employeeId, fullName, active: memberActive }) => ({ employeeId, fullName, active: memberActive }))); }
       } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "Unable to load task details."); }
       finally { if (active) setLoading(false); }
     }
@@ -82,11 +91,22 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     finally { setCommentBusy(false); }
   }
 
+  async function saveRichDescription(document: JSONContent): Promise<RichDescriptionSaveResult> {
+    if (!task) throw new Error(locale === "ar" ? "تعذر حفظ الوصف." : "Unable to save the description.");
+    const expectedTaskId = task.id;
+    const saved = await projectApi.updateTaskDescription(projectId, expectedTaskId, access, document);
+    setTask((current) => current?.id === expectedTaskId ? { ...current, description: saved.description, descriptionDocument: saved.descriptionDocument } : current);
+    onUpdated?.();
+    return saved;
+  }
+
   async function permanentlyDelete() {
     if (!task || deleteBusy || access !== "admin") return;
     setDeleteBusy(true); setDeleteError("");
     try {
-      const response = await apiFetch(`/api/projects/${projectId}/tasks/${task.id}`, { method: "DELETE" });
+      const deleteAllSubtasks = !task.parentTaskId && task.subtaskProgress.total > 0;
+      const suffix = deleteAllSubtasks ? "?deleteSubtasks=true" : "";
+      const response = await apiFetch(`/api/projects/${projectId}/tasks/${task.id}${suffix}`, { method: "DELETE" });
       if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to delete the Task."));
       setDeleteOpen(false); onDeleted?.();
     } catch (cause) { setDeleteError(cause instanceof Error ? cause.message : "Unable to delete the Task."); }
@@ -98,6 +118,18 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
   if (error || !task) return <section className={card} role="alert"><p className="text-sm text-[#B42318]">{error || "Unable to load task."}</p><button type="button" onClick={() => setReload((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></section>;
 
   const readOnly = task.projectStatus === "ARCHIVED";
+  const subtaskDeleteCount = task.parentTaskId ? 0 : task.subtaskProgress.total;
+  const deletingSubtasks = subtaskDeleteCount > 0;
+  const deleteTitle = deletingSubtasks
+    ? (locale === "ar" ? `حذف المهمة رقم ${task.id} وكل مهامها الفرعية؟` : `Delete Task #${task.id} and all subtasks?`)
+    : (locale === "ar" ? `حذف المهمة رقم ${task.id}؟` : `Delete Task #${task.id}?`);
+  const deleteDescription = deletingSubtasks
+    ? (locale === "ar"
+      ? `سيتم حذف «${task.title}» و${subtaskDeleteCount} من المهام الفرعية وجميع التعليقات وسجل الحالات والبيانات التابعة لها نهائيًا.`
+      : `Permanently delete “${task.title}”, its ${subtaskDeleteCount} subtasks, and all associated comments, status history, and dependent records.`)
+    : (locale === "ar"
+      ? `حذف «${task.title}» نهائيًا مع جميع السجلات التابعة لها حصريًا وسجلات وصول الضيف.`
+      : `Permanently delete “${task.title}” and all of its exclusively owned history and Guest access records.`);
   const workTypeLabel = localizedRecordLabel(task.workTypeName, task.workTypeNameAr, locale);
   const activeMembers = members.filter((member) => member.active);
   const statusIds = statuses.map((item) => item.id);
@@ -110,12 +142,16 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
   ]) as Record<number, string>;
 
   return <div className="min-w-0 space-y-5">
-    {access === "admin" && <div className="flex justify-end"><button type="button" onClick={() => { setDeleteError(""); setDeleteOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-[#F2B8B5] px-4 text-sm font-medium text-[#B42318] hover:bg-[#FFF1F0]"><Trash2 size={16} />{locale === "ar" ? "حذف المهمة" : "Delete Task"}</button></div>}
+    <div className="flex justify-end gap-2">{task.parentTaskId && !readOnly && <button type="button" onClick={() => setEditingSubtask(true)} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-divider px-4 text-sm font-medium hover:bg-nav-hover"><Pencil size={16} />Edit Subtask</button>}{access === "admin" && <button type="button" onClick={() => { setDeleteError(""); setDeleteOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-[#F2B8B5] px-4 text-sm font-medium text-[#B42318] hover:bg-[#FFF1F0]"><Trash2 size={16} />{locale === "ar" ? "حذف المهمة" : task.parentTaskId ? "Delete Subtask" : "Delete Task"}</button>}</div>
     <header className={card}><div className="flex items-center gap-2"><p data-i18n-skip className="text-sm font-medium text-accent">{task.projectName}</p>{task.guest && <GuestBadge />}</div><div className="mt-2 flex flex-wrap items-start justify-between gap-5"><div className="min-w-0"><h1 data-i18n-skip className="break-words text-2xl font-semibold">{task.title}</h1><p className="mt-1 text-xs font-semibold uppercase tracking-wide text-secondary"><span data-i18n-skip>{workTypeLabel}</span> · Task #{task.id}</p></div>{readOnly ? <span data-i18n-skip className="rounded-full bg-nav-active px-3 py-1.5 text-sm font-semibold text-accent">{statusLabels[task.status]}</span> : <form onSubmit={changeStatus} className="w-full max-w-xs space-y-2"><div className="flex gap-2"><select aria-label="Task status" value={status} onChange={(event) => setStatus(event.target.value as RequestStatus)} className={control}>{statusIds.map((value) => <option data-i18n-skip key={value} value={value}>{statusLabels[value]}</option>)}</select><button type="submit" disabled={statusBusy || Number(status) === task.status} className="h-11 shrink-0 rounded-[9px] bg-accent px-4 text-sm font-medium text-white disabled:opacity-50">{statusBusy ? "Updating..." : "Update Status"}</button></div><button type="button" onClick={() => setShowNote((value) => !value)} aria-expanded={showNote} className="inline-flex items-center gap-1 text-xs font-medium text-accent"><ChevronDown size={14} className={showNote ? "rotate-180" : ""} />Add Note</button>{showNote && <textarea rows={2} value={changeNote} maxLength={10000} onChange={(event) => setChangeNote(event.target.value)} placeholder="Optional status change note" className={`${control} min-h-16 py-2`} />}{statusError && <p role="alert" className="text-xs text-[#B42318]">{statusError}</p>}</form>}</div>{readOnly && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project is archived. Task activity is read-only.</p>}</header>
 
     <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,.7fr)]">
       <main className="min-w-0 space-y-6">
-        <DescriptionSection description={task.description} />
+        <RichDescriptionSection key={task.id} taskKey={`${projectId}:${task.id}`} description={task.description} descriptionDocument={task.guest ? null : task.descriptionDocument}
+          locale={locale} editable={!readOnly && !task.guest} onSave={saveRichDescription} />
+        <AttachmentPanel mode="internal" target={{ access, projectId, taskId: task.id }} readOnly={readOnly} guestTask={task.guest} subtask={task.parentTaskId !== null} />
+        {!task.parentTaskId && <SubtasksSection task={task} readOnly={readOnly} locale={locale} onCreate={() => setSubtaskFormOpen(true)} onOpen={setSelectedSubtaskId} />}
+        <LinkedWorkSection projectId={projectId} taskId={task.id} access={access} readOnly={readOnly} onOpen={setSelectedLinkedTaskId} />
         {task.guest && task.guestAnswers.length > 0 && <AdditionalInformation answers={task.guestAnswers} locale={locale} />}
         <ActivitySection task={task} statusLabels={statusLabels} locale={locale} />
         <Conversation title="Comments" items={task.comments} empty="No comments yet." initialVisibleCount={5} composer={!readOnly ? <Composer value={comment} onChange={setComment} busy={commentBusy} error={commentError} placeholder="Add a comment..." onSubmit={addComment} /> : null} />
@@ -125,15 +161,17 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
         {task.guest && <GuestCommunicationPanel target={access === "admin" ? { access: "admin-project", projectId, requestId: task.id } : { access: "employee-project", projectId, requestId: task.id }} readOnly={readOnly} initialVisibleCount={5} />}
       </aside>
     </div>
-    {deleteOpen && task && <DeleteConfirmationDialog title={locale === "ar" ? `حذف المهمة رقم ${task.id}؟` : `Delete Task #${task.id}?`} description={locale === "ar" ? `حذف «${task.title}» نهائيًا مع جميع السجلات التابعة لها حصريًا وسجلات وصول الضيف.` : `Permanently delete “${task.title}” and all of its exclusively owned history and Guest access records.`} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteOpen(false)} onConfirm={permanentlyDelete} />}
+    {deleteOpen && task && <DeleteConfirmationDialog title={deleteTitle} description={deleteDescription} confirmLabel={deletingSubtasks ? (locale === "ar" ? "حذف الكل" : "Delete All") : undefined} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteOpen(false)} onConfirm={permanentlyDelete} />}
+    {subtaskFormOpen && <SubtaskFormDialog projectId={projectId} parentTaskId={task.id} access={access} members={members} workTypes={workTypes} statuses={statuses} onClose={() => setSubtaskFormOpen(false)} onSaved={() => { setSubtaskFormOpen(false); setReload((value) => value + 1); onUpdated?.(); }} />}
+    {editingSubtask && task.parentTaskId && <SubtaskFormDialog projectId={projectId} parentTaskId={task.parentTaskId} access={access} members={members} workTypes={workTypes} statuses={statuses} initial={{ id: task.id, title: task.title, description: task.description, hasRichDescription: task.descriptionDocument != null, workTypeId: task.workTypeId, priority: task.priority }} onClose={() => setEditingSubtask(false)} onSaved={() => { setEditingSubtask(false); setReload((value) => value + 1); onUpdated?.(); }} />}
+    {selectedSubtaskId !== null && <RequestDetailsDialog title={`Subtask #${selectedSubtaskId}`} onClose={() => setSelectedSubtaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedSubtaskId)} access={access} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedSubtaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
+    {selectedLinkedTaskId !== null && <RequestDetailsDialog title={`Task #${selectedLinkedTaskId}`} onClose={() => setSelectedLinkedTaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedLinkedTaskId)} access={access} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedLinkedTaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
   </div>;
 }
 
-function DescriptionSection({ description }: { description: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const text = description || "No description provided.";
-  const isLong = text.length > 350 || text.split(/\r?\n/).length > 5;
-  return <section className={card}><h2 className="flex items-center gap-2 text-lg font-semibold"><CheckSquare2 size={19} className="text-accent" />Description</h2><p className={`mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-secondary ${isLong && !expanded ? "line-clamp-5" : ""}`}>{text}</p>{isLong && <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="mt-3 text-sm font-medium text-accent hover:underline">{expanded ? "Show less" : "Show more"}</button>}</section>;
+function SubtasksSection({ task, readOnly, locale, onCreate, onOpen }: { task: TaskDetails; readOnly: boolean; locale: "en" | "ar"; onCreate: () => void; onOpen: (id: number) => void }) {
+  const progress = task.subtaskProgress;
+  return <section className={card}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Subtasks</h2><p className="mt-1 text-sm text-secondary">{progress.total === 0 ? "No subtasks" : `${progress.completed}/${progress.total} (${progress.percentage}%)`}</p></div>{!readOnly && <button type="button" onClick={onCreate} className="inline-flex h-10 items-center gap-2 rounded-[9px] bg-accent px-4 text-sm font-medium text-white"><Plus size={16} />Create Subtask</button>}</div>{progress.total > 0 && <div className="mt-4 h-2 overflow-hidden rounded-full bg-nav-hover" role="progressbar" aria-label="Subtask progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percentage}><div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${progress.percentage}%` }} /></div>}<div className="mt-4 divide-y divide-divider">{task.subtasks.map((subtask) => <button type="button" key={subtask.id} onClick={() => onOpen(subtask.id)} className="flex w-full min-w-0 items-center justify-between gap-4 py-3 text-start hover:text-accent"><span className="min-w-0"><span data-i18n-skip className="block truncate text-sm font-semibold">{subtask.title}</span><span data-i18n-skip className="mt-1 block truncate text-xs text-secondary">{subtask.assignedToName ?? "Unassigned"}</span></span><span data-i18n-skip className="shrink-0 rounded-full bg-nav-active px-3 py-1 text-xs font-semibold text-accent">{projectStatusDisplayName(subtask.statusName, subtask.statusSemantic, locale)}</span></button>)}</div></section>;
 }
 
 function AdditionalInformation({ answers, locale }: { answers: GuestAnswer[]; locale: "en" | "ar" }) {

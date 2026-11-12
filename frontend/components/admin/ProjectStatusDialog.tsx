@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 
 type Props =
   | { mode: "add"; statuses: ProjectStatusColumn[]; onClose: () => void; onSave: (name: string, position: number) => Promise<void> }
-  | { mode: "rename"; initialName: string; onClose: () => void; onSave: (name: string) => Promise<void> }
+  | { mode: "rename"; initialName: string; initialCountsAsCompleted: boolean; onClose: () => void; onSave: (name: string, countsAsCompleted: boolean) => Promise<void> }
   | { mode: "delete"; statusName: string; onClose: () => void; onDelete: () => Promise<void> }
   | { mode: "populated"; statusName: string; taskCount: number; statuses: ProjectStatusColumn[]; onClose: () => void; onMove: (destinationId: number) => Promise<void>; onDeleteTasks: () => Promise<void> };
 
@@ -18,6 +18,7 @@ export function ProjectStatusDialog(props: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(props.mode === "rename" ? props.initialName : "");
+  const [countsAsCompleted, setCountsAsCompleted] = useState(props.mode === "rename" ? props.initialCountsAsCompleted : false);
   const [position, setPosition] = useState(props.mode === "add" ? props.statuses.length : 1);
   const [deleteMode, setDeleteMode] = useState<"MOVE_TASKS" | "DELETE_TASKS">("MOVE_TASKS");
   const destinations = props.mode === "populated" ? props.statuses : [];
@@ -49,8 +50,8 @@ export function ProjectStatusDialog(props: Props) {
     const normalized = name.trim();
     if (!normalized) { setError("Status name is required."); return; }
     if (normalized.length > 50) { setError("Status name must not exceed 50 characters."); return; }
-    if (props.mode === "rename" && normalized === props.initialName) { props.onClose(); return; }
-    await run(() => props.mode === "add" ? props.onSave(normalized, position) : props.onSave(normalized));
+    if (props.mode === "rename" && normalized === props.initialName && countsAsCompleted === props.initialCountsAsCompleted) { props.onClose(); return; }
+    await run(() => props.mode === "add" ? props.onSave(normalized, position) : props.onSave(normalized, countsAsCompleted));
   }
 
   async function run(action: () => Promise<void>) {
@@ -69,6 +70,7 @@ export function ProjectStatusDialog(props: Props) {
         {props.mode === "rename" && <div className="mb-4 rounded-[9px] bg-background px-4 py-3"><p className="text-xs text-secondary">Existing Status</p><p data-i18n-skip className="mt-1 text-sm font-semibold">{props.initialName}</p></div>}
         <label htmlFor="project-status-name" className="mb-2 block text-sm font-medium">{props.mode === "add" ? "Status Name" : "New Status Name"}</label><input ref={inputRef} id="project-status-name" value={name} maxLength={50} onChange={(event) => { setName(event.target.value); setError(""); }} className="h-11 w-full rounded-[9px] border border-divider px-3.5 text-sm outline-none focus:border-accent"/><div className="mt-1 text-right text-xs text-secondary">{name.length}/50</div>
           {props.mode === "add" && <div className="mt-4"><label className="mb-2 block text-sm font-medium">Position</label><SelectMenu portal portalBoundaryRef={dialogRef} preserveOptionLabels value={String(position)} onChange={(value) => setPosition(Number(value))} ariaLabel="New status position" options={positionOptions(props.statuses)}/><p data-i18n-skip className="mt-2 text-xs text-secondary">{positionDescription(props.statuses, position)}</p></div>}
+        {props.mode === "rename" && <label className="mt-5 flex items-start gap-3 rounded-[9px] border border-divider p-4"><input type="checkbox" checked={countsAsCompleted} onChange={(event) => setCountsAsCompleted(event.target.checked)} className="mt-0.5 h-4 w-4 accent-accent"/><span><span className="block text-sm font-medium">{t("Counts as Completed")}</span><span className="mt-1 block text-xs leading-5 text-secondary">{t("Tasks in this column will count toward subtask completion progress.")}</span></span></label>}
         {error && <p role="alert" className="mt-3 text-sm text-[#B42318]">{error}</p>}<Actions busy={busy} cancel={props.onClose} confirm={props.mode === "add" ? "Add Status" : "Save Changes"}/>
       </form>}
 

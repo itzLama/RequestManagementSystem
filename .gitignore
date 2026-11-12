@@ -4,6 +4,8 @@ frontend/.next/
 frontend/out/
 frontend/build/
 backend/target/
+documentation/poc/rustfs-storage/target/
+*.class
 
 # Local environment and secret files
 .env

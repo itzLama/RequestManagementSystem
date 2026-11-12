@@ -1,0 +1,164 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='3000' height='1420' viewBox='0 0 3000 1420'>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#000}.diagram-title{font-size:30px;font-weight:700}.entity rect,.entity line{fill:#fff;stroke:#000;stroke-width:2}.entity line{fill:none}.entity-title{font-size:20px;font-weight:700}.field{font-size:15px}.rel{stroke:#000;stroke-width:1.6;fill:none}.rel-label,.card{font-size:14px;paint-order:stroke;stroke:#fff;stroke-width:6px;stroke-linejoin:round}</style>
+<g transform='translate(0,0)'>
+<rect x='0' y='0' width='3000' height='1420' fill='white'/>
+<text x='1500' y='48' text-anchor='middle' class='diagram-title'>Appendix A.1 - Core Request and Project Structure</text>
+<path d='M 380 279 Q 986 344 1580 477' class='rel'/>
+<text x='983' y='353' text-anchor='middle' class='rel-label'>creates</text>
+<text x='388' y='272' class='card'>0..*</text>
+<text x='1572' y='470' text-anchor='end' class='card'>0..1</text>
+<path d='M 380 279 Q 974 412 1580 477' class='rel'/>
+<text x='977' y='387' text-anchor='middle' class='rel-label'>is assigned</text>
+<text x='388' y='272' class='card'>0..*</text>
+<text x='1572' y='470' text-anchor='end' class='card'>0..1</text>
+<path d='M 380 810 Q 980 686 1580 562' class='rel'/>
+<text x='980' y='678' text-anchor='middle' class='rel-label'>categorizes</text>
+<text x='388' y='803' class='card'>0..*</text>
+<text x='1572' y='555' text-anchor='end' class='card'>0..1</text>
+<path d='M 870 241 Q 1225 345 1580 449' class='rel'/>
+<text x='1225' y='337' text-anchor='middle' class='rel-label'>contains</text>
+<text x='878' y='234' class='card'>0..*</text>
+<text x='1572' y='442' text-anchor='end' class='card'>0..1</text>
+<path d='M 685 284 Q 685 587 685 890' class='rel'/>
+<text x='685' y='579' text-anchor='middle' class='rel-label'>has members</text>
+<text x='693' y='277' class='card'>0..*</text>
+<text x='677' y='883' text-anchor='end' class='card'>1..1</text>
+<path d='M 291 372 Q 464 631 636 890' class='rel'/>
+<text x='464' y='623' text-anchor='middle' class='rel-label'>participates</text>
+<text x='299' y='365' class='card'>0..*</text>
+<text x='628' y='883' text-anchor='end' class='card'>1..1</text>
+<path d='M 870 191 Q 930 192 990 194' class='rel'/>
+<text x='930' y='184' text-anchor='middle' class='rel-label'>configures</text>
+<text x='878' y='184' class='card'>0..*</text>
+<text x='982' y='187' text-anchor='end' class='card'>1..1</text>
+<path d='M 1390 301 Q 1485 350 1580 399' class='rel'/>
+<text x='1485' y='342' text-anchor='middle' class='rel-label'>classifies</text>
+<text x='1398' y='294' class='card'>0..*</text>
+<text x='1572' y='392' text-anchor='end' class='card'>0..1</text>
+<path d='M 757 284 Q 930 517 1102 750' class='rel'/>
+<text x='930' y='509' text-anchor='middle' class='rel-label'>configures</text>
+<text x='765' y='277' class='card'>0..*</text>
+<text x='1094' y='743' text-anchor='end' class='card'>1..1</text>
+<path d='M 1410 756 Q 1495 704 1580 653' class='rel'/>
+<text x='1495' y='696' text-anchor='middle' class='rel-label'>holds current status</text>
+<text x='1418' y='749' class='card'>0..*</text>
+<text x='1572' y='646' text-anchor='end' class='card'>0..1</text>
+<path d='M 2035 407 Q 2168 344 2300 281' class='rel'/>
+<text x='2168' y='336' text-anchor='middle' class='rel-label'>has</text>
+<text x='2043' y='400' class='card'>0..*</text>
+<text x='2292' y='274' text-anchor='end' class='card'>1..1</text>
+<path d='M 380 246 Q 1340 220 2300 194' class='rel'/>
+<text x='1340' y='212' text-anchor='middle' class='rel-label'>writes</text>
+<text x='388' y='239' class='card'>0..*</text>
+<text x='2292' y='187' text-anchor='end' class='card'>1..1</text>
+<path d='M 2035 637 Q 2168 708 2300 778' class='rel'/>
+<text x='2168' y='700' text-anchor='middle' class='rel-label'>records</text>
+<text x='2043' y='630' class='card'>0..*</text>
+<text x='2292' y='771' text-anchor='end' class='card'>1..1</text>
+<path d='M 380 298 Q 1340 566 2300 833' class='rel'/>
+<text x='1340' y='558' text-anchor='middle' class='rel-label'>changes</text>
+<text x='388' y='291' class='card'>0..*</text>
+<text x='2292' y='826' text-anchor='end' class='card'>1..1</text>
+<path d='M 1410 885 Q 1855 888 2300 891' class='rel'/>
+<text x='1855' y='880' text-anchor='middle' class='rel-label'>referenced as old/new</text>
+<text x='1418' y='878' class='card'>0..*</text>
+<text x='2292' y='884' text-anchor='end' class='card'>0..1</text>
+<g class='entity'><rect x='40' y='130' width='340' height='242'/><line x1='40' y1='172' x2='380' y2='172'/>
+<text x='210' y='158' text-anchor='middle' class='entity-title'>users</text>
+<text x='54' y='198' class='field'>user_id (PK) : bigint</text>
+<text x='54' y='222' class='field'>full_name : varchar(150)</text>
+<text x='54' y='246' class='field'>email : varchar(255)</text>
+<text x='54' y='270' class='field'>password_hash : varchar(255)</text>
+<text x='54' y='294' class='field'>role : varchar(20)</text>
+<text x='54' y='318' class='field'>is_active : boolean</text>
+<text x='54' y='342' class='field'>created_at : timestamp</text>
+<text x='54' y='366' class='field'>updated_at : timestamp</text>
+</g>
+<g class='entity'><rect x='40' y='760' width='340' height='170'/><line x1='40' y1='802' x2='380' y2='802'/>
+<text x='210' y='788' text-anchor='middle' class='entity-title'>request_types</text>
+<text x='54' y='828' class='field'>type_id (PK) : bigint</text>
+<text x='54' y='852' class='field'>type_name : varchar(100)</text>
+<text x='54' y='876' class='field'>description : text [nullable]</text>
+<text x='54' y='900' class='field'>is_active : boolean</text>
+<text x='54' y='924' class='field'>created_at : timestamp</text>
+</g>
+<g class='entity'><rect x='500' y='90' width='370' height='194'/><line x1='500' y1='132' x2='870' y2='132'/>
+<text x='685' y='118' text-anchor='middle' class='entity-title'>projects</text>
+<text x='514' y='158' class='field'>project_id (PK) : bigint</text>
+<text x='514' y='182' class='field'>project_name : varchar(150)</text>
+<text x='514' y='206' class='field'>description : varchar(2000) [nullable]</text>
+<text x='514' y='230' class='field'>status : varchar(20)</text>
+<text x='514' y='254' class='field'>created_at : timestamp</text>
+<text x='514' y='278' class='field'>updated_at : timestamp</text>
+</g>
+<g class='entity'><rect x='500' y='890' width='370' height='146'/><line x1='500' y1='932' x2='870' y2='932'/>
+<text x='685' y='918' text-anchor='middle' class='entity-title'>project_memberships</text>
+<text x='514' y='958' class='field'>membership_id (PK) : bigint</text>
+<text x='514' y='982' class='field'>project_id (FK) : bigint</text>
+<text x='514' y='1006' class='field'>employee_id (FK) : bigint</text>
+<text x='514' y='1030' class='field'>created_at : timestamp</text>
+</g>
+<g class='entity'><rect x='990' y='90' width='400' height='218'/><line x1='990' y1='132' x2='1390' y2='132'/>
+<text x='1190' y='118' text-anchor='middle' class='entity-title'>project_work_types</text>
+<text x='1004' y='158' class='field'>work_type_id (PK) : bigint</text>
+<text x='1004' y='182' class='field'>project_id (FK) : bigint</text>
+<text x='1004' y='206' class='field'>work_type_name : varchar(100)</text>
+<text x='1004' y='230' class='field'>is_active : boolean</text>
+<text x='1004' y='254' class='field'>created_at : timestamp</text>
+<text x='1004' y='278' class='field'>updated_at : timestamp</text>
+<text x='1004' y='302' class='field'>work_type_name_ar : varchar(100) [nullable]</text>
+</g>
+<g class='entity'><rect x='990' y='750' width='420' height='266'/><line x1='990' y1='792' x2='1410' y2='792'/>
+<text x='1200' y='778' text-anchor='middle' class='entity-title'>project_status_columns</text>
+<text x='1004' y='818' class='field'>status_id (PK) : bigint</text>
+<text x='1004' y='842' class='field'>project_id (FK) : bigint</text>
+<text x='1004' y='866' class='field'>status_name : varchar(50)</text>
+<text x='1004' y='890' class='field'>semantic_key : varchar(30) [nullable]</text>
+<text x='1004' y='914' class='field'>display_order : integer</text>
+<text x='1004' y='938' class='field'>is_active : boolean</text>
+<text x='1004' y='962' class='field'>created_at : timestamp</text>
+<text x='1004' y='986' class='field'>updated_at : timestamp</text>
+<text x='1004' y='1010' class='field'>version : bigint</text>
+</g>
+<g class='entity'><rect x='1580' y='310' width='455' height='410'/><line x1='1580' y1='352' x2='2035' y2='352'/>
+<text x='1807.5' y='338' text-anchor='middle' class='entity-title'>requests</text>
+<text x='1594' y='378' class='field'>request_id (PK) : bigint</text>
+<text x='1594' y='402' class='field'>title : varchar(200)</text>
+<text x='1594' y='426' class='field'>description : text</text>
+<text x='1594' y='450' class='field'>type_id (FK) : bigint [nullable]</text>
+<text x='1594' y='474' class='field'>priority : varchar(20)</text>
+<text x='1594' y='498' class='field'>status : varchar(30) [nullable]</text>
+<text x='1594' y='522' class='field'>created_by (FK) : bigint [nullable]</text>
+<text x='1594' y='546' class='field'>assigned_to (FK) : bigint [nullable]</text>
+<text x='1594' y='570' class='field'>created_at : timestamp</text>
+<text x='1594' y='594' class='field'>updated_at : timestamp</text>
+<text x='1594' y='618' class='field'>project_id (FK) : bigint [nullable]</text>
+<text x='1594' y='642' class='field'>guest_name : varchar(150) [nullable]</text>
+<text x='1594' y='666' class='field'>guest_email : varchar(255) [nullable]</text>
+<text x='1594' y='690' class='field'>project_work_type_id (FK) : bigint [nullable]</text>
+<text x='1594' y='714' class='field'>project_status_id (FK) : bigint [nullable]</text>
+</g>
+<g class='entity'><rect x='2300' y='80' width='390' height='218'/><line x1='2300' y1='122' x2='2690' y2='122'/>
+<text x='2495' y='108' text-anchor='middle' class='entity-title'>comments</text>
+<text x='2314' y='148' class='field'>comment_id (PK) : bigint</text>
+<text x='2314' y='172' class='field'>request_id (FK) : bigint</text>
+<text x='2314' y='196' class='field'>user_id (FK) : bigint</text>
+<text x='2314' y='220' class='field'>comment_text : text</text>
+<text x='2314' y='244' class='field'>is_internal : boolean</text>
+<text x='2314' y='268' class='field'>created_at : timestamp</text>
+<text x='2314' y='292' class='field'>updated_at : timestamp</text>
+</g>
+<g class='entity'><rect x='2300' y='760' width='430' height='266'/><line x1='2300' y1='802' x2='2730' y2='802'/>
+<text x='2515' y='788' text-anchor='middle' class='entity-title'>status_history</text>
+<text x='2314' y='828' class='field'>history_id (PK) : bigint</text>
+<text x='2314' y='852' class='field'>request_id (FK) : bigint</text>
+<text x='2314' y='876' class='field'>old_status : varchar(30) [nullable]</text>
+<text x='2314' y='900' class='field'>new_status : varchar(30) [nullable]</text>
+<text x='2314' y='924' class='field'>changed_by (FK) : bigint</text>
+<text x='2314' y='948' class='field'>change_note : text [nullable]</text>
+<text x='2314' y='972' class='field'>changed_at : timestamp</text>
+<text x='2314' y='996' class='field'>old_project_status_id (FK) : bigint [nullable]</text>
+<text x='2314' y='1020' class='field'>new_project_status_id (FK) : bigint [nullable]</text>
+</g>
+</g>
+</svg>

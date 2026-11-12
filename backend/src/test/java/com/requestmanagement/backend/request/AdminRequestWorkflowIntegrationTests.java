@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.TestEmployeeFixtureSupport.createActiveEmployee;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -136,6 +137,7 @@ class AdminRequestWorkflowIntegrationTests {
 
     @Test
     void onlyActiveEmployeesAreAssignableAndInvalidAdminInactiveAndEmployeeActionsAreRejected() throws Exception {
+        createActiveEmployee(jdbc, "Reem Khalid");
         Session admin = login("sara.saad@example.com");
         mvc.perform(get("/api/requests/admin/assignees").session(admin.session()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.fullName == 'Nouf Khaled')]").isEmpty())

@@ -1,0 +1,25 @@
+name: masar-rustfs-poc
+
+services:
+  rustfs-poc:
+    image: rustfs/rustfs:1.0.5
+    profiles: ["rustfs-poc"]
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_POC_ACCESS_KEY:?Set RUSTFS_POC_ACCESS_KEY in the untracked .env file}
+      RUSTFS_SECRET_KEY: ${RUSTFS_POC_SECRET_KEY:?Set RUSTFS_POC_SECRET_KEY in the untracked .env file}
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:${RUSTFS_POC_S3_PORT:-19000}:9000"
+      - "127.0.0.1:${RUSTFS_POC_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - rustfs_poc_data:/data
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  rustfs_poc_data:
+    name: masar_rustfs_poc_data

@@ -10,18 +10,23 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.*;
+import com.requestmanagement.backend.attachmentstorage.*;
+import org.springframework.mock.web.MockMultipartFile;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.regex.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest @AutoConfigureMockMvc
+@SpringBootTest(properties={"masar.attachments.upload.enabled=true","masar.attachments.processing.guest-upload-enabled=true"}) @AutoConfigureMockMvc
 class GuestTrackingIntegrationTests {
- @Autowired MockMvc mvc; @Autowired JdbcTemplate jdbc; @MockitoBean JavaMailSender mailSender;
+ @Autowired MockMvc mvc; @Autowired JdbcTemplate jdbc; @MockitoBean JavaMailSender mailSender; @MockitoBean AttachmentObjectStorage storage;
  private static final String PREFIX="Phase13-";
  @BeforeEach void resetMail(){reset(mailSender);}
- @AfterEach void cleanup(){jdbc.update("DELETE FROM guest_tracking_sessions WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM guest_tracking_challenges WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?) OR request_id IS NULL",PREFIX+"%");jdbc.update("DELETE FROM guest_communications WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM requests WHERE title LIKE ?",PREFIX+"%");jdbc.update("DELETE FROM project_guest_form_settings WHERE project_id IN (SELECT project_id FROM projects WHERE project_name LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM project_status_columns WHERE project_id IN (SELECT project_id FROM projects WHERE project_name LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM project_work_types WHERE project_id IN (SELECT project_id FROM projects WHERE project_name LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM projects WHERE project_name LIKE ?",PREFIX+"%");}
+ @AfterEach void cleanup(){jdbc.update("DELETE FROM task_attachment_visibility_events WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM task_attachments WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM guest_tracking_sessions WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM guest_tracking_challenges WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?) OR request_id IS NULL",PREFIX+"%");jdbc.update("DELETE FROM guest_communications WHERE request_id IN (SELECT request_id FROM requests WHERE title LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM requests WHERE title LIKE ?",PREFIX+"%");jdbc.update("DELETE FROM project_guest_form_settings WHERE project_id IN (SELECT project_id FROM projects WHERE project_name LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM project_status_columns WHERE project_id IN (SELECT project_id FROM projects WHERE project_name LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM project_work_types WHERE project_id IN (SELECT project_id FROM projects WHERE project_name LIKE ?)",PREFIX+"%");jdbc.update("DELETE FROM projects WHERE project_name LIKE ?",PREFIX+"%");}
 
  @Test void matchingAndNonMatchingRequestsReturnSamePublicMessage() throws Exception {long request=fixture();Cookie csrf=csrf();String valid=requestCode(request,"phase13@example.com",csrf).getResponse().getContentAsString();String invalid=requestCode(99999999,"nobody@example.com",csrf).getResponse().getContentAsString();assertThat(valid).contains("If the provided details match a request");assertThat(invalid).contains("If the provided details match a request");verify(mailSender,times(1)).send(any(SimpleMailMessage.class));}
 
@@ -50,6 +55,25 @@ class GuestTrackingIntegrationTests {
  @Test void guestSessionCanBeExplicitlyRevoked() throws Exception {long request=fixture();Session verified=verifiedSession(request);mvc.perform(post("/api/guest/tracking/logout").cookie(verified.sessionCookie(),verified.csrf()).header("X-XSRF-TOKEN",verified.csrf().getValue())).andExpect(status().isNoContent());mvc.perform(get("/api/guest/tracking/request").cookie(verified.sessionCookie())).andExpect(status().isUnauthorized());}
 
  @Test void protectedTrackingDataRequiresVerifiedSession() throws Exception {mvc.perform(get("/api/guest/tracking/request")).andExpect(status().isUnauthorized());mvc.perform(get("/api/guest/tracking/communications")).andExpect(status().isUnauthorized());}
+
+ @Test void verifiedGuestUploadsListsAndDownloadsOnlyItsRequestScopedVisibleAttachment() throws Exception {
+  long request=fixture();Session verified=verifiedSession(request);byte[] bytes="%PDF-1.7\nguest\n%%EOF".getBytes(StandardCharsets.US_ASCII);
+  MockMultipartFile file=new MockMultipartFile("file","guest.pdf","application/pdf",bytes);
+  mvc.perform(multipart("/api/guest/tracking/attachments").file(file).cookie(verified.sessionCookie())).andExpect(status().isForbidden());
+  mvc.perform(multipart("/api/guest/tracking/attachments").file(file).cookie(verified.sessionCookie(),verified.csrf()).header("X-XSRF-TOKEN",verified.csrf().getValue())).andExpect(status().isAccepted()).andExpect(jsonPath("$.uploadSource").value("GUEST")).andExpect(jsonPath("$.visibility").value("GUEST_VISIBLE")).andExpect(jsonPath("$.downloadable").value(false));
+  long id=jdbc.queryForObject("SELECT attachment_id FROM task_attachments WHERE request_id=?",Long.class,request);
+  mvc.perform(get("/api/guest/tracking/attachments").cookie(verified.sessionCookie())).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+  mvc.perform(get("/api/guest/tracking/attachments/{id}/content",id).cookie(verified.sessionCookie())).andExpect(status().isConflict());
+  String sha=jdbc.queryForObject("SELECT sha256_digest FROM task_attachments WHERE attachment_id=?",String.class,id);
+  jdbc.update("UPDATE task_attachments SET scan_status='CLEAN',scanned_at=CURRENT_TIMESTAMP,storage_status='AVAILABLE',object_key=replace(object_key,'quarantine/','available/') WHERE attachment_id=?",id);
+  when(storage.metadata(any())).thenReturn(new AttachmentObjectMetadata(bytes.length,"application/pdf","etag",Map.of("sha256",sha)));
+  when(storage.open(any())).thenReturn(new StoredAttachmentObject(new ByteArrayInputStream(bytes),new AttachmentObjectMetadata(bytes.length,"application/pdf","etag",Map.of("sha256",sha))));
+  MvcResult download=mvc.perform(get("/api/guest/tracking/attachments/{id}/content",id).cookie(verified.sessionCookie())).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store")).andExpect(header().string("X-Content-Type-Options","nosniff")).andReturn();
+  mvc.perform(asyncDispatch(download)).andExpect(status().isOk()).andExpect(result->assertThat(result.getResponse().getContentAsByteArray()).isEqualTo(bytes));
+  jdbc.update("UPDATE task_attachments SET visibility='INTERNAL_ONLY' WHERE attachment_id=?",id);
+  mvc.perform(get("/api/guest/tracking/attachments").cookie(verified.sessionCookie())).andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+  mvc.perform(get("/api/guest/tracking/attachments/{id}/content",id).cookie(verified.sessionCookie())).andExpect(status().isNotFound());
+ }
 
  private Session verifiedSession(long request) throws Exception{Cookie csrf=csrf();requestCode(request,"phase13@example.com",csrf);SimpleMailMessage mail=captureMail();String challenge=latestChallenge(request);MvcResult result=verifyCode(challenge,code(mail),csrf).andExpect(status().isNoContent()).andReturn();return new Session(result.getResponse().getCookie(GuestTrackingService.COOKIE),csrf);}
  private ResultActions verifyCode(String challenge,String code,Cookie csrf)throws Exception{return mvc.perform(post("/api/guest/tracking/verify").cookie(csrf).header("X-XSRF-TOKEN",csrf.getValue()).contentType("application/json").content("{\"challengeId\":\""+challenge+"\",\"code\":\""+code+"\"}"));}

@@ -17,5 +17,33 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  clamav:
+    image: clamav/clamav:1.4.6_base-debian13-slim
+    profiles: ["attachments-scanning"]
+    environment:
+      CLAMAV_NO_MILTERD: "true"
+      CLAMD_CONF_StreamMaxLength: 30M
+      CLAMD_CONF_MaxThreads: 2
+      CLAMD_CONF_MaxQueue: 4
+      CLAMD_CONF_ReadTimeout: 60
+      FRESHCLAM_CHECKS: 12
+    ports:
+      - "127.0.0.1:${CLAMAV_PORT:-13310}:3310"
+    volumes:
+      - clamav_signatures:/var/lib/clamav
+    # Only the loopback-bound published port exposes clamd to the host. Do not use an
+    # `internal: true` network here: Docker Desktop on Windows does not forward
+    # published ports for containers attached only to internal networks, and
+    # FreshClam needs outbound access for signature updates.
+    networks:
+      - clamav_scanning
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  clamav_signatures:
+
+networks:
+  clamav_scanning: {}

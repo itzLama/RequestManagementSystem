@@ -8,10 +8,14 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.time.Duration;
 import java.util.List;
+import com.requestmanagement.backend.attachment.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController @RequestMapping("/api/guest/tracking") @RequiredArgsConstructor
 public class GuestTrackingController {
  private final GuestTrackingService service;
+ private final GuestAttachmentService attachments;
  @Value("${masar.guest-tracking.cookie-secure}") private boolean secure;
  @PostMapping("/request-code") public GuestTrackingDtos.ChallengeResponse request(@Valid @RequestBody GuestTrackingDtos.RequestCodeInput input){return service.requestCode(input);}
  @PostMapping("/verify") public ResponseEntity<Void> verify(@Valid @RequestBody GuestTrackingDtos.VerifyInput input){return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,cookie(service.verify(input),Duration.ofMinutes(30)).toString()).build();}
@@ -20,5 +24,8 @@ public class GuestTrackingController {
  @GetMapping("/communications") public List<GuestCommunicationResponse> history(@CookieValue(name=GuestTrackingService.COOKIE,required=false) String token){return service.history(token);}
  @PostMapping("/communications") public ResponseEntity<GuestCommunicationResponse> send(@CookieValue(name=GuestTrackingService.COOKIE,required=false) String token,@Valid @RequestBody SendGuestCommunicationRequest input){return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.SET_COOKIE,cookie(token,Duration.ofMinutes(30)).toString()).body(service.send(token,input));}
  @PostMapping("/logout") public ResponseEntity<Void> logout(@CookieValue(name=GuestTrackingService.COOKIE,required=false) String token){service.revoke(token);return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,cookie("",Duration.ZERO).toString()).build();}
+ @PostMapping(path="/attachments",consumes="multipart/form-data") public ResponseEntity<AttachmentMetadataResponse> uploadAttachment(@CookieValue(name=GuestTrackingService.COOKIE,required=false) String token,@RequestPart("file") MultipartFile file){return ResponseEntity.accepted().header(HttpHeaders.SET_COOKIE,cookie(token,Duration.ofMinutes(30)).toString()).body(attachments.upload(token,file));}
+ @GetMapping("/attachments") public List<AttachmentMetadataResponse> attachments(@CookieValue(name=GuestTrackingService.COOKIE,required=false) String token){return attachments.list(token);}
+ @GetMapping("/attachments/{attachmentId}/content") public ResponseEntity<StreamingResponseBody> downloadAttachment(@CookieValue(name=GuestTrackingService.COOKIE,required=false) String token,@PathVariable Long attachmentId){return attachments.download(token,attachmentId);}
  private ResponseCookie cookie(String value,Duration age){return ResponseCookie.from(GuestTrackingService.COOKIE,value).httpOnly(true).secure(secure).sameSite("Strict").path("/api/guest/tracking").maxAge(age).build();}
 }

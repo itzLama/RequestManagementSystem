@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.requestmanagement.backend.TestEmployeeFixtureSupport.createActiveEmployee;
 import static com.requestmanagement.backend.project.ProjectWorkTypeTestSupport.workTypeId;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -62,7 +63,7 @@ class GuestCommunicationIntegrationTests {
     @Test
     void onlyCurrentAssignedActiveEmployeeCanAccessGeneralGuestCommunication() throws Exception {
         long nora = userId("nora.ahmed@example.com");
-        long reem = userId("reem.khalid@example.com");
+        var reem = createActiveEmployee(jdbc, "Reem Khalid");
         long requestId = guestGeneralRequest("Assigned guest communication", nora);
         Session noraSession = login("nora.ahmed@example.com");
 
@@ -71,13 +72,13 @@ class GuestCommunicationIntegrationTests {
                 .andExpect(jsonPath("$.senderName").value("Nora Ahmed"))
                 .andExpect(jsonPath("$.senderRole").value("EMPLOYEE"));
 
-        jdbc.update("UPDATE requests SET assigned_to=? WHERE request_id=?", reem, requestId);
+        jdbc.update("UPDATE requests SET assigned_to=? WHERE request_id=?", reem.id(), requestId);
         entityManager.clear();
         mvc.perform(get("/api/requests/assigned/{id}/guest-communications", requestId)
                         .session(noraSession.session()))
                 .andExpect(status().isNotFound());
 
-        Session reemSession = login("reem.khalid@example.com");
+        Session reemSession = login(reem.email());
         mvc.perform(get("/api/requests/assigned/{id}/guest-communications", requestId)
                         .session(reemSession.session()))
                 .andExpect(status().isOk())
@@ -152,11 +153,12 @@ class GuestCommunicationIntegrationTests {
     @Test
     void nonmemberRemovedAndInactiveEmployeesCannotAccessProjectCommunication() throws Exception {
         long nora = userId("nora.ahmed@example.com");
+        var reem = createActiveEmployee(jdbc, "Reem Khalid");
         long projectId = project("Project communication access", "ACTIVE");
         member(projectId, nora);
         long taskId = guestProjectTask("Protected project guest", projectId);
         Session noraSession = login("nora.ahmed@example.com");
-        Session reemSession = login("reem.khalid@example.com");
+        Session reemSession = login(reem.email());
 
         mvc.perform(get("/api/projects/mine/{projectId}/tasks/{taskId}/guest-communications",
                         projectId, taskId).session(reemSession.session()))

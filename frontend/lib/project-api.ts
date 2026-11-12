@@ -7,7 +7,7 @@ export type ProjectMember = { membershipId: number; employeeId: number; fullName
 export type EmployeeOption = { id: number; fullName: string; email: string; active: boolean };
 export type ProjectInput = { name: string; description: string };
 export type ProjectWorkType = { id: number; name: string; nameAr: string | null; active: boolean };
-export type ProjectStatusColumn = { id: number; name: string; displayOrder: number; active: boolean; protectedNew: boolean; semanticKey: string | null };
+export type ProjectStatusColumn = { id: number; name: string; displayOrder: number; active: boolean; protectedNew: boolean; semanticKey: string | null; countsAsCompleted: boolean };
 export type GuestFieldType = "TEXT" | "TEXTAREA" | "NUMBER" | "DROPDOWN" | "DATE" | "CHECKBOX";
 export type GuestFieldOption = { id: number; label: string; labelAr: string | null };
 export type ProjectGuestField = { id: number; label: string; labelAr: string | null; type: GuestFieldType; required: boolean; displayOrder: number; active: boolean; options: GuestFieldOption[] };
@@ -15,8 +15,25 @@ export type ProjectGuestForm = { workTypeVisible: boolean; defaultWorkTypeId: nu
 export type GuestFieldInput = { label: string; labelAr?: string | null; type: GuestFieldType; required: boolean; options: string[]; optionsAr?: string[]; optionIds?: (number | null)[] };
 export type ProjectTaskMember = { employeeId: number; fullName: string; email: string; active: boolean };
 export type ProjectTask = { id: number; title: string; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean };
+export type SubtaskSummary = { id: number; title: string; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; countsAsCompleted: boolean };
+export type RichCreationDescription = { description?: string; descriptionDocument?: unknown };
+export type ProjectTaskInput = RichCreationDescription & { title: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number };
+export type SubtaskInput = RichCreationDescription & { title: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number; statusId: number };
+export type SubtaskUpdateInput = { title: string; description?: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH" };
+export type TaskLinkType = "BLOCKS" | "IS_BLOCKED_BY" | "DUPLICATES" | "IS_DUPLICATED_BY" | "RELATES_TO";
+export type TaskLink = { id: number; relationshipType: TaskLinkType; relationshipLabel: string; relatedTaskId: number; relatedTaskTitle: string; relatedTaskSubtask: boolean; createdAt: string };
+export type TaskLinkCandidate = { id: number; title: string; subtask: boolean };
 export type ProjectTaskStatus = number;
 export type ProjectTaskStatusResponse = { statusId: number; statusName: string; statusSemantic: string | null };
+export type RichDescriptionResponse = { description: string; descriptionDocument: unknown };
+
+function projectTaskStatusResponse(response: ProjectTaskStatusResponse): ProjectTaskStatusResponse {
+  return {
+    statusId: response.statusId,
+    statusName: response.statusName,
+    statusSemantic: response.statusSemantic,
+  };
+}
 
 export class ProjectApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -48,7 +65,7 @@ export const projectApi = {
   statuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/${id}/statuses`, {}, "Unable to load Project statuses."),
   myStatuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/mine/${id}/statuses`, {}, "Unable to load Project statuses."),
   createStatus: (id: string | number, name: string, position: number) => request<ProjectStatusColumn>(`/api/projects/${id}/statuses`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, position }) }, "Unable to add status."),
-  renameStatus: (projectId: string | number, statusId: number, name: string) => request<ProjectStatusColumn>(`/api/projects/${projectId}/statuses/${statusId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }, "Unable to rename status."),
+  renameStatus: (projectId: string | number, statusId: number, name: string, countsAsCompleted: boolean) => request<ProjectStatusColumn>(`/api/projects/${projectId}/statuses/${statusId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, countsAsCompleted }) }, "Unable to update status."),
   deleteStatus: (projectId: string | number, statusId: number, input?: { mode: "MOVE_TASKS" | "DELETE_TASKS"; replacementStatusId?: number }) => request<void>(`/api/projects/${projectId}/statuses/${statusId}`, { method: "DELETE", ...(input ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) } : {}) }, "Unable to delete status."),
   reorderStatuses: (projectId: string | number, statusIds: number[]) => request<ProjectStatusColumn[]>(`/api/projects/${projectId}/statuses/order`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusIds }) }, "Unable to reorder statuses."),
   guestForm: (id: string | number) => request<ProjectGuestForm>(`/api/projects/${id}/guest-form`, {}, "Unable to load Guest form settings."),
@@ -63,9 +80,18 @@ export const projectApi = {
   board: (id: string | number) => request<ProjectTask[]>(`/api/projects/mine/${id}/tasks/board`, {}, "Unable to load project tasks."),
   taskMembers: (id: string | number) => request<ProjectTaskMember[]>(`/api/projects/mine/${id}/members`, {}, "Unable to load project members."),
   myWorkTypes: (id: string | number) => request<ProjectWorkType[]>(`/api/projects/mine/${id}/work-types`, {}, "Unable to load Work Types."),
-  createTask: (id: string | number, input: { title: string; description: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/mine/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
+  createTask: (id: string | number, input: ProjectTaskInput) => request<ProjectTask>(`/api/projects/mine/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
   adminBoard: (id: string | number) => request<ProjectTask[]>(`/api/projects/${id}/tasks/board`, {}, "Unable to load project tasks."),
-  adminCreateTask: (id: string | number, input: { title: string; description: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number }) => request<ProjectTask>(`/api/projects/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
-  updateTaskStatus: (projectId: string | number, taskId: number, statusId: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/mine/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusId, changeNote: null }) }, "Unable to change task status."),
-  adminUpdateTaskStatus: (projectId: string | number, taskId: number, statusId: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusId, changeNote: null }) }, "Unable to change task status."),
+  adminCreateTask: (id: string | number, input: ProjectTaskInput) => request<ProjectTask>(`/api/projects/${id}/tasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create project task."),
+  createSubtask: (projectId: string | number, parentId: number, input: SubtaskInput) => request<unknown>(`/api/projects/mine/${projectId}/tasks/${parentId}/subtasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create subtask."),
+  adminCreateSubtask: (projectId: string | number, parentId: number, input: SubtaskInput) => request<unknown>(`/api/projects/${projectId}/tasks/${parentId}/subtasks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to create subtask."),
+  updateSubtask: (projectId: string | number, parentId: number, subtaskId: number, input: SubtaskUpdateInput) => request<unknown>(`/api/projects/mine/${projectId}/tasks/${parentId}/subtasks/${subtaskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to update subtask."),
+  adminUpdateSubtask: (projectId: string | number, parentId: number, subtaskId: number, input: SubtaskUpdateInput) => request<unknown>(`/api/projects/${projectId}/tasks/${parentId}/subtasks/${subtaskId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to update subtask."),
+  taskLinks: (projectId: string | number, taskId: number, access: "admin" | "employee") => request<TaskLink[]>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/links`, {}, "Unable to load linked work."),
+  taskLinkCandidates: (projectId: string | number, taskId: number, access: "admin" | "employee") => request<TaskLinkCandidate[]>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/link-candidates`, {}, "Unable to load eligible Tasks."),
+  createTaskLink: (projectId: string | number, taskId: number, access: "admin" | "employee", input: { relatedTaskId: number; relationshipType: TaskLinkType }) => request<TaskLink>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/links`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to add Task relationship."),
+  deleteTaskLink: (projectId: string | number, taskId: number, linkId: number, access: "admin" | "employee") => request<void>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/links/${linkId}`, { method: "DELETE" }, "Unable to remove Task relationship."),
+  updateTaskStatus: (projectId: string | number, taskId: number, statusId: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/mine/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusId, changeNote: null }) }, "Unable to change task status.").then(projectTaskStatusResponse),
+  adminUpdateTaskStatus: (projectId: string | number, taskId: number, statusId: ProjectTaskStatus) => request<ProjectTaskStatusResponse>(`/api/projects/${projectId}/tasks/${taskId}/status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ statusId, changeNote: null }) }, "Unable to change task status.").then(projectTaskStatusResponse),
+  updateTaskDescription: (projectId: string | number, taskId: number, access: "admin" | "employee", document: unknown) => request<RichDescriptionResponse>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/description-document`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ document }) }, "Unable to save the description."),
 };

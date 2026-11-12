@@ -18,12 +18,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.type.SqlTypes;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import tools.jackson.databind.JsonNode;
 
 @Entity
 @Table(name = "requests")
+@DynamicUpdate
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Request {
@@ -37,6 +42,10 @@ public class Request {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "description_document", columnDefinition = "jsonb")
+    private JsonNode descriptionDocument;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "type_id")
@@ -73,6 +82,10 @@ public class Request {
     private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_request_id")
+    private Request parentTask;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_to")
     private User assignedTo;
 
@@ -81,6 +94,9 @@ public class Request {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "attachment_cleanup_started_at")
+    private LocalDateTime attachmentCleanupStartedAt;
 
     public static Request create(String title, String description, RequestType type,
                                  RequestPriority priority, User creator) {
@@ -92,6 +108,7 @@ public class Request {
         Request request = new Request();
         request.title = title;
         request.description = description;
+        request.descriptionDocument = null;
         request.type = type;
         request.workType = null;
         request.priority = priority;
@@ -101,6 +118,7 @@ public class Request {
         request.guestName = null;
         request.guestEmail = null;
         request.project = project;
+        request.parentTask = null;
         request.assignedTo = null;
         request.createdAt = LocalDateTime.now();
         request.updatedAt = request.createdAt;
@@ -113,18 +131,30 @@ public class Request {
         if (project == null) throw new IllegalArgumentException("Project is required.");
         if (workType == null) throw new IllegalArgumentException("Work type is required.");
         if (assignee == null) throw new IllegalArgumentException("Assignee is required.");
+        return createProjectTask(title, description, workType, priority, creator, assignee, project, initialStatus, null);
+    }
+
+    public static Request createProjectTask(String title, String description, ProjectWorkType workType,
+                                            RequestPriority priority, User creator, User assignee,
+                                            Project project, ProjectStatusColumn initialStatus, Request parentTask) {
+        if (parentTask != null && (!parentTask.isProjectTask() || parentTask.getParentTask() != null
+                || !parentTask.getProject().getId().equals(project.getId()))) {
+            throw new IllegalArgumentException("Subtask parent must be a root Task in the same Project.");
+        }
         Request task = new Request();
         task.title = title;
         task.description = description;
+        task.descriptionDocument = null;
         task.type = null;
         task.workType = workType;
         task.priority = priority;
-        task.status = RequestStatus.valueOf(initialStatus.getSemanticKey().name());
+        task.status = initialStatus.getSemanticKey() == null ? null : RequestStatus.valueOf(initialStatus.getSemanticKey().name());
         task.projectStatus = initialStatus;
         task.createdBy = creator;
         task.guestName = null;
         task.guestEmail = null;
         task.project = project;
+        task.parentTask = parentTask;
         task.assignedTo = assignee;
         task.createdAt = LocalDateTime.now();
         task.updatedAt = task.createdAt;
@@ -149,6 +179,7 @@ public class Request {
         Request request = new Request();
         request.title = title;
         request.description = description;
+        request.descriptionDocument = null;
         request.type = null;
         request.workType = workType;
         request.priority = priority;
@@ -158,6 +189,7 @@ public class Request {
         request.guestName = guestName;
         request.guestEmail = guestEmail;
         request.project = project;
+        request.parentTask = null;
         request.assignedTo = null;
         request.createdAt = LocalDateTime.now();
         request.updatedAt = request.createdAt;
@@ -182,6 +214,36 @@ public class Request {
     public void assignTo(User newAssignee) {
         assignedTo = newAssignee;
         updatedAt = LocalDateTime.now();
+    }
+
+    public void updateTaskFields(String title, String description, ProjectWorkType workType,
+                                 RequestPriority priority) {
+        updateTaskMetadata(title, workType, priority);
+        replacePlainDescription(description);
+    }
+
+    public void updateTaskMetadata(String title, ProjectWorkType workType, RequestPriority priority) {
+        this.title = title;
+        this.workType = workType;
+        this.priority = priority;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void replacePlainDescription(String description) {
+        this.description = description;
+        this.descriptionDocument = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateRichDescription(JsonNode document, String plainText) {
+        if (!isProjectTask()) throw new IllegalStateException("Rich descriptions require a Project Task.");
+        this.descriptionDocument = document;
+        this.description = plainText;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public boolean isSubtask() {
+        return parentTask != null;
     }
 
     public String requesterName() {

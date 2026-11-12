@@ -14,11 +14,13 @@ public class ProjectStatusColumn {
     @Enumerated(EnumType.STRING) @Column(name="semantic_key",length=30) private SemanticKey semanticKey;
     @Column(name="display_order",nullable=false) private int displayOrder;
     @Column(name="is_active",nullable=false) private boolean active;
+    @Column(name="counts_as_completed",nullable=false) private boolean countsAsCompleted;
     @Column(name="created_at",nullable=false) private LocalDateTime createdAt;
     @Column(name="updated_at",nullable=false) private LocalDateTime updatedAt;
     @Version private long version;
-    public static ProjectStatusColumn create(Project p,String name,SemanticKey key,int order){var s=new ProjectStatusColumn();s.project=p;s.name=name;s.semanticKey=key;s.displayOrder=order;s.active=true;s.createdAt=LocalDateTime.now();s.updatedAt=s.createdAt;return s;}
+    public static ProjectStatusColumn create(Project p,String name,SemanticKey key,int order){var s=new ProjectStatusColumn();s.project=p;s.name=name;s.semanticKey=key;s.displayOrder=order;s.active=true;s.countsAsCompleted=key==SemanticKey.COMPLETED;s.createdAt=LocalDateTime.now();s.updatedAt=s.createdAt;return s;}
     public void rename(String value){name=value;updatedAt=LocalDateTime.now();}
+    public void configureCompletion(boolean value){if(isProtectedNew()&&value)throw new IllegalArgumentException("New cannot count as completed.");countsAsCompleted=value;updatedAt=LocalDateTime.now();}
     public void moveTo(int order){displayOrder=order;updatedAt=LocalDateTime.now();}
     public void retire(){active=false;updatedAt=LocalDateTime.now();}
     public boolean isProtectedNew(){return semanticKey==SemanticKey.NEW;}

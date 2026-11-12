@@ -2,10 +2,11 @@ package com.requestmanagement.backend.projectstatus;
 import jakarta.validation.constraints.*;
 import java.util.List;
 public final class ProjectStatusDtos {private ProjectStatusDtos(){}
- public record Response(Long id,String name,int displayOrder,boolean active,boolean protectedNew,String semanticKey){static Response from(ProjectStatusColumn s){return new Response(s.getId(),s.getName(),s.getDisplayOrder(),s.isActive(),s.isProtectedNew(),s.getSemanticKey()==null?null:s.getSemanticKey().name());}}
+ public record Response(Long id,String name,int displayOrder,boolean active,boolean protectedNew,String semanticKey,boolean countsAsCompleted){static Response from(ProjectStatusColumn s){return new Response(s.getId(),s.getName(),s.getDisplayOrder(),s.isActive(),s.isProtectedNew(),s.getSemanticKey()==null?null:s.getSemanticKey().name(),s.isCountsAsCompleted());}}
  public record NameInput(
          @NotBlank(message = "Status name is required.")
-         @Size(max=50, message = "Status name must not exceed 50 characters.") String name){}
+         @Size(max=50, message = "Status name must not exceed 50 characters.") String name,
+         Boolean countsAsCompleted){}
  public record CreateInput(
          @NotBlank(message = "Status name is required.")
          @Size(max=50, message = "Status name must not exceed 50 characters.") String name,

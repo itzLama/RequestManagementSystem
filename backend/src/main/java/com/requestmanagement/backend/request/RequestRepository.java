@@ -8,6 +8,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
 
 public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpecificationExecutor<Request> {
     boolean existsByCreatedBy_Id(Long creatorId);
@@ -15,9 +17,35 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     boolean existsByAssignedTo_Id(Long assigneeId);
 
     boolean existsByProject_Id(Long projectId);
+    boolean existsByIdAndProject_Id(Long id, Long projectId);
     boolean existsByWorkType_Id(Long workTypeId);
     long countByProjectStatus_Id(Long statusId);
     List<Request> findByProjectStatus_Id(Long statusId);
+    boolean existsByParentTask_Id(Long parentTaskId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Request r set r.attachmentCleanupStartedAt=coalesce(r.attachmentCleanupStartedAt,current_timestamp) where r.id in :ids")
+    int markAttachmentCleanupStarted(@Param("ids") List<Long> ids);
+
+    @Query("select count(r)>0 from Request r where r.id=:id and r.attachmentCleanupStartedAt is not null")
+    boolean isAttachmentCleanupStarted(@Param("id") Long id);
+    long countByParentTask_Id(Long parentTaskId);
+
+    @EntityGraph(attributePaths = {"workType", "projectStatus", "assignedTo", "parentTask"})
+    List<Request> findByParentTask_IdOrderByCreatedAtAscIdAsc(Long parentTaskId);
+
+    @Query(value = "SELECT * FROM requests WHERE request_id=:taskId AND project_id=:projectId FOR UPDATE",
+            nativeQuery = true)
+    Optional<Request> findForDeletion(@Param("projectId") Long projectId, @Param("taskId") Long taskId);
+
+    @Query(value = "SELECT * FROM requests WHERE request_id=:taskId AND project_id=:projectId FOR UPDATE",
+            nativeQuery = true)
+    Optional<Request> findForAttachmentReservation(@Param("projectId") Long projectId,
+                                                   @Param("taskId") Long taskId);
+
+    @Query(value = "SELECT * FROM requests WHERE parent_request_id=:parentId AND project_id=:projectId " +
+            "ORDER BY request_id FOR UPDATE", nativeQuery = true)
+    List<Request> findSubtasksForDeletion(@Param("projectId") Long projectId, @Param("parentId") Long parentId);
 
     @EntityGraph(attributePaths = "type")
     Page<Request> findByCreatedBy_IdAndProjectIsNull(Long creatorId, Pageable pageable);
@@ -46,9 +74,12 @@ public interface RequestRepository extends JpaRepository<Request, Long>, JpaSpec
     Optional<Request> findByIdAndAssignedTo_IdAndProjectIsNull(Long id, Long assigneeId);
 
     @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo"})
+    List<Request> findByProject_IdAndParentTaskIsNullOrderByCreatedAtDescIdDesc(Long projectId);
+
+    @EntityGraph(attributePaths = {"projectStatus", "parentTask"})
     List<Request> findByProject_IdOrderByCreatedAtDescIdDesc(Long projectId);
 
-    @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo", "project"})
+    @EntityGraph(attributePaths = {"type", "createdBy", "assignedTo", "project", "parentTask"})
     Optional<Request> findByIdAndProject_Id(Long id, Long projectId);
 
     @EntityGraph(attributePaths = {"type", "project", "workType", "projectStatus"})

@@ -9,6 +9,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Map;
 
@@ -62,6 +63,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> handleExpectedError(ResponseStatusException exception) {
         String message = exception.getReason() == null ? "Request failed." : exception.getReason();
         return ResponseEntity.status(exception.getStatusCode()).body(Map.of("message", message));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleOversizedMultipart() {
+        return ResponseEntity.status(413).body(Map.of("message", "File exceeds the 25 MiB limit."));
     }
 
     private ResponseEntity<Map<String, String>> badRequest(String message) {

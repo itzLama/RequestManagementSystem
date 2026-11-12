@@ -1,6 +1,7 @@
 package com.requestmanagement.backend.projectstatus;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ProjectStatusIntegrationTests {
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
+    @Autowired EntityManager entityManager;
 
     @Test
     void projectsReceiveOrderedDefaultsAndNewIsProtected() throws Exception {
@@ -36,6 +38,10 @@ class ProjectStatusIntegrationTests {
                 .andExpect(jsonPath("$.length()").value(5))
                 .andExpect(jsonPath("$[0].name").value("New"))
                 .andExpect(jsonPath("$[0].protectedNew").value(true))
+                .andExpect(jsonPath("$[0].countsAsCompleted").value(false))
+                .andExpect(jsonPath("$[3].name").value("Completed"))
+                .andExpect(jsonPath("$[3].countsAsCompleted").value(true))
+                .andExpect(jsonPath("$[4].countsAsCompleted").value(false))
                 .andExpect(jsonPath("$[4].name").value("Rejected"));
 
         long newId = statusId(project, "NEW");
@@ -46,6 +52,67 @@ class ProjectStatusIntegrationTests {
         mvc.perform(delete("/api/projects/{project}/statuses/{status}", project, newId)
                         .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue()))
                 .andExpect(status().isConflict());
+        mvc.perform(put("/api/projects/{project}/statuses/{status}", project, newId)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"New\",\"countsAsCompleted\":true}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void adminConfiguresCompletionByStableStatusIdAndRenamePreservesTheSetting() throws Exception {
+        long project = project("Completion configuration", "ACTIVE");
+        Session admin = login("sara.saad@example.com");
+
+        MvcResult created = mvc.perform(post("/api/projects/{id}/statuses", project)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Quality Review\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.countsAsCompleted").value(false))
+                .andReturn();
+        long custom = number(created, "$.id");
+
+        mvc.perform(put("/api/projects/{project}/statuses/{status}", project, custom)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json")
+                        .content("{\"name\":\"Verified\",\"countsAsCompleted\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(custom))
+                .andExpect(jsonPath("$.name").value("Verified"))
+                .andExpect(jsonPath("$.countsAsCompleted").value(true));
+
+        entityManager.flush();
+        assertThat(jdbc.queryForObject(
+                "SELECT counts_as_completed FROM project_status_columns WHERE status_id=?",
+                Boolean.class, custom)).isTrue();
+
+        mvc.perform(put("/api/projects/{project}/statuses/{status}", project, custom)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Final Review\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.countsAsCompleted").value(true));
+    }
+
+    @Test
+    void employeeAndArchivedProjectCannotConfigureCompletion() throws Exception {
+        long project = project("Completion authorization", "ACTIVE");
+        long rejected = statusId(project, "REJECTED");
+        Session employee = login("nora.ahmed@example.com");
+
+        mvc.perform(put("/api/projects/{project}/statuses/{status}", project, rejected)
+                        .session(employee.session()).cookie(employee.csrf()).header("X-XSRF-TOKEN", employee.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Rejected\",\"countsAsCompleted\":true}"))
+                .andExpect(status().isForbidden());
+
+        jdbc.update("UPDATE projects SET status='ARCHIVED' WHERE project_id=?", project);
+        Session admin = login("sara.saad@example.com");
+        mvc.perform(put("/api/projects/{project}/statuses/{status}", project, rejected)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"Rejected\",\"countsAsCompleted\":true}"))
+                .andExpect(status().isConflict());
+
+        assertThat(jdbc.queryForObject(
+                "SELECT counts_as_completed FROM project_status_columns WHERE status_id=?",
+                Boolean.class, rejected)).isFalse();
     }
 
     @Test
