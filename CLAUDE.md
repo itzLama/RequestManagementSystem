@@ -17,6 +17,7 @@ Masar is a bilingual (Arabic/English, RTL/LTR) internal Service Request & Projec
 
 ## Hard rules (always)
 - NEVER commit or push unless Lama explicitly says so.
+- Never add Co-Authored-By, Claude-Session, 'Generated with' or any AI attribution to commit messages or PRs. Check the final message before every commit.
 - NEVER `git reset`, discard uncommitted changes, stash-and-drop, or switch branches unnecessarily. There is uncommitted work — inspect it, preserve it.
 - NEVER `docker compose down -v`, delete Docker volumes, or reset the normal development database.
 - NEVER edit existing Flyway migrations (V1–V23). New schema changes = new migration (V24+).
