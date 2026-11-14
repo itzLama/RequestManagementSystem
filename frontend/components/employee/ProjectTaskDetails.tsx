@@ -2,7 +2,7 @@
 
 import { Activity, CalendarDays, ChevronDown, Pencil, Plus, Send, Trash2, UserRound } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
 import { projectApi, type ProjectStatusColumn, type ProjectTaskMember, type ProjectWorkType, type SubtaskSummary } from "@/lib/project-api";
@@ -28,7 +28,7 @@ type TaskDetails = { id: number; title: string; description: string; description
 const card = "rounded-xl border border-divider bg-surface p-6";
 const control = "h-11 w-full rounded-[9px] border border-divider bg-surface px-3.5 text-sm outline-none focus:border-accent";
 
-export function ProjectTaskDetails({ projectId, taskId, access = "employee", onUpdated, onDeleted }: { projectId: number; taskId: string; access?: "employee" | "admin"; onUpdated?: () => void; onDeleted?: () => void }) {
+export function ProjectTaskDetails({ projectId, taskId, access = "employee", onUpdated, onDeleted, refreshSignal }: { projectId: number; taskId: string; access?: "employee" | "admin"; onUpdated?: () => void; onDeleted?: () => void; refreshSignal?: number }) {
   const router = useRouter();
   const { locale } = useI18n();
   const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
@@ -64,6 +64,23 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     load();
     return () => { active = false; };
   }, [access, base, projectId, reload, router]);
+
+  // Live project update: quietly refetch the Task (no loading state, drafts are kept).
+  const initialSignal = useRef(refreshSignal);
+  useEffect(() => {
+    if (refreshSignal === undefined || refreshSignal === initialSignal.current) return;
+    let active = true;
+    apiFetch(base, { cache: "no-store" }).then(async (response) => {
+      if (!active) return;
+      if (response.status === 404) { setNotFound(true); return; }
+      if (!response.ok) return;
+      const raw = await response.json() as Omit<TaskDetails, "status">;
+      if (!active) return;
+      const loaded: TaskDetails = { ...raw, status: raw.statusId, timeline: raw.timeline.map((entry) => ({ ...entry, oldStatus: entry.oldProjectStatusId, newStatus: entry.newProjectStatusId })) };
+      setTask(loaded); setStatus(loaded.statusId);
+    }).catch(() => { /* the next change or a reopen will refresh */ });
+    return () => { active = false; };
+  }, [refreshSignal, base]);
 
   async function changeStatus(event: FormEvent) {
     event.preventDefault(); if (!task || statusBusy) return; setStatusBusy(true); setStatusError("");
@@ -174,8 +191,8 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     {deleteOpen && task && <DeleteConfirmationDialog title={deleteTitle} description={deleteDescription} confirmLabel={deletingSubtasks ? (locale === "ar" ? "حذف الكل" : "Delete All") : undefined} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteOpen(false)} onConfirm={permanentlyDelete} />}
     {subtaskFormOpen && <SubtaskFormDialog projectId={projectId} parentTaskId={task.id} access={access} members={members} workTypes={workTypes} statuses={statuses} onClose={() => setSubtaskFormOpen(false)} onSaved={() => { setSubtaskFormOpen(false); setReload((value) => value + 1); onUpdated?.(); }} />}
     {editingSubtask && task.parentTaskId && <SubtaskFormDialog projectId={projectId} parentTaskId={task.parentTaskId} access={access} members={members} workTypes={workTypes} statuses={statuses} initial={{ id: task.id, title: task.title, description: task.description, hasRichDescription: task.descriptionDocument != null, workTypeId: task.workTypeId, priority: task.priority }} onClose={() => setEditingSubtask(false)} onSaved={() => { setEditingSubtask(false); setReload((value) => value + 1); onUpdated?.(); }} />}
-    {selectedSubtaskId !== null && <RequestDetailsDialog title={`Subtask #${selectedSubtaskId}`} onClose={() => setSelectedSubtaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedSubtaskId)} access={access} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedSubtaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
-    {selectedLinkedTaskId !== null && <RequestDetailsDialog title={`Task #${selectedLinkedTaskId}`} onClose={() => setSelectedLinkedTaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedLinkedTaskId)} access={access} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedLinkedTaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
+    {selectedSubtaskId !== null && <RequestDetailsDialog title={`Subtask #${selectedSubtaskId}`} onClose={() => setSelectedSubtaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedSubtaskId)} access={access} refreshSignal={refreshSignal} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedSubtaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
+    {selectedLinkedTaskId !== null && <RequestDetailsDialog title={`Task #${selectedLinkedTaskId}`} onClose={() => setSelectedLinkedTaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedLinkedTaskId)} access={access} refreshSignal={refreshSignal} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedLinkedTaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}
   </div>;
 }
 

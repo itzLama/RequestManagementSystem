@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { ProjectStatusColumn, ProjectTask } from "@/lib/project-api";
 import { useI18n } from "@/lib/i18n";
 import { addDaysToIso, daysBetweenIso } from "@/lib/task-dates";
+import { beginInteraction, endInteraction } from "@/lib/live-updates";
 import { completedStatusIds, DUE_TONES, PlanningLegend, taskDueState } from "@/components/planning/planning-shared";
 
 export type RescheduleHandler = (taskId: number, startDate: string | null, dueDate: string | null) => Promise<boolean>;
@@ -87,6 +88,7 @@ export default function ProjectTaskCalendar({ tasks, statuses, today, readOnly, 
           height="auto" fixedWeekCount={false} dayMaxEvents={4} events={events}
           editable={!readOnly} eventStartEditable={!readOnly} droppable={!readOnly}
           eventDrop={moved} eventResize={resized} drop={dropped}
+          eventDragStart={beginInteraction} eventDragStop={endInteraction} eventResizeStart={beginInteraction} eventResizeStop={endInteraction}
           eventClick={(info: EventClickArg) => { info.jsEvent.preventDefault(); onOpen(Number(info.event.id)); }} />
       </div>
       <aside className="rounded-[10px] border border-divider p-4" aria-labelledby="unscheduled-heading">

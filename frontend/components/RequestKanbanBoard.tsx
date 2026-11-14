@@ -1,5 +1,6 @@
 "use client";
 
+import { beginInteraction, endInteraction } from "@/lib/live-updates";
 import { DragDropProvider, PointerSensor, type DragEndEvent, type DragStartEvent, useDraggable, useDroppable } from "@dnd-kit/react";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { useRef, type ReactNode } from "react";
@@ -108,10 +109,12 @@ function DndBoard({ requests, columns:configured=defaultColumns, onRequestClick,
     onRequestClick?.(id);
   }
   function handleDragStart(event: DragStartEvent) {
+    beginInteraction();
     const sourceData = event.operation.source?.data as DragData | undefined;
     activeDrag.current = sourceData?.kind==="task"?sourceData.taskId:null;
   }
   function handleDragEnd(event: DragEndEvent) {
+    endInteraction();
     const sourceData = event.operation.source?.data as DragData | undefined;
     const targetData = event.operation.target?.data as DropData | undefined;
     if (sourceData?.kind==="task" && activeDrag.current === sourceData.taskId) suppressClickFor.current = sourceData.taskId;

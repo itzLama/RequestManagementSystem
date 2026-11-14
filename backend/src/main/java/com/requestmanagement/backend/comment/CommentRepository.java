@@ -14,4 +14,8 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @EntityGraph(attributePaths = "user")
     List<Comment> findByRequest_IdAndInternalTrueOrderByCreatedAtAscIdAsc(Long requestId);
     void deleteByRequest_IdIn(Collection<Long> requestIds);
+
+    /** Everyone who has commented on (or added an internal note to) the Request. */
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT c.user.id FROM Comment c WHERE c.request.id = :requestId")
+    List<Long> findDistinctAuthorIdsByRequestId(@org.springframework.data.repository.query.Param("requestId") Long requestId);
 }

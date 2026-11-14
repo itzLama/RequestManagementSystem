@@ -15,6 +15,9 @@ import com.requestmanagement.backend.guestform.GuestAnswerDisplayService;
 import com.requestmanagement.backend.guestform.GuestFormDtos.AnswerResponse;
 import com.requestmanagement.backend.projectstatus.*;
 import com.requestmanagement.backend.attachment.AttachmentDeletionService;
+import com.requestmanagement.backend.usernotification.TaskNotificationPublisher;
+import com.requestmanagement.backend.usernotification.ProjectChangePublisher;
+import com.requestmanagement.backend.usernotification.ProjectChangeEvent.ChangeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,8 @@ public class ProjectTaskService {
     private final RequestPermanentDeletionService permanentDeletionService;
     private final RichDescriptionValidator richDescriptionValidator;
     private final AttachmentDeletionService attachmentDeletionService;
+    private final TaskNotificationPublisher notifications;
+    private final ProjectChangePublisher liveUpdates;
 
     @Transactional(readOnly = true)
     public List<ProjectTaskBoardResponse> board(Long projectId, Long employeeId) {
@@ -66,7 +71,10 @@ public class ProjectTaskService {
                 creator, assignee, project, projectStatusService.initial(projectId));
         if (description.document() != null) task.updateRichDescription(description.document(), description.plainText());
         schedule(task, input.startDate(), input.dueDate());
-        return ProjectTaskBoardResponse.from(requestRepository.save(task));
+        Request saved = requestRepository.save(task);
+        notifications.assigned(saved, creator);
+        liveUpdates.changed(saved, ChangeType.TASK_CREATED);
+        return ProjectTaskBoardResponse.from(saved);
     }
 
     @Transactional
@@ -76,6 +84,7 @@ public class ProjectTaskService {
         Request task = findTask(projectId, taskId);
         schedule(task, input.startDate(), input.dueDate());
         requestRepository.save(task);
+        liveUpdates.changed(task, ChangeType.DATES_CHANGED);
         return details(task);
     }
 
@@ -85,8 +94,10 @@ public class ProjectTaskService {
         Project project = projectAccessService.requireMutableProject(projectId, employeeId);
         User creator = projectAccessService.requireActiveEmployee(employeeId);
         Request parent = requireRootParent(projectId, parentId);
-        Request subtask = createSubtask(project, parent, creator, input);
-        return details(requestRepository.save(subtask));
+        Request subtask = requestRepository.save(createSubtask(project, parent, creator, input));
+        notifications.assigned(subtask, creator);
+        liveUpdates.changed(subtask, ChangeType.TASK_CREATED);
+        return details(subtask);
     }
 
     @Transactional
@@ -96,6 +107,7 @@ public class ProjectTaskService {
         projectAccessService.requireActiveEmployee(employeeId);
         Request subtask = requireSubtask(projectId, parentId, subtaskId);
         updateFields(projectId, subtask, input);
+        liveUpdates.changed(subtask, ChangeType.TASK_UPDATED);
         return details(subtask);
     }
 
@@ -113,11 +125,14 @@ public class ProjectTaskService {
     public ProjectTaskDetailsResponse reassign(Long projectId, Long taskId, Long employeeId,
                                                UpdateProjectTaskAssigneeRequest input) {
         Project project = projectAccessService.requireMutableProject(projectId, employeeId);
+        User actor = projectAccessService.requireActiveEmployee(employeeId);
         Request task = findTask(projectId, taskId);
         User assignee = projectAccessService.requireEligibleAssignee(project, input.assignedToId());
         if (task.getAssignedTo() == null || !task.getAssignedTo().getId().equals(assignee.getId())) {
             task.assignTo(assignee);
             requestRepository.save(task);
+            notifications.assigned(task, actor);
+            liveUpdates.changed(task, ChangeType.ASSIGNEE_CHANGED);
         }
         return details(task);
     }
@@ -159,7 +174,10 @@ public class ProjectTaskService {
                 admin, assignee, project, projectStatusService.initial(projectId));
         if (description.document() != null) task.updateRichDescription(description.document(), description.plainText());
         schedule(task, input.startDate(), input.dueDate());
-        return ProjectTaskBoardResponse.from(requestRepository.save(task));
+        Request saved = requestRepository.save(task);
+        notifications.assigned(saved, admin);
+        liveUpdates.changed(saved, ChangeType.TASK_CREATED);
+        return ProjectTaskBoardResponse.from(saved);
     }
 
     @Transactional
@@ -171,6 +189,7 @@ public class ProjectTaskService {
         Request task = findTask(projectId, taskId);
         schedule(task, input.startDate(), input.dueDate());
         requestRepository.save(task);
+        liveUpdates.changed(task, ChangeType.DATES_CHANGED);
         return adminDetails(task);
     }
 
@@ -181,8 +200,10 @@ public class ProjectTaskService {
         Project project = requireProject(projectId);
         projectAccessService.requireActive(project);
         Request parent = requireRootParent(projectId, parentId);
-        Request subtask = createSubtask(project, parent, admin, input);
-        return adminDetails(requestRepository.save(subtask));
+        Request subtask = requestRepository.save(createSubtask(project, parent, admin, input));
+        notifications.assigned(subtask, admin);
+        liveUpdates.changed(subtask, ChangeType.TASK_CREATED);
+        return adminDetails(subtask);
     }
 
     @Transactional
@@ -193,6 +214,7 @@ public class ProjectTaskService {
         projectAccessService.requireActive(project);
         Request subtask = requireSubtask(projectId, parentId, subtaskId);
         updateFields(projectId, subtask, input);
+        liveUpdates.changed(subtask, ChangeType.TASK_UPDATED);
         return adminDetails(subtask);
     }
 
@@ -210,7 +232,7 @@ public class ProjectTaskService {
     @Transactional
     public AdminProjectTaskDetailsResponse adminReassign(Long projectId, Long taskId, Long adminId,
                                                          UpdateProjectTaskAssigneeRequest input) {
-        requireActiveAdmin(adminId);
+        User admin = requireActiveAdmin(adminId);
         Project project = requireProject(projectId);
         projectAccessService.requireActive(project);
         Request task = findTask(projectId, taskId);
@@ -218,6 +240,8 @@ public class ProjectTaskService {
         if (task.getAssignedTo() == null || !task.getAssignedTo().getId().equals(assignee.getId())) {
             task.assignTo(assignee);
             requestRepository.save(task);
+            notifications.assigned(task, admin);
+            liveUpdates.changed(task, ChangeType.ASSIGNEE_CHANGED);
         }
         return adminDetails(task);
     }
@@ -251,11 +275,13 @@ public class ProjectTaskService {
             attachmentDeletionService.beginPermanentTaskDeletion(ids);
             attachmentDeletionService.cleanupForPermanentDeletion(ids);
             permanentDeletionService.deleteParentWithSubtasks(task, subtasks);
+            subtasks.forEach(subtask -> liveUpdates.changed(projectId, subtask.getId(), ChangeType.TASK_DELETED));
         } else {
             attachmentDeletionService.beginPermanentTaskDeletion(List.of(task.getId()));
             attachmentDeletionService.cleanupForPermanentDeletion(List.of(task.getId()));
             permanentDeletionService.delete(task);
         }
+        liveUpdates.changed(projectId, taskId, ChangeType.TASK_DELETED);
     }
 
     @Transactional(readOnly = true)
@@ -337,6 +363,7 @@ public class ProjectTaskService {
         RichDescriptionValidator.ValidatedDocument validated = richDescriptionValidator.validate(input.document());
         task.updateRichDescription(validated.document(), validated.plainText());
         requestRepository.saveAndFlush(task);
+        liveUpdates.changed(task, ChangeType.TASK_UPDATED);
         return RichDescriptionDtos.Response.from(task);
     }
 

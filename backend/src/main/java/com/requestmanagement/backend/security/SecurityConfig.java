@@ -87,6 +87,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/employees/**").hasRole("ADMIN")
                         .requestMatchers("/api/projects/mine", "/api/projects/mine/**").hasRole("EMPLOYEE")
                         .requestMatchers("/api/projects/**").hasRole("ADMIN")
+                        .requestMatchers("/api/notifications", "/api/notifications/**").hasAnyRole("ADMIN", "EMPLOYEE")
                         .requestMatchers("/api/requests/assigned", "/api/requests/assigned/**").hasRole("EMPLOYEE")
                         .requestMatchers(HttpMethod.POST, "/api/requests").hasRole("EMPLOYEE")
                         .requestMatchers(HttpMethod.GET, "/api/requests/mine").hasRole("EMPLOYEE")

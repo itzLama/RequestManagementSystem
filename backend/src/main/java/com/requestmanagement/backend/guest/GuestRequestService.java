@@ -34,6 +34,7 @@ public class GuestRequestService {
     private final GuestFormSubmissionService guestFormSubmissionService;
     private final ProjectStatusService projectStatusService;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.requestmanagement.backend.usernotification.ProjectChangePublisher liveUpdates;
 
     @Transactional(readOnly = true)
     public List<RequestTypeResponse> requestTypes() {
@@ -71,6 +72,7 @@ public class GuestRequestService {
         requestRepository.save(request);
         guestFormSubmissionService.saveAnswers(request, resolved.answers());
         eventPublisher.publishEvent(GuestEmailNotificationEvent.submitted(request));
+        liveUpdates.changed(request, com.requestmanagement.backend.usernotification.ProjectChangeEvent.ChangeType.TASK_CREATED);
         return new GuestRequestCreatedResponse(request.getId());
     }
 

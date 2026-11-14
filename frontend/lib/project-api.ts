@@ -41,6 +41,19 @@ function projectTaskStatusResponse(response: ProjectTaskStatusResponse): Project
   };
 }
 
+export type DashboardTaskRef = { taskId: number; title: string; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assigneeId: number | null; assigneeName: string | null; startDate: string | null; dueDate: string | null };
+export type DashboardActivityKind = "TASK_CREATED" | "STATUS_CHANGED" | "COMMENT_ADDED" | "ATTACHMENT_UPLOADED";
+export type DashboardActivity = { kind: DashboardActivityKind; taskId: number; taskTitle: string; parentTaskId: number | null; actorName: string | null; actorIsGuest: boolean; statusName: string | null; statusSemantic: string | null; fileName: string | null; occurredAt: string };
+export type ProjectDashboard = {
+  projectId: number; today: string; upcomingWindowDays: number;
+  completion: { totalTasks: number; completedTasks: number; openTasks: number; percentage: number };
+  statuses: { statusId: number; statusName: string; semanticKey: string | null; countsAsCompleted: boolean; active: boolean; displayOrder: number; count: number }[];
+  priorities: { priority: "LOW" | "MEDIUM" | "HIGH"; count: number }[];
+  workload: { assigneeId: number | null; assigneeName: string | null; openTasks: number; overdueTasks: number }[];
+  overdueCount: number; overdueTasks: DashboardTaskRef[]; upcomingCount: number; upcomingTasks: DashboardTaskRef[];
+  recentActivity: DashboardActivity[];
+};
+
 export class ProjectApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -107,5 +120,6 @@ export const projectApi = {
   deleteTaskTemplate: (projectId: string | number, templateId: number) => request<void>(`/api/projects/${projectId}/task-templates/${templateId}`, { method: "DELETE" }, "Unable to delete Task Template."),
   roadmap: () => request<ProjectRoadmap>("/api/projects/roadmap", {}, "Unable to load the roadmap."),
   myRoadmap: () => request<ProjectRoadmap>("/api/projects/mine/roadmap", {}, "Unable to load the roadmap."),
+  dashboard: (projectId: string | number, access: "admin" | "employee") => request<ProjectDashboard>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/dashboard`, {}, "Unable to load insights."),
   updateTaskDescription: (projectId: string | number, taskId: number, access: "admin" | "employee", document: unknown) => request<RichDescriptionResponse>(`${access === "admin" ? `/api/projects/${projectId}` : `/api/projects/mine/${projectId}`}/tasks/${taskId}/description-document`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ document }) }, "Unable to save the description."),
 };

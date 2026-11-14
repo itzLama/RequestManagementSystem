@@ -1,5 +1,6 @@
 import type { AuthenticatedUser, PageHeader } from "./layout-config";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { NotificationBell } from "./NotificationBell";
 import { useI18n } from "@/lib/i18n";
 
 type HeaderProps = PageHeader & {
@@ -18,6 +19,7 @@ export function Header({ title, subtitle, user }: HeaderProps) {
       </div>
 
       <div className="ms-8 flex shrink-0 items-center gap-5 border-s border-divider ps-7">
+        <NotificationBell role={user.role} />
         <LanguageSwitcher />
         <div aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-avatar text-sm font-semibold text-secondary">
           {initial}

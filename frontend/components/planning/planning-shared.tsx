@@ -1,16 +1,17 @@
 "use client";
 
-import { CalendarDays, Columns3, GanttChart, Table2 } from "lucide-react";
+import { CalendarDays, Columns3, GanttChart, LayoutDashboard, Table2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ProjectStatusColumn, ProjectTask } from "@/lib/project-api";
 import { dueState, type DueState } from "@/lib/task-dates";
 
-export type ProjectView = "kanban" | "table" | "calendar" | "roadmap";
+export type ProjectView = "kanban" | "table" | "calendar" | "roadmap" | "dashboard";
 const VIEWS: { id: ProjectView; label: string; icon: typeof Columns3 }[] = [
   { id: "kanban", label: "Kanban", icon: Columns3 },
   { id: "table", label: "Table", icon: Table2 },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "roadmap", label: "Roadmap", icon: GanttChart },
+  { id: "dashboard", label: "Insights", icon: LayoutDashboard },
 ];
 const VIEW_STORAGE_KEY = "masar-project-view";
 

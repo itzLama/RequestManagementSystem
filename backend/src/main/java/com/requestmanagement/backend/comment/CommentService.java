@@ -3,6 +3,7 @@ package com.requestmanagement.backend.comment;
 import com.requestmanagement.backend.request.Request;
 import com.requestmanagement.backend.request.RequestRepository;
 import com.requestmanagement.backend.project.ProjectAccessService;
+import com.requestmanagement.backend.usernotification.TaskNotificationPublisher;
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class CommentService {
     private final RequestRepository requestRepository;
     private final UserRepository userRepository;
     private final ProjectAccessService projectAccessService;
+    private final TaskNotificationPublisher notifications;
 
     @Transactional
     public CommentResponse add(Long requestId, Long authorId, AddCommentRequest input) {
@@ -38,7 +40,10 @@ public class CommentService {
         projectAccessService.requireMutableProject(projectId, authorId);
         Request request = requestRepository.findByIdAndProject_Id(requestId, projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found."));
-        return saveEmployeeComment(request, projectAccessService.requireActiveEmployee(authorId), input);
+        User author = projectAccessService.requireActiveEmployee(authorId);
+        CommentResponse saved = saveEmployeeComment(request, author, input);
+        notifications.commented(request, author);
+        return saved;
     }
 
     @Transactional
@@ -54,7 +59,12 @@ public class CommentService {
         Request request = requestRepository.findByIdAndProject_Id(requestId, projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
         projectAccessService.requireActive(request.getProject());
-        return saveAdminComment(request, authorId, input, internal);
+        CommentResponse saved = saveAdminComment(request, authorId, input, internal);
+        // Internal notes are Admin-only: they notify Admin participants only, never Employees.
+        User author = userRepository.getReferenceById(authorId);
+        if (internal) notifications.internalNote(request, author);
+        else notifications.commented(request, author);
+        return saved;
     }
 
     private CommentResponse saveAdminComment(Request request, Long authorId,
