@@ -124,7 +124,7 @@ export default function DashboardPage() {
     </section>
 
     <section className="rounded-xl border border-divider bg-surface p-6 shadow-[0_2px_10px_rgba(15,16,32,0.025)] sm:p-8">
-      <h2 className="text-lg font-semibold text-foreground">Requests by Status</h2>
+      <h2 className="text-lg font-semibold text-foreground">General Requests by Status</h2>
       <p className="mt-1 text-xs text-secondary">Distribution of all service requests by current status</p>
       <div className="mt-7 grid items-center gap-10 lg:grid-cols-[minmax(260px,0.9fr)_minmax(320px,1.1fr)]">
         <div className="flex justify-center lg:justify-start lg:pl-5"><StatusDonut counts={counts} total={dashboard.totalRequests} /></div>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
     </section>
 
     <section className="rounded-xl border border-divider bg-surface shadow-[0_2px_10px_rgba(15,16,32,0.025)]">
-      <div className="px-6 pb-5 pt-6 sm:px-8 sm:pt-7"><h2 className="text-lg font-semibold text-foreground">Latest Requests</h2></div>
+      <div className="px-6 pb-5 pt-6 sm:px-8 sm:pt-7"><h2 className="text-lg font-semibold text-foreground">Latest General Requests</h2></div>
       {dashboard.latestRequests.length === 0 ? <div className="border-t border-divider px-6 py-12 text-center sm:px-8"><p className="text-sm text-secondary">No requests available yet.</p></div> :
         <div className="overflow-x-auto px-6 pb-6 sm:px-8"><table className="w-full min-w-[760px] border-collapse text-left text-sm">
           <thead className="bg-background text-xs font-medium text-secondary"><tr><th scope="col" className="px-4 py-4">ID</th><th scope="col" className="px-5 py-4">Title</th><th scope="col" className="px-5 py-4">Type</th><th scope="col" className="px-5 py-4">Priority</th><th scope="col" className="px-5 py-4">Status</th><th scope="col" className="px-5 py-4">Created Date</th></tr></thead>

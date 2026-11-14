@@ -28,7 +28,7 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavigationItem[]> = {
   ],
   EMPLOYEE: [
     { label: "My Requests", href: "/my-requests", icon: "requests" },
-    { label: "Assigned Tasks", href: "/assigned-tasks", icon: "tasks" },
+    { label: "Assigned Requests", href: "/assigned-tasks", icon: "tasks" },
     { label: "Projects", href: "/employee-projects", icon: "projects" },
     { label: "Create Request", href: "/create-request", icon: "create" },
   ],
@@ -40,8 +40,8 @@ const PAGE_HEADERS: Record<string, PageHeader> = {
     subtitle: "Access and manage your service requests",
   },
   "/dashboard": {
-    title: "Dashboard",
-    subtitle: "Overview of service request activity",
+    title: "Requests Dashboard",
+    subtitle: "Overview of General Request activity. Project Tasks are in each Project's Insights.",
   },
   "/requests": {
     title: "Requests",
@@ -60,7 +60,7 @@ const PAGE_HEADERS: Record<string, PageHeader> = {
     subtitle: "View and track your service requests",
   },
   "/assigned-tasks": {
-    title: "Assigned Tasks",
+    title: "Assigned Requests",
     subtitle: "View and manage General Requests assigned to you",
   },
   "/employee-projects": {
@@ -95,7 +95,7 @@ export function getPageHeader(pathname: string): PageHeader {
     return { title: `Request #${pathname.slice("/my-requests/".length)}`, subtitle: "View request details and activity" };
   }
   if (pathname.startsWith("/assigned-tasks/")) {
-    return { title: `Request #${pathname.slice("/assigned-tasks/".length)}`, subtitle: "View assigned task details and activity" };
+    return { title: `Request #${pathname.slice("/assigned-tasks/".length)}`, subtitle: "View assigned General Request details and activity" };
   }
   return PAGE_HEADERS[pathname] ?? DEFAULT_PAGE_HEADER;
 }

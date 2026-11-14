@@ -40,15 +40,21 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
   const [status, setStatus] = useState<RequestStatus>(0); const [changeNote, setChangeNote] = useState(""); const [showNote, setShowNote] = useState(false); const [statusBusy, setStatusBusy] = useState(false); const [statusError, setStatusError] = useState("");
   const [assigneeBusy, setAssigneeBusy] = useState(false); const [assigneeError, setAssigneeError] = useState("");
   const [comment, setComment] = useState(""); const [commentBusy, setCommentBusy] = useState(false); const [commentError, setCommentError] = useState("");
+  const [internalNote, setInternalNote] = useState(""); const [internalBusy, setInternalBusy] = useState(false); const [internalError, setInternalError] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false); const [deleteBusy, setDeleteBusy] = useState(false); const [deleteError, setDeleteError] = useState("");
   const [subtaskFormOpen, setSubtaskFormOpen] = useState(false); const [selectedSubtaskId, setSelectedSubtaskId] = useState<number | null>(null); const [editingSubtask, setEditingSubtask] = useState(false);
   const [selectedLinkedTaskId, setSelectedLinkedTaskId] = useState<number | null>(null);
   const base = access === "admin" ? `/api/projects/${projectId}/tasks/${encodeURIComponent(taskId)}` : `/api/projects/mine/${projectId}/tasks/${encodeURIComponent(taskId)}`;
 
+  // Base URL of the Task currently shown. Reloading the same Task (after a save here or in a nested
+  // subtask dialog) is quiet: replacing the content with the loading screen would unmount the nested
+  // subtask dialog and briefly show this (parent) Task instead.
+  const loadedBase = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
     async function load() {
-      setLoading(true); setError(""); setNotFound(false);
+      const quiet = loadedBase.current === base;
+      if (!quiet) { setLoading(true); setError(""); setNotFound(false); }
       try {
         const [response, statusData, workTypeData] = await Promise.all([apiFetch(base, { cache: "no-store" }), access === "admin" ? projectApi.statuses(projectId) : projectApi.myStatuses(projectId), access === "admin" ? projectApi.workTypes(projectId) : projectApi.myWorkTypes(projectId)]);
         if (response.status === 401) { router.replace("/login"); return; }
@@ -57,8 +63,8 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
         const raw = await response.json() as Omit<TaskDetails, "status">;
         const loaded: TaskDetails = { ...raw, status: raw.statusId, timeline: raw.timeline.map((entry) => ({ ...entry, oldStatus: entry.oldProjectStatusId, newStatus: entry.newProjectStatusId })) };
         const memberData = access === "admin" ? await projectApi.members(projectId) : await projectApi.taskMembers(projectId);
-        if (active) { setTask(loaded); setStatus(loaded.statusId); setStatuses(statusData); setWorkTypes(workTypeData); setMembers(memberData.map(({ employeeId, fullName, active: memberActive }) => ({ employeeId, fullName, active: memberActive }))); }
-      } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "Unable to load task details."); }
+        if (active) { loadedBase.current = base; setTask(loaded); setStatus(loaded.statusId); setStatuses(statusData); setWorkTypes(workTypeData); setMembers(memberData.map(({ employeeId, fullName, active: memberActive }) => ({ employeeId, fullName, active: memberActive }))); }
+      } catch (cause) { if (active && !quiet) setError(cause instanceof Error ? cause.message : "Unable to load task details."); }
       finally { if (active) setLoading(false); }
     }
     load();
@@ -108,6 +114,21 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
     try { const response = await apiFetch(`${base}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) }); if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to save comment.")); const added: Comment = await response.json(); setTask({ ...task, comments: [...task.comments, added] }); setComment(""); }
     catch (cause) { setCommentError(cause instanceof Error ? cause.message : "Unable to save comment."); }
     finally { setCommentBusy(false); }
+  }
+
+  // Internal Notes are Admin-only: only the Admin details response contains them and only the
+  // Admin endpoint accepts them (the backend also rejects archived Projects).
+  async function addInternalNote(event: FormEvent) {
+    event.preventDefault(); if (!task || internalBusy || access !== "admin") return; const text = internalNote.trim();
+    if (!text) { setInternalError("Internal note is required."); return; }
+    setInternalBusy(true); setInternalError("");
+    try {
+      const response = await apiFetch(`/api/projects/${projectId}/tasks/${task.id}/internal-notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Unable to save internal note."));
+      const added: Comment = await response.json();
+      setTask((current) => current && current.id === task.id ? { ...current, internalNotes: [...(current.internalNotes ?? []), added] } : current); setInternalNote("");
+    } catch (cause) { setInternalError(cause instanceof Error ? cause.message : "Unable to save internal note."); }
+    finally { setInternalBusy(false); }
   }
 
   async function saveRichDescription(document: JSONContent): Promise<RichDescriptionSaveResult> {
@@ -169,7 +190,7 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
   ]) as Record<number, string>;
 
   return <div className="min-w-0 space-y-5">
-    <div className="flex justify-end gap-2">{task.parentTaskId && !readOnly && <button type="button" onClick={() => setEditingSubtask(true)} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-divider px-4 text-sm font-medium hover:bg-nav-hover"><Pencil size={16} />Edit Subtask</button>}{access === "admin" && <button type="button" onClick={() => { setDeleteError(""); setDeleteOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-[#F2B8B5] px-4 text-sm font-medium text-[#B42318] hover:bg-[#FFF1F0]"><Trash2 size={16} />{locale === "ar" ? "حذف المهمة" : task.parentTaskId ? "Delete Subtask" : "Delete Task"}</button>}</div>
+    <div className="flex justify-end gap-2">{task.parentTaskId && !readOnly && <button type="button" onClick={() => setEditingSubtask(true)} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-divider px-4 text-sm font-medium hover:bg-nav-hover"><Pencil size={16} />Edit Subtask</button>}{access === "admin" && !readOnly && <button type="button" onClick={() => { setDeleteError(""); setDeleteOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-[#F2B8B5] px-4 text-sm font-medium text-[#B42318] hover:bg-[#FFF1F0]"><Trash2 size={16} />{locale === "ar" ? (task.parentTaskId ? "حذف المهمة الفرعية" : "حذف المهمة") : task.parentTaskId ? "Delete Subtask" : "Delete Task"}</button>}</div>
     <header className={card}><div className="flex items-center gap-2"><p data-i18n-skip className="text-sm font-medium text-accent">{task.projectName}</p>{task.guest && <GuestBadge />}</div><div className="mt-2 flex flex-wrap items-start justify-between gap-5"><div className="min-w-0"><h1 data-i18n-skip className="break-words text-2xl font-semibold">{task.title}</h1><p className="mt-1 text-xs font-semibold uppercase tracking-wide text-secondary"><span data-i18n-skip>{workTypeLabel}</span> · Task #{task.id}</p></div>{readOnly ? <span data-i18n-skip className="rounded-full bg-nav-active px-3 py-1.5 text-sm font-semibold text-accent">{statusLabels[task.status]}</span> : <form onSubmit={changeStatus} className="w-full max-w-xs space-y-2"><div className="flex gap-2"><select aria-label="Task status" value={status} onChange={(event) => setStatus(event.target.value as RequestStatus)} className={control}>{statusIds.map((value) => <option data-i18n-skip key={value} value={value}>{statusLabels[value]}</option>)}</select><button type="submit" disabled={statusBusy || Number(status) === task.status} className="h-11 shrink-0 rounded-[9px] bg-accent px-4 text-sm font-medium text-white disabled:opacity-50">{statusBusy ? "Updating..." : "Update Status"}</button></div><button type="button" onClick={() => setShowNote((value) => !value)} aria-expanded={showNote} className="inline-flex items-center gap-1 text-xs font-medium text-accent"><ChevronDown size={14} className={showNote ? "rotate-180" : ""} />Add Note</button>{showNote && <textarea rows={2} value={changeNote} maxLength={10000} onChange={(event) => setChangeNote(event.target.value)} placeholder="Optional status change note" className={`${control} min-h-16 py-2`} />}{statusError && <p role="alert" className="text-xs text-[#B42318]">{statusError}</p>}</form>}</div>{readOnly && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project is archived. Task activity is read-only.</p>}</header>
 
     <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,.7fr)]">
@@ -182,13 +203,14 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
         {task.guest && task.guestAnswers.length > 0 && <AdditionalInformation answers={task.guestAnswers} locale={locale} />}
         <ActivitySection task={task} statusLabels={statusLabels} locale={locale} />
         <Conversation title="Comments" items={task.comments} empty="No comments yet." initialVisibleCount={5} composer={!readOnly ? <Composer value={comment} onChange={setComment} busy={commentBusy} error={commentError} placeholder="Add a comment..." onSubmit={addComment} /> : null} />
+        {access === "admin" && <Conversation title="Internal Notes (Admin Only)" items={task.internalNotes ?? []} empty="No internal notes yet." initialVisibleCount={5} composer={!readOnly ? <Composer value={internalNote} onChange={setInternalNote} busy={internalBusy} error={internalError} placeholder="Add an internal note..." onSubmit={addInternalNote} /> : null} />}
       </main>
       <aside className="min-w-0 space-y-6">
         <section className={card}><h2 className="text-lg font-semibold">Task Details</h2><dl className="mt-5 space-y-5"><div><dt className="text-xs text-secondary">Assignee</dt>{readOnly ? <dd className="mt-1 break-words text-sm font-semibold">{task.assignedToName ?? UNASSIGNED_LABEL}</dd> : <dd className="mt-2"><select value={task.assignedToId ?? ""} disabled={assigneeBusy} onChange={(event) => reassign(Number(event.target.value))} className={control}><option value="" disabled>Unassigned</option>{activeMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}</option>)}</select>{assigneeError && <p role="alert" className="mt-2 text-xs text-[#B42318]">{assigneeError}</p>}</dd>}</div><TaskDatesEditor key={`${task.id}:${task.startDate}:${task.dueDate}`} task={task} readOnly={readOnly} locale={locale} onSave={saveDates} /><Detail label="Priority" value={REQUEST_PRIORITY_LABELS[task.priority]} /><Detail label="Work Type" value={workTypeLabel} dynamic /><div><dt className="text-xs text-secondary">Created by</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-words text-sm font-semibold"><UserRound size={16} className="shrink-0 text-accent" />{task.createdByName ?? task.requesterName}</dd>{task.guest && <dd className="mt-1 break-all text-xs text-secondary">{task.requesterEmail}</dd>}</div><div><dt className="text-xs text-secondary">Created at</dt><dd className="mt-1 flex items-center gap-2 text-sm font-semibold"><CalendarDays size={16} className="shrink-0 text-accent" />{formatRequestDateTime(task.createdAt)}</dd></div><Detail label="Project" value={task.projectName} dynamic /></dl></section>
         {task.guest && <GuestCommunicationPanel target={access === "admin" ? { access: "admin-project", projectId, requestId: task.id } : { access: "employee-project", projectId, requestId: task.id }} readOnly={readOnly} initialVisibleCount={5} />}
       </aside>
     </div>
-    {deleteOpen && task && <DeleteConfirmationDialog title={deleteTitle} description={deleteDescription} confirmLabel={deletingSubtasks ? (locale === "ar" ? "حذف الكل" : "Delete All") : undefined} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteOpen(false)} onConfirm={permanentlyDelete} />}
+    {deleteOpen && task && !readOnly && <DeleteConfirmationDialog title={deleteTitle} description={deleteDescription} confirmLabel={deletingSubtasks ? (locale === "ar" ? "حذف الكل" : "Delete All") : undefined} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteOpen(false)} onConfirm={permanentlyDelete} />}
     {subtaskFormOpen && <SubtaskFormDialog projectId={projectId} parentTaskId={task.id} access={access} members={members} workTypes={workTypes} statuses={statuses} onClose={() => setSubtaskFormOpen(false)} onSaved={() => { setSubtaskFormOpen(false); setReload((value) => value + 1); onUpdated?.(); }} />}
     {editingSubtask && task.parentTaskId && <SubtaskFormDialog projectId={projectId} parentTaskId={task.parentTaskId} access={access} members={members} workTypes={workTypes} statuses={statuses} initial={{ id: task.id, title: task.title, description: task.description, hasRichDescription: task.descriptionDocument != null, workTypeId: task.workTypeId, priority: task.priority }} onClose={() => setEditingSubtask(false)} onSaved={() => { setEditingSubtask(false); setReload((value) => value + 1); onUpdated?.(); }} />}
     {selectedSubtaskId !== null && <RequestDetailsDialog title={`Subtask #${selectedSubtaskId}`} onClose={() => setSelectedSubtaskId(null)}><ProjectTaskDetails projectId={projectId} taskId={String(selectedSubtaskId)} access={access} refreshSignal={refreshSignal} onUpdated={() => { setReload((value) => value + 1); onUpdated?.(); }} onDeleted={() => { setSelectedSubtaskId(null); setReload((value) => value + 1); onUpdated?.(); }} /></RequestDetailsDialog>}

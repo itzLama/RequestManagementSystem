@@ -17,7 +17,7 @@ type AssignedTask = { id: number; title: string; typeName: string; priority: Req
 type AssignedTasksPage = { content: AssignedTask[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean };
 
 function TaskActions({ onOpen }: { onOpen: () => void }) {
-  return <button type="button" onClick={onOpen} aria-label="View assigned task details" className="flex h-9 w-9 items-center justify-center rounded-[9px] text-secondary hover:bg-nav-hover hover:text-foreground"><svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="currentColor"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg></button>;
+  return <button type="button" onClick={onOpen} aria-label="View assigned request details" className="flex h-9 w-9 items-center justify-center rounded-[9px] text-secondary hover:bg-nav-hover hover:text-foreground"><svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="currentColor"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg></button>;
 }
 
 export default function AssignedTasksPage() {
@@ -45,10 +45,10 @@ export default function AssignedTasksPage() {
         const response = await apiFetch(endpoint, { signal: controller.signal, cache: "no-store" });
         if (response.status === 401) { router.replace("/login"); return; }
         if (response.status === 403) { router.replace("/my-requests"); return; }
-        if (!response.ok) throw new Error("Unable to load your assigned tasks. Please try again.");
+        if (!response.ok) throw new Error("Unable to load your assigned requests. Please try again.");
         if (view === "board") setBoardTasks(await response.json()); else setResult(await response.json());
       } catch (cause) {
-        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to load your assigned tasks. Please try again.");
+        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to load your assigned requests. Please try again.");
       } finally { if (!controller.signal.aborted) setLoading(false); }
     }
     loadTasks(); return () => controller.abort();
@@ -74,9 +74,9 @@ export default function AssignedTasksPage() {
   return <div className="space-y-5">
     <div className="flex justify-end"><RequestViewToggle view={view} onChange={setView} /></div>
     <section className={view === "table" ? "w-full rounded-xl border border-divider bg-surface" : "w-full"}>
-      {loading && <p role="status" className="px-6 py-10 text-sm text-secondary sm:px-8">Loading assigned tasks...</p>}
+      {loading && <p role="status" className="px-6 py-10 text-sm text-secondary sm:px-8">Loading assigned requests...</p>}
       {!loading && error && <div role="alert" className="px-6 py-10 text-sm text-[#B42318] sm:px-8">{error} <button type="button" onClick={refreshTasks} className="font-medium underline">Retry</button></div>}
-      {!loading && !error && view === "board" && boardTasks.length === 0 && <div className="rounded-xl border border-divider bg-surface px-6 py-12 text-center"><h2 className="text-lg font-semibold">No assigned tasks</h2><p className="mt-2 text-sm text-secondary">General Requests assigned to you will appear here.</p></div>}
+      {!loading && !error && view === "board" && boardTasks.length === 0 && <div className="rounded-xl border border-divider bg-surface px-6 py-12 text-center"><h2 className="text-lg font-semibold">No assigned requests</h2><p className="mt-2 text-sm text-secondary">General Requests assigned to you will appear here.</p></div>}
       {!loading && !error && view === "board" && boardError && <p role="alert" className="mb-4 rounded-[9px] bg-[#FFF1F0] px-4 py-3 text-sm text-[#B42318]">{boardError}</p>}
       {!loading && !error && view === "board" && boardTasks.length > 0 && <RequestKanbanBoard requests={boardTasks} onRequestClick={setSelectedRequestId} showAssignee dragEnabled statusUpdatePending={statusUpdating} onStatusDrop={moveTask} />}
       {!loading && !error && view === "table" && result && result.content.length > 0 && <div className="px-8 pb-6 pt-8 text-sm text-secondary">Showing {result.content.length} {result.content.length === 1 ? "task" : "tasks"} on this page</div>}
