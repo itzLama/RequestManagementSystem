@@ -108,8 +108,9 @@ class AuthSecurityIntegrationTests {
 
         jdbc.update("UPDATE users SET is_active=false WHERE email='nora.ahmed@example.com'");
         login("nora.ahmed@example.com", "Password123", csrf)
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("This account is inactive."));
+                // Inactive accounts get the same answer as a wrong password (no account-state disclosure).
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password."));
     }
 
     @Test

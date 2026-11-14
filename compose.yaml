@@ -1,21 +1,36 @@
 services:
   postgres:
-    image: postgres:16
+    # Pinned minor version; change deliberately (same major keeps the existing data volume compatible).
+    image: postgres:16.15
     container_name: request-management-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-request_management}
       POSTGRES_USER: ${POSTGRES_USER:-request_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
-      - "5432:5432"
+      # Loopback only: the backend runs on the same host. Never publish 5432 to the network.
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
 
   mailpit:
     image: axllent/mailpit:v1.31.4
+    environment:
+      # Optional web UI/API basic auth, "user:password" (several separated by spaces).
+      # Empty (the default) means no auth, which is acceptable only while bound to 127.0.0.1.
+      MP_UI_AUTH: ${MAILPIT_UI_AUTH:-}
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      # Loopback only: the inbox contains Guest OTP codes.
+      - "${MAILPIT_BIND_ADDRESS:-127.0.0.1}:1025:1025"
+      - "${MAILPIT_BIND_ADDRESS:-127.0.0.1}:8025:8025"
+    restart: unless-stopped
 
   clamav:
     image: clamav/clamav:1.4.6_base-debian13-slim

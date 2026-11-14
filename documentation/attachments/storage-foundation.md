@@ -25,7 +25,7 @@ set `MASAR_ATTACHMENTS_STORAGE_ENABLED=true` explicitly.
 
 Plain HTTP is accepted only when `ALLOW_INSECURE_HTTP=true` and the endpoint is
 `localhost`, `127.0.0.1`, or `::1`. Deployed environments must use HTTPS and
-must leave insecure HTTP disabled. Inject credentials through deployment
+must leave insecure HTTP disabled. Inject credentials through environment
 secrets; never place them in tracked files or expose them to the frontend.
 
 The application never creates buckets at startup. The configured private

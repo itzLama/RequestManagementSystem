@@ -317,20 +317,21 @@ npm run build
 - Spring Security enforces the ADMIN and EMPLOYEE roles on every route. Project APIs also enforce membership and archived-Project rules.
 - Sessions of deactivated or deleted users are rejected.
 - State-changing requests require a CSRF token.
-- Passwords are stored as BCrypt hashes.
+- Passwords are stored as BCrypt hashes. Sign-in is throttled per email address (5 failures lock it for 15 minutes), and wrong passwords, unknown emails and inactive accounts all get the same answer.
+- Pages send basic security headers (no framing, `nosniff`, referrer policy); JSON request bodies are capped at 256 KiB.
 - Guest Tracking uses expiring OTPs, attempt limits, hashed credentials, and a single-request session with an inactivity timeout. Guest responses omit all internal data.
 - Rich descriptions are validated on the server, and raw HTML is never stored or rendered.
 - Attachments are stored privately. They are scanned before anyone can download them, and downloads always go through the backend with authorization checks.
 - In-app notifications and live updates go only to Admins and current Project members. Internal-note notifications go to Admins only.
 - Secrets belong in environment variables, never in source control.
 
-Production deployments should use HTTPS, set `MASAR_GUEST_COOKIE_SECURE=true`, provide a strong unique Guest Tracking secret, restrict database and storage access, and use a production SMTP provider.
+The demo accounts created by the seed migrations use a published password: with `MASAR_PRODUCTION=true` the backend refuses to start while any of them is still active, so deactivate them or give them new passwords before going live. Live installations should use HTTPS, set `MASAR_GUEST_COOKIE_SECURE=true`, provide a strong unique Guest Tracking secret, restrict database and storage access, and use a production SMTP provider.
 
 ## Known limitations
 
 Full details are in [documentation/known-limitations.md](documentation/known-limitations.md).
 
-- **Guest rate limiting is in memory.** The Guest submission and Guest upload limits live in the backend process. They reset on restart and are not shared between backend instances. The submission limit is keyed by the connecting address, which is the Next.js proxy in the default setup. Guest Tracking code limits are stored in the database and are not affected.
+- **Rate limiting is in memory.** Sign-in throttling, the Guest submission and verification-code limits, and the Guest upload limit live in the backend process. They reset on restart and are not shared between backend instances. The Guest submission and verification-code limits are keyed by the connecting address, which is the Next.js proxy in the default setup; the per Tracking Number code and OTP-attempt limits are stored in the database and are not affected.
 - **Server-Sent Events assume a single backend instance.** Open notification and live-update streams are held in memory. With several instances, notifications still arrive through the 30-second fallback refresh, but other users see live project updates only after a resync or reload.
 
 Other scope notes:

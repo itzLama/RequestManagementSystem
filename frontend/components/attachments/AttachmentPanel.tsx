@@ -67,7 +67,7 @@ export function AttachmentPanel(props: Props) {
     try {
       if (props.mode === "internal") await attachmentApi.internalUpload(props.target, file);
       else await attachmentApi.guestUpload(file);
-      setNotice("Upload accepted. The file is being scanned and is not downloadable yet.");
+      setNotice("File uploaded. It will be available for download shortly.");
       await load(true);
     } catch (cause) {
       if (props.mode === "guest" && cause instanceof AttachmentApiError && cause.status === 401) props.onSessionExpired();
@@ -130,7 +130,7 @@ export function AttachmentPanel(props: Props) {
       return <li key={item.id} className="flex min-w-0 flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 gap-3"><File size={19} className="mt-0.5 shrink-0 text-accent" /><div className="min-w-0"><p data-i18n-skip className="break-all text-sm font-medium">{item.filename}</p><p className="mt-1 text-xs text-secondary">{formatBytes(item.sizeBytes)} · {item.uploadSource === "GUEST" ? "Uploaded by Guest" : "Internal upload"}</p><div className="mt-2 flex flex-wrap gap-2"><StatusBadge item={item} />{item.visibility === "GUEST_VISIBLE" && <span className="rounded-full bg-nav-active px-2 py-1 text-xs font-medium text-accent">Visible to Guest</span>}</div></div></div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <button type="button" disabled={!item.downloadable || workingId !== null} onClick={() => void download(item)} title={pending ? "Available after a clean security scan" : "Download attachment"} className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-divider px-3 text-xs font-medium disabled:opacity-45"><Download size={14} />Download</button>
+          <button type="button" disabled={!item.downloadable || workingId !== null} onClick={() => void download(item)} title={!pending ? "Download attachment" : item.scanStatus === "INFECTED" || item.scanStatus === "ERROR" ? "This file cannot be downloaded" : "Available once processing is complete"} className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-divider px-3 text-xs font-medium disabled:opacity-45"><Download size={14} />Download</button>
           {canShare && <button type="button" disabled={workingId !== null} onClick={() => setConfirm({ item, action: item.visibility === "GUEST_VISIBLE" ? "unshare" : "share" })} className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-divider px-3 text-xs font-medium">{item.visibility === "GUEST_VISIBLE" ? <EyeOff size={14} /> : <Eye size={14} />}{item.visibility === "GUEST_VISIBLE" ? "Unshare" : "Share with Guest"}</button>}
           {props.mode === "internal" && !props.readOnly && <button type="button" disabled={workingId !== null} onClick={() => setConfirm({ item, action: "delete" })} className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-[#F2B8B5] px-3 text-xs font-medium text-[#B42318] disabled:opacity-50"><Trash2 size={14} />Delete</button>}
         </div>
@@ -141,7 +141,7 @@ export function AttachmentPanel(props: Props) {
 }
 
 function StatusBadge({ item }: { item: TaskAttachment }) {
-  const label = item.downloadable ? "Available" : item.scanStatus === "INFECTED" ? "Blocked: infected" : item.scanStatus === "ERROR" ? "Scan failed" : item.storageStatus === "DELETION_PENDING" ? "Deleting" : "Security scan pending";
+  const label = item.downloadable ? "Available" : item.scanStatus === "INFECTED" ? "File rejected" : item.scanStatus === "ERROR" ? "File unavailable" : item.storageStatus === "DELETION_PENDING" ? "Deleting" : "Processing…";
   const tone = item.downloadable ? "bg-[#ECFDF3] text-[#027A48]" : item.scanStatus === "INFECTED" || item.scanStatus === "ERROR" ? "bg-[#FFF1F0] text-[#B42318]" : "bg-[#FFF8E6] text-[#8A6100]";
   return <span role="status" className={`rounded-full px-2 py-1 text-xs font-medium ${tone}`}>{label}</span>;
 }

@@ -93,7 +93,7 @@ docker compose --env-file .env --profile rustfs-poc down
   presigned URLs could reduce backend load later, but revocation and expiry
   must be shorter than the Guest session and generated only after every access
   check.
-- **Backup and recovery:** A durable deployment needs coordinated PostgreSQL
+- **Backup and recovery:** A durable installation needs coordinated PostgreSQL
   metadata and RustFS object backups, restore drills, retention policy,
   encryption/key-management decisions, monitoring, and capacity alerts. A
   single local Docker volume is not a production backup.

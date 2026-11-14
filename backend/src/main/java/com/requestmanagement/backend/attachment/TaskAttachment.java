@@ -298,7 +298,7 @@ public class TaskAttachment {
     Visibility changeVisibility(Visibility target) {
         if (target == null || target == visibility) return visibility;
         if (!isDownloadable()) {
-            throw invalidTransition("Only an available, clean attachment can change Guest visibility.");
+            throw invalidTransition("Only an available attachment can be shared with the Guest.");
         }
         Visibility previous = visibility;
         visibility = target;

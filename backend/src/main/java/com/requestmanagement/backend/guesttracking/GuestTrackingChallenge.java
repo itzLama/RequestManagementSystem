@@ -27,9 +27,12 @@ public class GuestTrackingChallenge {
         var c=new GuestTrackingChallenge(); c.id=UUID.randomUUID(); c.request=request;c.lookupDigest=lookup;c.otpDigest=digest;
         c.expiresAt=now.plusMinutes(10);c.failedAttempts=0;c.sentCount=1;c.lastSentAt=now;c.createdAt=now;return c;
     }
-    boolean available(LocalDateTime now){return consumedAt==null&&supersededAt==null&&expiresAt.isAfter(now)&&failedAttempts<5;}
+    static final int MAX_FAILED_ATTEMPTS=5;
+    boolean available(LocalDateTime now){return consumedAt==null&&supersededAt==null&&expiresAt.isAfter(now)&&failedAttempts<MAX_FAILED_ATTEMPTS;}
+    boolean attemptsExhausted(){return failedAttempts>=MAX_FAILED_ATTEMPTS;}
     void fail(){failedAttempts++;}
     void consume(LocalDateTime now){consumedAt=now;}
     void supersede(LocalDateTime now){supersededAt=now;}
-    void resend(String digest,LocalDateTime now){otpDigest=digest;expiresAt=now.plusMinutes(10);failedAttempts=0;lastSentAt=now;sentCount++;}
+    // Failed attempts are kept across resends: the 5-guess budget belongs to the challenge, not to each code.
+    void resend(String digest,LocalDateTime now){otpDigest=digest;expiresAt=now.plusMinutes(10);lastSentAt=now;sentCount++;}
 }

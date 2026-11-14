@@ -31,7 +31,7 @@ This assessment treats a feature as implemented only when a usable path was foun
 | Authentication | Server-side HTTP session established by credential login | `AuthController`, `AuthService`, `SecurityConfig` |
 | Authorization | Spring Security URL rules plus service-level role, ownership, assignment, and Project-membership checks | `SecurityConfig`, `ProjectAccessService`, feature services |
 | Email | Spring Mail; transactional events delivered after commit; Mailpit for local inspection | `notification/`, `compose.yaml` |
-| Local deployment | PostgreSQL and Mailpit in Docker Compose; frontend/backend run as separate applications | `compose.yaml`, `README.md` |
+| Local setup | PostgreSQL and Mailpit in Docker Compose; frontend/backend run as separate applications | `compose.yaml`, `README.md` |
 
 The browser renders Next.js client pages and calls same-origin `/api` URLs through the shared API client. Spring Boot owns authentication, authorization, validation, transactions, notification publication, and persistence. Most frontend pages load data directly after rendering rather than through server components.
 

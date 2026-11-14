@@ -18,6 +18,8 @@ export function GuestTrackingPortal({ initialTrackingNumber = "" }: { initialTra
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // The current code's wrong-attempt budget is used up (server 429 on verify/resend): only a new code helps.
+  const [attemptsExhausted, setAttemptsExhausted] = useState(false);
   const [data, setData] = useState<TrackingRequest | null>(null);
   const [messages, setMessages] = useState<TrackingMessage[]>([]);
   const [message, setMessage] = useState("");
@@ -44,23 +46,33 @@ export function GuestTrackingPortal({ initialTrackingNumber = "" }: { initialTra
   }, []);
 
   async function requestCode(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError("");
-    try { const response = await guestApi.requestCode(trackingNumber, email); setChallengeId(response.challengeId); setNotice(response.message); setCooldown(60); }
+    event.preventDefault(); await sendNewCode();
+  }
+
+  // Starts a NEW challenge (not a resend) for the same Tracking Number and email.
+  async function sendNewCode() {
+    setBusy(true); setError("");
+    try { const response = await guestApi.requestCode(trackingNumber, email); setChallengeId(response.challengeId); setNotice(response.message); setCode(""); setAttemptsExhausted(false); setCooldown(60); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to request a code."); }
     finally { setBusy(false); }
+  }
+
+  function codeFailure(cause: unknown, fallback: string) {
+    if (cause instanceof GuestApiError && cause.status === 429 && challengeId) { setAttemptsExhausted(true); setCode(""); setNotice(""); }
+    setError(cause instanceof Error ? cause.message : fallback);
   }
 
   async function verify(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
     try { await guestApi.verifyCode(challengeId, code); await load(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to verify the code."); }
+    catch (cause) { codeFailure(cause, "Unable to verify the code."); }
     finally { setBusy(false); }
   }
 
   async function resend() {
     setBusy(true); setError("");
     try { const response = await guestApi.resendCode(challengeId); setNotice(response.message); setCode(""); setCooldown(60); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to resend the code."); }
+    catch (cause) { codeFailure(cause, "Unable to resend the code."); }
     finally { setBusy(false); }
   }
 
@@ -81,7 +93,7 @@ export function GuestTrackingPortal({ initialTrackingNumber = "" }: { initialTra
     finally { setBusy(false); }
   }
 
-  if (!data) return <section><h1 className="text-2xl font-semibold">Track Request</h1><p className="mt-2 text-sm text-secondary">Verify the submitted email address to securely view one Guest Request.</p>{!challengeId ? <form onSubmit={requestCode} className="mt-7 space-y-5"><Field label="Tracking Number"><input required value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="e.g. 128" className={input} /></Field><Field label="Email Address"><input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={input} /></Field><button disabled={busy} className="h-11 rounded-[9px] bg-accent px-5 text-sm font-medium text-white disabled:opacity-60">{busy ? "Sending..." : "Send Verification Code"}</button></form> : <form onSubmit={verify} className="mt-7 space-y-5">{notice && <p role="status" className="rounded-[9px] bg-nav-active p-4 text-sm text-secondary">{notice}</p>}<Field label="Verification Code"><input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className={`${input} tracking-[0.35em]`} /></Field><div className="flex flex-wrap gap-3"><button disabled={busy || code.length !== 6} className="h-11 rounded-[9px] bg-accent px-5 text-sm font-medium text-white disabled:opacity-60">Verify Code</button><button type="button" disabled={busy || cooldown > 0} onClick={resend} className="h-11 rounded-[9px] border border-divider px-5 text-sm font-medium disabled:opacity-50">{cooldown > 0 ? `Resend in ${cooldown}s` : "Resend Code"}</button></div></form>}{error && <p role="alert" className="mt-4 text-sm text-[#B42318]">{error}</p>}</section>;
+  if (!data) return <section><h1 className="text-2xl font-semibold">Track Request</h1><p className="mt-2 text-sm text-secondary">Verify the submitted email address to securely view one Guest Request.</p>{!challengeId ? <form onSubmit={requestCode} className="mt-7 space-y-5"><Field label="Tracking Number"><input required value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="e.g. 128" className={input} /></Field><Field label="Email Address"><input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={input} /></Field><button disabled={busy} className="h-11 rounded-[9px] bg-accent px-5 text-sm font-medium text-white disabled:opacity-60">{busy ? "Sending..." : "Send Verification Code"}</button></form> : <form onSubmit={verify} className="mt-7 space-y-5">{notice && <p role="status" className="rounded-[9px] bg-nav-active p-4 text-sm text-secondary">{notice}</p>}<Field label="Verification Code"><input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className={`${input} tracking-[0.35em]`} /></Field><div className="flex flex-wrap gap-3">{attemptsExhausted ? <button type="button" disabled={busy} onClick={() => void sendNewCode()} className="h-11 rounded-[9px] bg-accent px-5 text-sm font-medium text-white disabled:opacity-60">Request a new code</button> : <><button disabled={busy || code.length !== 6} className="h-11 rounded-[9px] bg-accent px-5 text-sm font-medium text-white disabled:opacity-60">Verify Code</button><button type="button" disabled={busy || cooldown > 0} onClick={resend} className="h-11 rounded-[9px] border border-divider px-5 text-sm font-medium disabled:opacity-50">{cooldown > 0 ? `Resend in ${cooldown}s` : "Resend Code"}</button></>}</div></form>}{error && <p role="alert" className="mt-4 text-sm text-[#B42318]">{error}</p>}</section>;
 
   const classification = data.projectRequest ? localizedRecordLabel(data.workTypeName ?? "", data.workTypeNameAr, locale) : data.requestTypeName;
   const status = data.statusSemantic && data.statusSemantic in REQUEST_STATUS_LABELS ? REQUEST_STATUS_LABELS[data.statusSemantic as keyof typeof REQUEST_STATUS_LABELS] : data.statusName;

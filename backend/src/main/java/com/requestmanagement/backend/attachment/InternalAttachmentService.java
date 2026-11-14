@@ -206,13 +206,13 @@ public class InternalAttachmentService {
                 case UNAVAILABLE, UNAUTHORIZED, MISCONFIGURED -> HttpStatus.SERVICE_UNAVAILABLE;
                 case NOT_FOUND, UNEXPECTED -> HttpStatus.BAD_GATEWAY;
             };
-            return new ResponseStatusException(status, "Attachment quarantine storage operation failed.");
+            return new ResponseStatusException(status, "Attachment storage is temporarily unavailable. Please try again.");
         }
         if (exception instanceof AttachmentLifecycleException lifecycleException) {
             return lifecycleFailure(lifecycleException);
         }
         return new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                "Attachment quarantine storage operation failed.");
+                "Attachment storage is temporarily unavailable. Please try again.");
     }
 
     private ResponseStatusException lifecycleFailure(AttachmentLifecycleException exception) {

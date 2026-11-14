@@ -1,5 +1,7 @@
 package com.requestmanagement.backend;
 
+import com.requestmanagement.backend.security.RequestBodySizeLimitFilter;
+
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -55,7 +57,12 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, String>> handleUnreadableBody() {
+    public ResponseEntity<Map<String, String>> handleUnreadableBody(HttpMessageNotReadableException exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof RequestBodySizeLimitFilter.RequestBodyTooLargeException) {
+                return ResponseEntity.status(413).body(Map.of("message", RequestBodySizeLimitFilter.MESSAGE));
+            }
+        }
         return badRequest("Malformed request body.");
     }
 
