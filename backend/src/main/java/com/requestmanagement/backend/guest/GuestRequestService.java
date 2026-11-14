@@ -35,6 +35,7 @@ public class GuestRequestService {
     private final ProjectStatusService projectStatusService;
     private final ApplicationEventPublisher eventPublisher;
     private final com.requestmanagement.backend.usernotification.ProjectChangePublisher liveUpdates;
+    private final com.requestmanagement.backend.automation.AutomationTriggerPublisher automationTriggers;
 
     @Transactional(readOnly = true)
     public List<RequestTypeResponse> requestTypes() {
@@ -73,6 +74,7 @@ public class GuestRequestService {
         guestFormSubmissionService.saveAnswers(request, resolved.answers());
         eventPublisher.publishEvent(GuestEmailNotificationEvent.submitted(request));
         liveUpdates.changed(request, com.requestmanagement.backend.usernotification.ProjectChangeEvent.ChangeType.TASK_CREATED);
+        automationTriggers.taskCreated(request);
         return new GuestRequestCreatedResponse(request.getId());
     }
 

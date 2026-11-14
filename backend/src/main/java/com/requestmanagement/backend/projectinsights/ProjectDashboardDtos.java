@@ -28,7 +28,8 @@ public final class ProjectDashboardDtos {
 
     /** Built from existing records (tasks, status history, comments, attachments); never synthesized. */
     public record Activity(ActivityKind kind, Long taskId, String taskTitle, Long parentTaskId, String actorName,
-                           boolean actorIsGuest, String statusName, String statusSemantic, String fileName, LocalDateTime occurredAt) { }
+                           boolean actorIsGuest, String statusName, String statusSemantic, String fileName, LocalDateTime occurredAt,
+                           String automationRuleName, String automationRuleNameAr) { }
 
     public record Response(Long projectId, LocalDate today, int upcomingWindowDays, Completion completion,
                            List<StatusCount> statuses, List<PriorityCount> priorities, List<Workload> workload,

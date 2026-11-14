@@ -40,7 +40,8 @@ public class UserNotificationService {
     private static final String SELECT_ITEMS = """
             SELECT n.notification_id, n.notification_type, n.project_id, p.project_name,
                    n.request_id, r.title, r.parent_request_id, r.guest_name, n.actor_id, a.full_name AS actor_name,
-                   n.project_status_id, s.status_name, s.semantic_key, n.created_at, n.read_at
+                   n.project_status_id, s.status_name, s.semantic_key,
+                   n.automation_rule_name, n.automation_rule_name_ar, n.created_at, n.read_at
               FROM user_notifications n
               JOIN projects p ON p.project_id = n.project_id
               JOIN requests r ON r.request_id = n.request_id
@@ -56,6 +57,7 @@ public class UserNotificationService {
             rs.getObject("parent_request_id", Long.class), rs.getString("guest_name"),
             rs.getObject("actor_id", Long.class), rs.getString("actor_name"),
             rs.getObject("project_status_id", Long.class), rs.getString("status_name"), rs.getString("semantic_key"),
+            rs.getString("automation_rule_name"), rs.getString("automation_rule_name_ar"),
             toLocal(rs.getTimestamp("created_at")), toLocal(rs.getTimestamp("read_at")));
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -75,11 +77,15 @@ public class UserNotificationService {
                 .addValue("task", event.taskId())
                 .addValue("actor", event.actorId())
                 .addValue("status", event.statusId())
+                .addValue("rule", event.automationRuleId())
+                .addValue("ruleName", event.automationRuleName())
+                .addValue("ruleNameAr", event.automationRuleNameAr())
                 .addValue("now", Timestamp.valueOf(LocalDateTime.now()));
         List<Long> ids = jdbc.queryForList("""
                 INSERT INTO user_notifications(recipient_id, notification_type, project_id, request_id,
-                                               actor_id, project_status_id, created_at)
-                SELECT :recipient, :type, :project, :task, :actor, :status, :now
+                                               actor_id, project_status_id, automation_rule_id,
+                                               automation_rule_name, automation_rule_name_ar, created_at)
+                SELECT :recipient, :type, :project, :task, :actor, :status, :rule, :ruleName, :ruleNameAr, :now
                  WHERE EXISTS (SELECT 1 FROM users u
                                 WHERE u.user_id = :recipient AND u.is_active
                                   AND (u.role = 'ADMIN'

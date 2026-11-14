@@ -54,7 +54,7 @@ export function ProjectPlanningViews({ view, projectId, access, tasks, statuses,
     {notice && <p role="status" className="rounded-[9px] bg-[#E9F8F0] px-4 py-3 text-sm text-[#227A4B]">{notice}</p>}
     {view === "table" && <ProjectTaskTable tasks={tasks} statuses={statuses} today={today} onOpen={onOpen} />}
     {view === "calendar" && <ProjectTaskCalendar tasks={tasks} statuses={statuses} today={today} readOnly={readOnly} onOpen={onOpen} onReschedule={reschedule} />}
-    {view === "roadmap" && <ProjectTaskRoadmap tasks={tasks} statuses={statuses} today={today} onOpen={onOpen} />}
+    {view === "roadmap" && <ProjectTaskRoadmap tasks={tasks} statuses={statuses} today={today} readOnly={readOnly} onOpen={onOpen} onReschedule={reschedule} />}
     {view === "dashboard" && <ProjectDashboard projectId={projectId} access={access} tasks={tasks} onOpen={onOpen} onSessionExpired={onSessionExpired} />}
   </div>;
 }

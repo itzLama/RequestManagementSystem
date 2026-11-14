@@ -19,5 +19,15 @@ public record CreateProjectTaskRequest(
         @NotNull(message = "Assignee is required.")
         @Positive(message = "Assignee ID must be positive.") Long assignedToId,
         LocalDate startDate,
-        LocalDate dueDate
-) { }
+        LocalDate dueDate,
+        /*
+         * Sent by the Create Task form only when the user replaced the assignee suggested by a
+         * "task created -> assign" automation rule. Those assign actions then leave this Task alone;
+         * every other automation action still runs.
+         */
+        Boolean assigneeManuallySelected
+) {
+    public boolean keepsChosenAssignee() {
+        return Boolean.TRUE.equals(assigneeManuallySelected);
+    }
+}

@@ -17,7 +17,7 @@ export type ProjectTaskMember = { employeeId: number; fullName: string; email: s
 export type ProjectTask = { id: number; title: string; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; createdAt: string; requesterName: string; guest: boolean; startDate: string | null; dueDate: string | null };
 export type SubtaskSummary = { id: number; title: string; statusId: number; statusName: string; statusSemantic: string | null; assignedToId: number | null; assignedToName: string | null; countsAsCompleted: boolean; startDate: string | null; dueDate: string | null };
 export type RichCreationDescription = { description?: string; descriptionDocument?: unknown };
-export type ProjectTaskInput = RichCreationDescription & { title: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number; startDate?: string | null; dueDate?: string | null };
+export type ProjectTaskInput = RichCreationDescription & { title: string; workTypeId: number; priority: "LOW" | "MEDIUM" | "HIGH"; assignedToId: number; startDate?: string | null; dueDate?: string | null; /** Sent only when the user replaced the assignee suggested by a "task created" automation rule. */ assigneeManuallySelected?: boolean };
 export type TaskDatesInput = { startDate: string | null; dueDate: string | null };
 export type TaskDatesResponse = { startDate: string | null; dueDate: string | null };
 export type TaskTemplate = { id: number; name: string; nameAr: string; workTypeId: number; workTypeName: string; workTypeNameAr: string | null; workTypeActive: boolean; priority: "LOW" | "MEDIUM" | "HIGH"; defaultTitle: string; description: string; descriptionDocument: unknown; dueOffsetDays: number | null; createdAt: string; updatedAt: string };
@@ -43,7 +43,7 @@ function projectTaskStatusResponse(response: ProjectTaskStatusResponse): Project
 
 export type DashboardTaskRef = { taskId: number; title: string; priority: "LOW" | "MEDIUM" | "HIGH"; statusId: number; statusName: string; statusSemantic: string | null; assigneeId: number | null; assigneeName: string | null; startDate: string | null; dueDate: string | null };
 export type DashboardActivityKind = "TASK_CREATED" | "STATUS_CHANGED" | "COMMENT_ADDED" | "ATTACHMENT_UPLOADED";
-export type DashboardActivity = { kind: DashboardActivityKind; taskId: number; taskTitle: string; parentTaskId: number | null; actorName: string | null; actorIsGuest: boolean; statusName: string | null; statusSemantic: string | null; fileName: string | null; occurredAt: string };
+export type DashboardActivity = { kind: DashboardActivityKind; taskId: number; taskTitle: string; parentTaskId: number | null; actorName: string | null; actorIsGuest: boolean; statusName: string | null; statusSemantic: string | null; fileName: string | null; occurredAt: string; automationRuleName: string | null; automationRuleNameAr: string | null };
 export type ProjectDashboard = {
   projectId: number; today: string; upcomingWindowDays: number;
   completion: { totalTasks: number; completedTasks: number; openTasks: number; percentage: number };

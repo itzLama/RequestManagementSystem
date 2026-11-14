@@ -2,13 +2,15 @@ import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
 import { projectStatusDisplayName } from "@/lib/request-display";
 import type { Locale } from "@/lib/i18n";
 
-export type NotificationType = "TASK_ASSIGNED" | "TASK_STATUS_CHANGED" | "TASK_COMMENTED" | "TASK_INTERNAL_NOTE" | "GUEST_MESSAGE";
+export type NotificationType = "TASK_ASSIGNED" | "TASK_STATUS_CHANGED" | "TASK_COMMENTED" | "TASK_INTERNAL_NOTE" | "GUEST_MESSAGE" | "AUTOMATION_NOTIFY";
 
 /** References only; the message is composed here in the reader's language. */
 export type UserNotification = {
   id: number; type: NotificationType; projectId: number; projectName: string; taskId: number; taskTitle: string;
   parentTaskId: number | null; guestName: string | null; actorId: number | null; actorName: string | null; statusId: number | null;
   statusName: string | null; statusSemantic: string | null; createdAt: string; readAt: string | null;
+  /** Set when a Workflow Automation rule made the change: the rule is the actor, never a person. */
+  automationRuleName: string | null; automationRuleNameAr: string | null;
 };
 export type NotificationPage = { items: UserNotification[]; page: number; size: number; hasMore: boolean; unreadCount: number };
 export type UnreadCount = { unreadCount: number };
@@ -31,15 +33,16 @@ export const notificationApi = {
 };
 
 export function notificationMessage(item: UserNotification, locale: Locale): string {
-  const actor = item.actorName ?? (locale === "ar" ? "مستخدم" : "Someone");
+  const rule = item.automationRuleName ? (locale === "ar" && item.automationRuleNameAr?.trim() ? item.automationRuleNameAr : item.automationRuleName) : null;
+  const actor = rule ? (locale === "ar" ? `قاعدة الأتمتة «${rule}»` : `Automation rule "${rule}"`) : item.actorName ?? (locale === "ar" ? "مستخدم" : "Someone");
   const task = `#${item.taskId} ${item.taskTitle}`;
   const kind = item.parentTaskId ? (locale === "ar" ? "المهمة الفرعية" : "subtask") : (locale === "ar" ? "المهمة" : "task");
   switch (item.type) {
     case "TASK_ASSIGNED":
-      return locale === "ar" ? `أسند ${actor} إليك ${kind} ${task}` : `${actor} assigned you the ${kind} ${task}`;
+      return locale === "ar" ? `${rule ? "أسندت" : "أسند"} ${actor} إليك ${kind} ${task}` : `${actor} assigned you the ${kind} ${task}`;
     case "TASK_STATUS_CHANGED": {
       const status = item.statusName ? projectStatusDisplayName(item.statusName, item.statusSemantic, locale) : "";
-      return locale === "ar" ? `غيّر ${actor} حالة ${kind} ${task} إلى «${status}»` : `${actor} moved the ${kind} ${task} to "${status}"`;
+      return locale === "ar" ? `${rule ? "غيّرت" : "غيّر"} ${actor} حالة ${kind} ${task} إلى «${status}»` : `${actor} moved the ${kind} ${task} to "${status}"`;
     }
     case "TASK_COMMENTED":
       return locale === "ar" ? `علّق ${actor} على ${kind} ${task}` : `${actor} commented on the ${kind} ${task}`;
@@ -49,6 +52,8 @@ export function notificationMessage(item: UserNotification, locale: Locale): str
       const guest = item.guestName ?? (locale === "ar" ? "الضيف" : "The guest");
       return locale === "ar" ? `أرسل الضيف ${guest} رسالة على ${kind} ${task}` : `Guest ${guest} sent a message on the ${kind} ${task}`;
     }
+    case "AUTOMATION_NOTIFY":
+      return locale === "ar" ? `نبّهتك ${actor} بشأن ${kind} ${task}` : `${actor} flagged the ${kind} ${task} for you`;
   }
 }
 

@@ -78,7 +78,12 @@ public class ProjectTaskTemplateService {
     public void delete(Long projectId, Long templateId, Long adminId) {
         requireActiveAdmin(adminId);
         requireMutableProject(projectId);
-        repository.delete(requireOwned(projectId, templateId));
+        ProjectTaskTemplate template = requireOwned(projectId, templateId);
+        if (repository.countRecurringRules(templateId) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This Task Template is used by a Recurring Task rule. Delete or change that rule first.");
+        }
+        repository.delete(template);
         repository.flush();
     }
 

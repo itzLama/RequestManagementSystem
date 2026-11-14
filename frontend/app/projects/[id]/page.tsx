@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, ArrowLeft, CalendarDays, ClipboardList, LayoutTemplate, Pencil, Plus, Settings, Users } from "lucide-react";
+import { Archive, ArrowLeft, CalendarDays, ClipboardList, LayoutTemplate, Pencil, Plus, Repeat, Settings, Users, Workflow } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -9,6 +9,8 @@ import { ProjectTeamSection } from "@/components/admin/ProjectTeamSection";
 import { ProjectWorkTypesSection } from "@/components/admin/ProjectWorkTypesSection";
 import { ProjectGuestFormSection } from "@/components/admin/ProjectGuestFormSection";
 import { ProjectTaskTemplatesSection } from "@/components/admin/ProjectTaskTemplatesSection";
+import { ProjectRecurringTasksSection } from "@/components/admin/ProjectRecurringTasksSection";
+import { ProjectAutomationSection } from "@/components/admin/ProjectAutomationSection";
 import { ProjectStatusDialog } from "@/components/admin/ProjectStatusDialog";
 import { ConfirmationDialog } from "@/components/admin/ConfirmationDialog";
 import { ProjectTaskDetails } from "@/components/employee/ProjectTaskDetails";
@@ -22,7 +24,7 @@ import { formatRequestDateTime as formatDateTime } from "@/lib/request-display";
 import { projectApi, ProjectApiError, type EmployeeOption, type Project, type ProjectInput, type ProjectMember, type ProjectTask, type ProjectTaskStatus, type ProjectWorkType, type ProjectStatusColumn, type TaskTemplate, type TaskTemplateInput } from "@/lib/project-api";
 import { useI18n } from "@/lib/i18n";
 
-type Tab = "board" | "team" | "work-types" | "task-templates" | "guest-form" | "details";
+type Tab = "board" | "team" | "work-types" | "task-templates" | "recurring" | "automation" | "guest-form" | "details";
 type StatusDialogState = { mode: "add" } | { mode: "rename"; column: KanbanColumn } | { mode: "delete"; column: KanbanColumn } | { mode: "populated"; column: KanbanColumn; taskCount: number };
 type ConfirmationState = { mode: "archive" } | { mode: "remove-member"; member: ProjectMember };
 
@@ -84,7 +86,7 @@ export default function ProjectDetailsPage() {
   if (loading) return <section className="rounded-xl border border-divider bg-surface px-6 py-10 text-sm text-secondary" role="status">Loading project workspace...</section>;
   if (error || !project) return <section className="rounded-xl border border-divider bg-surface px-6 py-10" role="alert"><p className="text-sm text-[#B42318]">{error || "Unable to load project."}</p><button type="button" onClick={() => setReload((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></section>;
   const archived = project.status === "ARCHIVED"; const taskMembers = members.map((member) => ({ employeeId: member.employeeId, fullName: member.fullName, email: member.email, active: member.active }));
-  const tabs: { id: Tab; label: string; icon: typeof ClipboardList }[] = [{ id: "board", label: "Tasks", icon: ClipboardList }, { id: "team", label: "Team Members", icon: Users }, { id: "work-types", label: "Work Types", icon: Settings }, { id: "task-templates", label: "Task Templates", icon: LayoutTemplate }, { id: "guest-form", label: "Guest Form", icon: Settings }, { id: "details", label: "Project Details", icon: Settings }];
+  const tabs: { id: Tab; label: string; icon: typeof ClipboardList }[] = [{ id: "board", label: "Tasks", icon: ClipboardList }, { id: "team", label: "Team Members", icon: Users }, { id: "work-types", label: "Work Types", icon: Settings }, { id: "task-templates", label: "Task Templates", icon: LayoutTemplate }, { id: "recurring", label: "Recurring Tasks", icon: Repeat }, { id: "automation", label: "Automation", icon: Workflow }, { id: "guest-form", label: "Guest Form", icon: Settings }, { id: "details", label: "Project Details", icon: Settings }];
   return <div className="space-y-5">
     <Link href="/projects" className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"><ArrowLeft size={17} aria-hidden="true" className="rtl:scale-x-negative" />Back to Projects</Link>
     <section className="rounded-xl border border-divider bg-surface p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-5"><div><div className="flex flex-wrap items-center gap-3"><h2 data-i18n-skip className="text-xl font-semibold">{project.name}</h2><span className={`rounded-full px-3 py-1 text-xs font-semibold ${archived ? "bg-background text-secondary" : "bg-[#E9F8F0] text-[#227A4B]"}`}>{archived ? "Archived" : "Active"}</span></div><p className="mt-2 text-sm text-secondary">Admin Project workspace</p></div>{tab === "board" && !archived && <button type="button" onClick={() => { setSuccess(""); setCreating(true); }} className="inline-flex h-11 items-center gap-2 rounded-[9px] bg-accent px-5 text-sm font-medium text-white"><Plus size={18} />Create Task</button>}</div>{archived && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project is archived. Tasks, team membership, and project settings are read-only.</p>}{success && <p role="status" className="mt-5 rounded-[9px] bg-[#E9F8F0] px-4 py-3 text-sm text-[#227A4B]">{success}</p>}</section>
@@ -93,6 +95,8 @@ export default function ProjectDetailsPage() {
     {tab === "team" && <ProjectTeamSection members={members} employees={employees} readOnly={archived} busy={busy} error={teamError} onAdd={addMember} onRemove={async(member)=>{setConfirmation({mode:"remove-member",member})}} />}
     {tab === "work-types" && <ProjectWorkTypesSection workTypes={workTypes} readOnly={archived} busy={busy} error={workTypeError} onAdd={addWorkType} onRename={renameWorkType} onRetire={retireWorkType} />}
     {tab === "task-templates" && <ProjectTaskTemplatesSection templates={templates} workTypes={workTypes} readOnly={archived} busy={busy} error={templateError} onSave={saveTemplate} onDelete={deleteTemplate} />}
+    {tab === "recurring" && <ProjectRecurringTasksSection projectId={project.id} templates={templates} members={members} readOnly={archived} onOpenTask={setSelectedId} onSessionExpired={() => router.replace("/login")} />}
+    {tab === "automation" && <ProjectAutomationSection projectId={project.id} statuses={statuses} workTypes={workTypes} members={members} readOnly={archived} onOpenTask={setSelectedId} onSessionExpired={() => router.replace("/login")} />}
     {tab === "guest-form" && <ProjectGuestFormSection projectId={project.id} workTypes={workTypes} readOnly={archived} />}
     {tab === "details" && <section className="rounded-xl border border-divider bg-surface p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-5"><div><h3 className="text-lg font-semibold">Project Details</h3><p data-i18n-skip={project.description ? true : undefined} className="mt-3 whitespace-pre-wrap text-sm leading-6 text-secondary">{project.description ?? "No description provided."}</p></div>{!archived && <div className="flex gap-2"><button type="button" onClick={() => { setFormError(""); setEditing(true); }} className="inline-flex h-10 items-center gap-2 rounded-[9px] bg-nav-active px-4 text-sm font-medium text-accent"><Pencil size={16} />Edit</button><button type="button" disabled={busy} onClick={()=>setConfirmation({mode:"archive"})} className="inline-flex h-10 items-center gap-2 rounded-[9px] border border-divider px-4 text-sm font-medium text-secondary hover:bg-nav-hover"><Archive size={16} />Archive</button></div>}</div><dl className="mt-6 grid gap-4 border-t border-divider pt-5 sm:grid-cols-2"><div><dt className="flex items-center gap-2 text-xs text-secondary"><CalendarDays size={15} />Created</dt><dd className="mt-1 text-sm font-medium">{formatRequestDateTime(project.createdAt)}</dd></div><div><dt className="flex items-center gap-2 text-xs text-secondary"><CalendarDays size={15} />Last Updated</dt><dd className="mt-1 text-sm font-medium">{formatRequestDateTime(project.updatedAt)}</dd></div></dl></section>}
     {editing && <ProjectFormDialog project={project} busy={busy} error={formError} onClose={() => setEditing(false)} onSave={update} />}

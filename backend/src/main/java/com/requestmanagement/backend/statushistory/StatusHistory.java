@@ -61,6 +61,16 @@ public class StatusHistory {
     @Column(name = "changed_at", nullable = false)
     private LocalDateTime changedAt;
 
+    /** Set when a Workflow Automation rule made the change (snapshot of the rule's names). */
+    @Column(name = "automation_rule_id")
+    private Long automationRuleId;
+
+    @Column(name = "automation_rule_name", length = 100)
+    private String automationRuleName;
+
+    @Column(name = "automation_rule_name_ar", length = 100)
+    private String automationRuleNameAr;
+
     public static StatusHistory create(Request request, RequestStatus oldStatus,
                                        RequestStatus newStatus, User changedBy, String note) {
         StatusHistory history = new StatusHistory();
@@ -84,6 +94,11 @@ public class StatusHistory {
         history.changedBy = changedBy;
         history.changeNote = note;
         history.changedAt = LocalDateTime.now();
+        com.requestmanagement.backend.automation.AutomationContext.current().ifPresent(rule -> {
+            history.automationRuleId = rule.id();
+            history.automationRuleName = rule.name();
+            history.automationRuleNameAr = rule.nameAr();
+        });
         return history;
     }
 

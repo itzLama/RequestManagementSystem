@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CheckCheck, Lock, Mail, MessageSquare, RefreshCw, UserPlus } from "lucide-react";
+import { Bell, CheckCheck, Lock, Mail, MessageSquare, RefreshCw, UserPlus, Workflow } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
@@ -12,7 +12,7 @@ import {
 
 const FALLBACK_POLL_MS = 30_000;
 const MAX_RECONNECT_MS = 60_000;
-const TYPE_ICONS = { TASK_ASSIGNED: UserPlus, TASK_STATUS_CHANGED: RefreshCw, TASK_COMMENTED: MessageSquare, TASK_INTERNAL_NOTE: Lock, GUEST_MESSAGE: Mail } as const;
+const TYPE_ICONS = { TASK_ASSIGNED: UserPlus, TASK_STATUS_CHANGED: RefreshCw, TASK_COMMENTED: MessageSquare, TASK_INTERNAL_NOTE: Lock, GUEST_MESSAGE: Mail, AUTOMATION_NOTIFY: Workflow } as const;
 
 /**
  * Header notification center. Live updates arrive over Server-Sent Events (EventSource reconnects

@@ -8,5 +8,7 @@ public enum UserNotificationType {
     /** Admin-only: an internal note was added. Never delivered to Employees. */
     TASK_INTERNAL_NOTE,
     /** A guest sent a message on a guest-submitted Project Task (no internal actor). */
-    GUEST_MESSAGE
+    GUEST_MESSAGE,
+    /** A Workflow Automation rule's "notify members" action (no internal actor). */
+    AUTOMATION_NOTIFY
 }

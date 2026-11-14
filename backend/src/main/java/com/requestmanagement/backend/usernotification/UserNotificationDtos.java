@@ -21,6 +21,9 @@ public final class UserNotificationDtos {
             Long statusId,
             String statusName,
             String statusSemantic,
+            /** Set when the change was made by a Workflow Automation rule (snapshot of its names). */
+            String automationRuleName,
+            String automationRuleNameAr,
             LocalDateTime createdAt,
             LocalDateTime readAt
     ) { }

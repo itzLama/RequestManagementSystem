@@ -178,6 +178,10 @@ function activityText(item: DashboardActivity, locale: Locale): string {
       return ar ? `أنشأ ${actor} ${kind} ${task}` : `${actor} created the ${kind} ${task}`;
     case "STATUS_CHANGED": {
       const status = item.statusName ? projectStatusDisplayName(item.statusName, item.statusSemantic, locale) : "";
+      if (item.automationRuleName) {
+        const rule = ar && item.automationRuleNameAr?.trim() ? item.automationRuleNameAr : item.automationRuleName;
+        return ar ? `غيّرت قاعدة الأتمتة «${rule}» حالة ${kind} ${task} إلى «${status}»` : `Automation rule "${rule}" moved the ${kind} ${task} to "${status}"`;
+      }
       return ar ? `غيّر ${actor} حالة ${kind} ${task} إلى «${status}»` : `${actor} moved the ${kind} ${task} to "${status}"`;
     }
     case "COMMENT_ADDED":

@@ -1,5 +1,6 @@
 package com.requestmanagement.backend.usernotification;
 
+import com.requestmanagement.backend.automation.AutomationContext;
 import com.requestmanagement.backend.comment.CommentRepository;
 import com.requestmanagement.backend.request.Request;
 import com.requestmanagement.backend.user.User;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -88,11 +90,24 @@ public class TaskNotificationPublisher {
         return actor == null ? null : actor.getId();
     }
 
+    /**
+     * Workflow Automation "notify members" action. The recipients were chosen by an Administrator
+     * on the rule; membership is enforced again when each notification is recorded.
+     */
+    public void automationNotify(Request task, Collection<Long> recipients) {
+        publish(UserNotificationType.AUTOMATION_NOTIFY, task, null, null, new LinkedHashSet<>(recipients));
+    }
+
     private void publish(UserNotificationType type, Request task, Long actorId, Long statusId, Set<Long> recipients) {
         if (task == null || !task.isProjectTask() || task.getId() == null) return;
-        if (actorId != null) recipients.remove(actorId);
+        // Changes made by an automation rule are attributed to the rule, never to a person.
+        AutomationContext.Rule rule = AutomationContext.current().orElse(null);
+        Long actor = rule == null ? actorId : null;
+        if (actor != null) recipients.remove(actor);
         for (Long recipient : recipients) {
-            events.publishEvent(new TaskNotificationEvent(type, recipient, actorId, task.getProject().getId(), task.getId(), statusId));
+            events.publishEvent(new TaskNotificationEvent(type, recipient, actor, task.getProject().getId(), task.getId(),
+                    statusId, rule == null ? null : rule.id(), rule == null ? null : rule.name(),
+                    rule == null ? null : rule.nameAr()));
         }
     }
 }

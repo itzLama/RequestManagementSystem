@@ -55,12 +55,15 @@ public class ProjectDashboardService {
             SELECT * FROM (
                 SELECT 'TASK_CREATED' AS kind, r.request_id AS task_id, r.title, r.parent_request_id,
                        COALESCE(u.full_name, r.guest_name) AS actor_name, (r.created_by IS NULL) AS actor_is_guest,
-                       NULL AS status_name, NULL AS status_semantic, NULL AS file_name, r.created_at AS occurred_at, 1 AS kind_order, r.request_id AS source_id
+                       NULL AS status_name, NULL AS status_semantic, NULL AS file_name, r.created_at AS occurred_at, 1 AS kind_order, r.request_id AS source_id,
+                       NULL AS rule_name, NULL AS rule_name_ar
                   FROM requests r LEFT JOIN users u ON u.user_id = r.created_by
                  WHERE r.project_id = :project
                 UNION ALL
-                SELECT 'STATUS_CHANGED', r.request_id, r.title, r.parent_request_id, u.full_name, FALSE,
-                       ns.status_name, ns.semantic_key, NULL, h.changed_at, 2, h.history_id
+                SELECT 'STATUS_CHANGED', r.request_id, r.title, r.parent_request_id,
+                       CASE WHEN h.automation_rule_name IS NULL THEN u.full_name END, FALSE,
+                       ns.status_name, ns.semantic_key, NULL, h.changed_at, 2, h.history_id,
+                       h.automation_rule_name, h.automation_rule_name_ar
                   FROM status_history h
                   JOIN requests r ON r.request_id = h.request_id
                   JOIN users u ON u.user_id = h.changed_by
@@ -68,7 +71,7 @@ public class ProjectDashboardService {
                  WHERE r.project_id = :project AND h.old_project_status_id IS NOT NULL
                 UNION ALL
                 SELECT 'COMMENT_ADDED', r.request_id, r.title, r.parent_request_id, u.full_name, FALSE,
-                       NULL, NULL, NULL, c.created_at, 3, c.comment_id
+                       NULL, NULL, NULL, c.created_at, 3, c.comment_id, NULL, NULL
                   FROM comments c
                   JOIN requests r ON r.request_id = c.request_id
                   JOIN users u ON u.user_id = c.user_id
@@ -76,7 +79,7 @@ public class ProjectDashboardService {
                 UNION ALL
                 SELECT 'ATTACHMENT_UPLOADED', r.request_id, r.title, r.parent_request_id,
                        COALESCE(u.full_name, r.guest_name), (a.upload_source = 'GUEST'),
-                       NULL, NULL, a.original_filename, a.created_at, 4, a.attachment_id
+                       NULL, NULL, a.original_filename, a.created_at, 4, a.attachment_id, NULL, NULL
                   FROM task_attachments a
                   JOIN requests r ON r.request_id = a.request_id
                   LEFT JOIN users u ON u.user_id = a.uploaded_by_user_id
@@ -179,7 +182,8 @@ public class ProjectDashboardService {
                 new ProjectDashboardDtos.Activity(ProjectDashboardDtos.ActivityKind.valueOf(rs.getString("kind")),
                         rs.getLong("task_id"), rs.getString("title"), rs.getObject("parent_request_id", Long.class),
                         rs.getString("actor_name"), rs.getBoolean("actor_is_guest"), rs.getString("status_name"), rs.getString("status_semantic"),
-                        rs.getString("file_name"), toLocalDateTime(rs.getTimestamp("occurred_at"))));
+                        rs.getString("file_name"), toLocalDateTime(rs.getTimestamp("occurred_at")),
+                        rs.getString("rule_name"), rs.getString("rule_name_ar")));
 
         return new ProjectDashboardDtos.Response(projectId, today, UPCOMING_WINDOW_DAYS, completion, statuses,
                 priorities, workload, overdueCount, overdue, upcomingCount, upcoming, activity);

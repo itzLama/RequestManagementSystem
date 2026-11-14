@@ -18,6 +18,8 @@ import com.requestmanagement.backend.attachment.AttachmentDeletionService;
 import com.requestmanagement.backend.usernotification.TaskNotificationPublisher;
 import com.requestmanagement.backend.usernotification.ProjectChangePublisher;
 import com.requestmanagement.backend.usernotification.ProjectChangeEvent.ChangeType;
+import com.requestmanagement.backend.automation.AutomationTriggerPublisher;
+import com.requestmanagement.backend.tasktemplate.ProjectTaskTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class ProjectTaskService {
     private final AttachmentDeletionService attachmentDeletionService;
     private final TaskNotificationPublisher notifications;
     private final ProjectChangePublisher liveUpdates;
+    private final AutomationTriggerPublisher automationTriggers;
 
     @Transactional(readOnly = true)
     public List<ProjectTaskBoardResponse> board(Long projectId, Long employeeId) {
@@ -74,6 +77,7 @@ public class ProjectTaskService {
         Request saved = requestRepository.save(task);
         notifications.assigned(saved, creator);
         liveUpdates.changed(saved, ChangeType.TASK_CREATED);
+        automationTriggers.taskCreated(saved, input.keepsChosenAssignee());
         return ProjectTaskBoardResponse.from(saved);
     }
 
@@ -133,6 +137,7 @@ public class ProjectTaskService {
             requestRepository.save(task);
             notifications.assigned(task, actor);
             liveUpdates.changed(task, ChangeType.ASSIGNEE_CHANGED);
+            automationTriggers.assigneeChanged(task);
         }
         return details(task);
     }
@@ -177,6 +182,7 @@ public class ProjectTaskService {
         Request saved = requestRepository.save(task);
         notifications.assigned(saved, admin);
         liveUpdates.changed(saved, ChangeType.TASK_CREATED);
+        automationTriggers.taskCreated(saved, input.keepsChosenAssignee());
         return ProjectTaskBoardResponse.from(saved);
     }
 
@@ -242,6 +248,7 @@ public class ProjectTaskService {
             requestRepository.save(task);
             notifications.assigned(task, admin);
             liveUpdates.changed(task, ChangeType.ASSIGNEE_CHANGED);
+            automationTriggers.assigneeChanged(task);
         }
         return adminDetails(task);
     }
@@ -282,6 +289,47 @@ public class ProjectTaskService {
             permanentDeletionService.delete(task);
         }
         liveUpdates.changed(projectId, taskId, ChangeType.TASK_DELETED);
+    }
+
+    /**
+     * Creates one Recurring Task occurrence through the normal creation path: initial (NEW) status,
+     * fields and validated description from the Template, creator = the rule's owner, and the usual
+     * assignment notification, live update and "task created" automation trigger. The caller
+     * (the recurring task runner) has already checked the project, work type, owner and assignee.
+     * A rule without a default assignee creates an unassigned Task, like a guest submission.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public Request createRecurringOccurrence(Project project, User owner, ProjectTaskTemplate template, User assignee,
+                                             java.time.LocalDate startDate, java.time.LocalDate dueDate) {
+        projectAccessService.requireActive(project);
+        ProjectWorkType workType = projectWorkTypeService.requireActiveForProject(project.getId(), template.getWorkType().getId());
+        RichDescriptionValidator.ValidatedDocument description = richDescriptionValidator.validate(template.getDescriptionDocument());
+        Request task = Request.createProjectTask(template.getDefaultTitle().trim(), description.plainText(), workType,
+                template.getPriority(), owner, assignee, project, projectStatusService.initial(project.getId()), null);
+        task.updateRichDescription(description.document(), description.plainText());
+        schedule(task, startDate, dueDate);
+        Request saved = requestRepository.save(task);
+        notifications.assigned(saved, owner);
+        liveUpdates.changed(saved, ChangeType.TASK_CREATED);
+        automationTriggers.taskCreated(saved);
+        return saved;
+    }
+
+    /**
+     * Workflow Automation "assign" action (runs inside the rule's own transaction and automation
+     * context, so it raises no further automation and is attributed to the rule).
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public boolean applyAutomationAssignee(Request task, User assignee) {
+        projectAccessService.requireActive(task.getProject());
+        User eligible = projectAccessService.requireEligibleAssignee(task.getProject(), assignee.getId());
+        if (task.getAssignedTo() != null && task.getAssignedTo().getId().equals(eligible.getId())) return false;
+        task.assignTo(eligible);
+        requestRepository.save(task);
+        notifications.assigned(task, null);
+        liveUpdates.changed(task, ChangeType.ASSIGNEE_CHANGED);
+        automationTriggers.assigneeChanged(task);
+        return true;
     }
 
     @Transactional(readOnly = true)

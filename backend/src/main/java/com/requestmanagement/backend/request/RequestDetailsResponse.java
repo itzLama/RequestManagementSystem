@@ -15,14 +15,18 @@ public record RequestDetailsResponse(
                                 Long oldProjectStatusId, String oldProjectStatusName,
                                 String oldProjectStatusSemantic,
                                 Long newProjectStatusId, String newProjectStatusName, String newProjectStatusSemantic,
-                                String changedByName, String changeNote, LocalDateTime changedAt) {
+                                String changedByName, String changeNote, LocalDateTime changedAt,
+                                String automationRuleName, String automationRuleNameAr) {
         public static TimelineEntry from(StatusHistory history) {
             return new TimelineEntry(history.getOldStatus(), history.getNewStatus(),
                     history.getOldProjectStatus()==null?null:history.getOldProjectStatus().getId(), history.getOldProjectStatus()==null?null:history.getOldProjectStatus().getName(),
                     history.getOldProjectStatus()==null||history.getOldProjectStatus().getSemanticKey()==null?null:history.getOldProjectStatus().getSemanticKey().name(),
                     history.getNewProjectStatus()==null?null:history.getNewProjectStatus().getId(), history.getNewProjectStatus()==null?null:history.getNewProjectStatus().getName(),
                     history.getNewProjectStatus()==null||history.getNewProjectStatus().getSemanticKey()==null?null:history.getNewProjectStatus().getSemanticKey().name(),
-                    history.getChangedBy().getFullName(), history.getChangeNote(), history.getChangedAt());
+                    // An automation change is never presented as a person's change.
+                    history.getAutomationRuleName() != null ? null : history.getChangedBy().getFullName(),
+                    history.getChangeNote(), history.getChangedAt(),
+                    history.getAutomationRuleName(), history.getAutomationRuleNameAr());
         }
     }
 
