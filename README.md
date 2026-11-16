@@ -1,4 +1,4 @@
-# Masar — Internal Service Request & Project Task Management System
+# Masar: Internal Service Request & Project Task Management System
 
 Masar is a bilingual (Arabic/English, RTL/LTR) full-stack application for internal service requests and project-based work. Employees and Administrators share one workspace for submitting, assigning, planning, tracking, and discussing General Requests and Project Tasks. Guests can submit requests without an account and follow them through an OTP-verified tracking portal.
 
