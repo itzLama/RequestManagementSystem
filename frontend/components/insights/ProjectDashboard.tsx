@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, CheckCircle2, ListTodo, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ListTodo, RefreshCw, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { projectApi, ProjectApiError, type DashboardActivity, type DashboardTaskRef, type ProjectDashboard as DashboardData, type ProjectTask } from "@/lib/project-api";
@@ -61,16 +61,17 @@ export default function ProjectDashboard({ projectId, access, tasks, onOpen, onS
       <button type="button" onClick={load} disabled={loading} className="inline-flex h-9 items-center gap-2 rounded-[9px] border border-divider bg-surface px-3 text-sm font-medium text-secondary hover:text-foreground disabled:opacity-60"><RefreshCw size={14} aria-hidden="true" className={loading ? "animate-spin" : ""} />Refresh</button>
     </div>
 
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <section className="rounded-xl border border-divider bg-surface p-5 sm:col-span-2 xl:col-span-1" aria-labelledby="completion-heading">
         <div className="flex items-center gap-2 text-sm text-secondary"><CheckCircle2 size={16} className="text-[#3FAE74]" aria-hidden="true" /><h3 id="completion-heading">Completion</h3></div>
         <p className="mt-2 text-3xl font-semibold" data-i18n-skip>{completion.percentage}%</p>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-background" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completion.percentage} aria-label={t("Completion")}>
           <div className="h-full rounded-full bg-[#3FAE74]" style={{ width: `${completion.percentage}%` }} />
         </div>
-        <p className="mt-2 text-xs text-secondary" data-i18n-skip>{rtl ? `${completion.completedTasks} من ${completion.totalTasks} مهام مكتملة` : `${completion.completedTasks} of ${completion.totalTasks} tasks completed`}</p>
+        <p className="mt-2 text-xs text-secondary" data-i18n-skip>{/* Same denominator as the percentage: rejected tasks are left out. */}{rtl ? `${completion.completedTasks} من ${completion.totalTasks - completion.rejectedTasks} مهام مكتملة` : `${completion.completedTasks} of ${completion.totalTasks - completion.rejectedTasks} tasks completed`}</p>
       </section>
       <StatCard icon={<ListTodo size={16} className="text-accent" aria-hidden="true" />} label="Open tasks" value={completion.openTasks} />
+      <StatCard icon={<XCircle size={16} className="text-[#E45555]" aria-hidden="true" />} label="Rejected tasks" value={completion.rejectedTasks} />
       <StatCard icon={<AlertTriangle size={16} className="text-[#D92D20]" aria-hidden="true" />} label="Overdue" value={data.overdueCount} tone="text-[#B42318]" />
       <StatCard icon={<CalendarClock size={16} className="text-[#B54708]" aria-hidden="true" />} label="Due within 7 days" value={data.upcomingCount} tone="text-[#93370D]" />
     </div>

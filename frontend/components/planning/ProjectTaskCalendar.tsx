@@ -11,7 +11,7 @@ import type { ProjectStatusColumn, ProjectTask } from "@/lib/project-api";
 import { useI18n } from "@/lib/i18n";
 import { addDaysToIso, daysBetweenIso } from "@/lib/task-dates";
 import { beginInteraction, endInteraction } from "@/lib/live-updates";
-import { completedStatusIds, DUE_TONES, PlanningLegend, taskDueState } from "@/components/planning/planning-shared";
+import { planningStatusSets, DUE_TONES, PlanningLegend, taskDueState } from "@/components/planning/planning-shared";
 
 export type RescheduleHandler = (taskId: number, startDate: string | null, dueDate: string | null) => Promise<boolean>;
 type EventKind = "range" | "due" | "start";
@@ -36,17 +36,17 @@ const THEME = {
 export default function ProjectTaskCalendar({ tasks, statuses, today, readOnly, onOpen, onReschedule }: { tasks: ProjectTask[]; statuses: ProjectStatusColumn[]; today: string; readOnly: boolean; onOpen: (taskId: number) => void; onReschedule: RescheduleHandler }) {
   const { locale } = useI18n();
   const unscheduledRef = useRef<HTMLUListElement | null>(null);
-  const completed = useMemo(() => completedStatusIds(statuses), [statuses]);
+  const statusSets = useMemo(() => planningStatusSets(statuses), [statuses]);
   const unscheduled = useMemo(() => tasks.filter((task) => !task.startDate && !task.dueDate), [tasks]);
   const events = useMemo<EventInput[]>(() => tasks.filter((task) => task.startDate || task.dueDate).map((task) => {
     const kind: EventKind = task.startDate && task.dueDate ? "range" : task.dueDate ? "due" : "start";
     const start = (task.startDate ?? task.dueDate)!;
     const end = kind === "range" ? addDaysToIso(task.dueDate!, 1) : undefined; // FullCalendar all-day end is exclusive.
-    const tone = DUE_TONES[taskDueState(task, completed, today) ?? "default"];
+    const tone = DUE_TONES[taskDueState(task, statusSets, today) ?? "default"];
     return { id: String(task.id), title: `#${task.id} ${task.title}`, start, end, allDay: true,
       backgroundColor: tone.color, borderColor: tone.border, textColor: tone.text,
       durationEditable: !readOnly && kind === "range", extendedProps: { kind, taskId: task.id } };
-  }), [tasks, completed, today, readOnly]);
+  }), [tasks, statusSets, today, readOnly]);
 
   useEffect(() => {
     if (readOnly || !unscheduledRef.current) return;

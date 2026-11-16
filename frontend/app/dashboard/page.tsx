@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ClipboardList, FolderOpen } from "lucide-react";
+import { CheckCircle2, ClipboardList, FolderOpen, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
@@ -20,6 +20,7 @@ type DashboardResponse = {
   totalRequests: number;
   openRequests: number;
   completedRequests: number;
+  rejectedRequests: number;
   requestsByStatus: StatusCount[];
   latestRequests: LatestRequest[];
 };
@@ -117,10 +118,11 @@ export default function DashboardPage() {
   </section>;
 
   return <div className="space-y-6">
-    <section aria-label="Request summary" className="grid gap-5 md:grid-cols-3">
+    <section aria-label="Request summary" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
       <SummaryCard label="Total Requests" value={dashboard.totalRequests} icon={<ClipboardList size={23} aria-hidden="true" />} iconClasses="bg-[#EEF0FF] text-accent" />
       <SummaryCard label="Open Requests" value={dashboard.openRequests} icon={<FolderOpen size={24} aria-hidden="true" />} iconClasses="bg-[#FFF7E5] text-[#D99A25]" />
       <SummaryCard label="Completed Requests" value={dashboard.completedRequests} icon={<CheckCircle2 size={24} aria-hidden="true" />} iconClasses="bg-[#EAF8F2] text-[#42AA84]" />
+      <SummaryCard label="Rejected Requests" value={dashboard.rejectedRequests} icon={<XCircle size={24} aria-hidden="true" />} iconClasses="bg-[#FFF1F0] text-[#E45555]" />
     </section>
 
     <section className="rounded-xl border border-divider bg-surface p-6 shadow-[0_2px_10px_rgba(15,16,32,0.025)] sm:p-8">

@@ -6,7 +6,7 @@ import type { ProjectStatusColumn, ProjectTask } from "@/lib/project-api";
 import { projectStatusDisplayName } from "@/lib/request-display";
 import { addDaysToIso } from "@/lib/task-dates";
 import { useI18n } from "@/lib/i18n";
-import { completedStatusIds, PlanningLegend, taskDueState } from "@/components/planning/planning-shared";
+import { planningStatusSets, PlanningLegend, taskDueState } from "@/components/planning/planning-shared";
 import { RoadmapTimeline, type TimelineItem } from "@/components/planning/RoadmapTimeline";
 
 /**
@@ -16,18 +16,18 @@ import { RoadmapTimeline, type TimelineItem } from "@/components/planning/Roadma
  */
 export function ProjectTaskRoadmap({ tasks, statuses, today, readOnly, onOpen, onReschedule }: { tasks: ProjectTask[]; statuses: ProjectStatusColumn[]; today: string; readOnly: boolean; onOpen: (taskId: number) => void; onReschedule: (taskId: number, startDate: string | null, dueDate: string | null) => Promise<boolean> }) {
   const { locale } = useI18n();
-  const completed = useMemo(() => completedStatusIds(statuses), [statuses]);
+  const statusSets = useMemo(() => planningStatusSets(statuses), [statuses]);
   const { items, unscheduled } = useMemo(() => {
     const scheduled = tasks.filter((task) => task.startDate || task.dueDate)
       .sort((a, b) => ((a.startDate ?? a.dueDate)!).localeCompare((b.startDate ?? b.dueDate)!) || a.id - b.id);
     const items: TimelineItem[] = scheduled.map((task) => {
       const start = (task.startDate ?? task.dueDate)!; const end = (task.dueDate ?? task.startDate)!;
-      const state = taskDueState(task, completed, today);
+      const state = taskDueState(task, statusSets, today);
       return { id: task.id, label: `#${task.id} ${task.title}`, sublabel: `${projectStatusDisplayName(task.statusName, task.statusSemantic, locale)}${task.assignedToName ? ` · ${task.assignedToName}` : ""}`,
         startDate: start, endDate: end, tone: state, muted: state === "completed", movable: !readOnly, onOpen: () => onOpen(task.id) };
     });
     return { items, unscheduled: tasks.filter((task) => !task.startDate && !task.dueDate) };
-  }, [tasks, completed, today, locale, onOpen, readOnly]);
+  }, [tasks, statusSets, today, locale, onOpen, readOnly]);
 
   // Moving a bar shifts whichever dates the Task has; a missing date stays missing.
   const move = useCallback((taskId: number, deltaDays: number) => {

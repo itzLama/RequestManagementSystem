@@ -1,6 +1,7 @@
 package com.requestmanagement.backend.notification;
 
 import com.requestmanagement.backend.guestcommunication.GuestCommunication;
+import com.requestmanagement.backend.projectstatus.ProjectStatusColumn;
 import com.requestmanagement.backend.request.Request;
 import com.requestmanagement.backend.request.RequestStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +43,61 @@ class GuestEmailServiceTests {
         assertThat(email.getSubject()).isEqualTo("[Masar] Request #42 status updated");
         assertThat(email.getText()).contains("Hello Guest User,")
                 .contains("Request #42")
-                .contains("IN_PROGRESS");
+                .contains("The status of Request #42 has changed to In Progress.")
+                .doesNotContain("IN_PROGRESS")
+                .doesNotContain("----------");
+        // English only: no Arabic characters.
+        assertThat(email.getText()).doesNotContainPattern("[\\u0600-\\u06FF]");
+    }
+
+    @Test
+    void statusEmailNeverShowsRawEnumValuesForAnyGeneralStatus() {
+        for (RequestStatus status : RequestStatus.values()) {
+            guestEmailService.send(GuestEmailNotificationEvent.statusChanged(guestRequest(7L, status)));
+        }
+        org.mockito.ArgumentCaptor<SimpleMailMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender, org.mockito.Mockito.times(RequestStatus.values().length)).send(captor.capture());
+        assertThat(captor.getAllValues()).allSatisfy(email -> assertThat(email.getText())
+                .doesNotContain("NEW", "IN_PROGRESS", "WAITING_USER", "COMPLETED", "REJECTED"));
+        assertThat(captor.getAllValues().get(4).getText()).contains("changed to Rejected.");
+        assertThat(captor.getAllValues().get(2).getText()).contains("changed to Waiting User.");
+    }
+
+    @Test
+    void projectStatusEmailUsesTheColumnsOwnName() {
+        Request defaultColumn = guestRequest(8L, null);
+        when(defaultColumn.getProjectStatus()).thenReturn(ProjectStatusColumn.create(null, "Rejected", ProjectStatusColumn.SemanticKey.REJECTED, 4));
+        Request renamedColumn = guestRequest(9L, null);
+        when(renamedColumn.getProjectStatus()).thenReturn(ProjectStatusColumn.create(null, "Declined", ProjectStatusColumn.SemanticKey.REJECTED, 4));
+        Request customColumn = guestRequest(10L, null);
+        when(customColumn.getProjectStatus()).thenReturn(ProjectStatusColumn.create(null, "QA Review", null, 3));
+
+        guestEmailService.send(GuestEmailNotificationEvent.statusChanged(defaultColumn));
+        guestEmailService.send(GuestEmailNotificationEvent.statusChanged(renamedColumn));
+        guestEmailService.send(GuestEmailNotificationEvent.statusChanged(customColumn));
+
+        org.mockito.ArgumentCaptor<SimpleMailMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender, org.mockito.Mockito.times(3)).send(captor.capture());
+        assertThat(captor.getAllValues().get(0).getText()).contains("changed to Rejected.");
+        assertThat(captor.getAllValues().get(1).getText()).contains("changed to Declined.").doesNotContain("REJECTED");
+        assertThat(captor.getAllValues().get(2).getText()).contains("changed to QA Review.");
+        assertThat(captor.getAllValues()).allSatisfy(email -> assertThat(email.getText()).doesNotContainPattern("[\\u0600-\\u06FF]"));
+    }
+
+    @Test
+    void statusEmailStripsLineBreaksAndDirectionOverridesFromDynamicValues() {
+        Request request = guestRequest(11L, RequestStatus.COMPLETED);
+        when(request.getGuestName()).thenReturn("Eve\r\nBcc: x@example.com\u202E");
+
+        guestEmailService.send(GuestEmailNotificationEvent.statusChanged(request));
+
+        org.mockito.ArgumentCaptor<SimpleMailMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getText()).contains("Hello Eve Bcc: x@example.com,")
+                .doesNotContain("\u202E").doesNotContain("Eve\r\n");
     }
 
     @Test
@@ -108,7 +163,7 @@ class GuestEmailServiceTests {
         when(request.getGuestName()).thenReturn("Guest User");
         when(request.getGuestEmail()).thenReturn("guest@example.com");
         when(request.getStatus()).thenReturn(status);
-        when(request.statusDisplayName()).thenReturn(status.name());
+        when(request.statusDisplayName()).thenReturn(status == null ? "" : status.name());
         return request;
     }
 

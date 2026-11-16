@@ -31,6 +31,11 @@ public class ProjectWorkTypeController {
         return service.rename(projectId, workTypeId, input);
     }
 
+    @PostMapping("/{workTypeId}/restore")
+    public ProjectWorkTypeResponse restore(@PathVariable Long projectId, @PathVariable Long workTypeId) {
+        return service.restore(projectId, workTypeId);
+    }
+
     @DeleteMapping("/{workTypeId}")
     public ResponseEntity<Void> retire(@PathVariable Long projectId, @PathVariable Long workTypeId) {
         service.retire(projectId, workTypeId);

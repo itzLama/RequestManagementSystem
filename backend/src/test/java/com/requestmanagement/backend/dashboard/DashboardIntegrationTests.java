@@ -41,6 +41,14 @@ class DashboardIntegrationTests {
                 .andExpect(jsonPath("$.totalRequests").value(4))
                 .andExpect(jsonPath("$.openRequests").value(2))
                 .andExpect(jsonPath("$.completedRequests").value(1))
+                .andExpect(jsonPath("$.rejectedRequests").value(1))
+                .andExpect(result -> {
+                    // Rejected is closed but not completed: open + completed + rejected = total.
+                    var json = com.jayway.jsonpath.JsonPath.parse(result.getResponse().getContentAsString());
+                    long open = json.read("$.openRequests", Long.class), completed = json.read("$.completedRequests", Long.class);
+                    long rejected = json.read("$.rejectedRequests", Long.class), total = json.read("$.totalRequests", Long.class);
+                    assertThat(open + completed + rejected).isEqualTo(total);
+                })
                 .andExpect(jsonPath("$.requestsByStatus.length()").value(5))
                 .andExpect(jsonPath("$.requestsByStatus[0].status").value("NEW"))
                 .andExpect(jsonPath("$.requestsByStatus[0].count").value(1))

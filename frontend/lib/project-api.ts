@@ -46,7 +46,8 @@ export type DashboardActivityKind = "TASK_CREATED" | "STATUS_CHANGED" | "COMMENT
 export type DashboardActivity = { kind: DashboardActivityKind; taskId: number; taskTitle: string; parentTaskId: number | null; actorName: string | null; actorIsGuest: boolean; statusName: string | null; statusSemantic: string | null; fileName: string | null; occurredAt: string; automationRuleName: string | null; automationRuleNameAr: string | null };
 export type ProjectDashboard = {
   projectId: number; today: string; upcomingWindowDays: number;
-  completion: { totalTasks: number; completedTasks: number; openTasks: number; percentage: number };
+  /** totalTasks = completedTasks + openTasks + rejectedTasks (Rejected = closed, not completed); percentage = completed / (total - rejected). */
+  completion: { totalTasks: number; completedTasks: number; openTasks: number; rejectedTasks: number; percentage: number };
   statuses: { statusId: number; statusName: string; semanticKey: string | null; countsAsCompleted: boolean; active: boolean; displayOrder: number; count: number }[];
   priorities: { priority: "LOW" | "MEDIUM" | "HIGH"; count: number }[];
   workload: { assigneeId: number | null; assigneeName: string | null; openTasks: number; overdueTasks: number }[];
@@ -80,6 +81,7 @@ export const projectApi = {
   workTypes: (id: string | number) => request<ProjectWorkType[]>(`/api/projects/${id}/work-types`, {}, "Unable to load Work Types."),
   createWorkType: (id: string | number, input: { name: string; nameAr: string }) => request<ProjectWorkType>(`/api/projects/${id}/work-types`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to add Work Type."),
   renameWorkType: (projectId: string | number, workTypeId: number, input: { name: string; nameAr: string }) => request<ProjectWorkType>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, "Unable to rename Work Type."),
+  restoreWorkType: (projectId: string | number, workTypeId: number) => request<ProjectWorkType>(`/api/projects/${projectId}/work-types/${workTypeId}/restore`, { method: "POST" }, "Unable to restore Work Type."),
   retireWorkType: (projectId: string | number, workTypeId: number) => request<void>(`/api/projects/${projectId}/work-types/${workTypeId}`, { method: "DELETE" }, "Unable to delete Work Type."),
   statuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/${id}/statuses`, {}, "Unable to load Project statuses."),
   myStatuses: (id: string | number) => request<ProjectStatusColumn[]>(`/api/projects/mine/${id}/statuses`, {}, "Unable to load Project statuses."),

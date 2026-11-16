@@ -27,6 +27,7 @@ public class DashboardService {
                 + counts.get(RequestStatus.IN_PROGRESS)
                 + counts.get(RequestStatus.WAITING_USER);
         long completed = counts.get(RequestStatus.COMPLETED);
+        long rejected = counts.get(RequestStatus.REJECTED);
 
         var statusCounts = counts.entrySet().stream()
                 .map(entry -> new DashboardResponse.StatusCount(entry.getKey(), entry.getValue()))
@@ -35,6 +36,6 @@ public class DashboardService {
                 .map(DashboardResponse.LatestRequest::from)
                 .toList();
 
-        return new DashboardResponse(total, open, completed, statusCounts, latestRequests);
+        return new DashboardResponse(total, open, completed, rejected, statusCounts, latestRequests);
     }
 }

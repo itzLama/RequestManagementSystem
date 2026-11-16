@@ -6,7 +6,7 @@ import type { ProjectStatusColumn, ProjectTask } from "@/lib/project-api";
 import { projectStatusDisplayName, REQUEST_PRIORITY_LABELS, UNASSIGNED_LABEL, type RequestPriority } from "@/lib/request-display";
 import { localizedRecordLabel, useI18n } from "@/lib/i18n";
 import { formatTaskDate } from "@/lib/task-dates";
-import { completedStatusIds, DueBadge, taskDueState } from "@/components/planning/planning-shared";
+import { planningStatusSets, DueBadge, taskDueState } from "@/components/planning/planning-shared";
 
 type SortKey = "id" | "title" | "status" | "priority" | "assignee" | "workType" | "startDate" | "dueDate";
 type SortState = { key: SortKey; direction: "asc" | "desc" };
@@ -17,7 +17,7 @@ export function ProjectTaskTable({ tasks, statuses, today, onOpen }: { tasks: Pr
   const { locale } = useI18n();
   const [statusFilter, setStatusFilter] = useState(""); const [priorityFilter, setPriorityFilter] = useState(""); const [assigneeFilter, setAssigneeFilter] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "dueDate", direction: "asc" });
-  const completed = useMemo(() => completedStatusIds(statuses), [statuses]);
+  const statusSets = useMemo(() => planningStatusSets(statuses), [statuses]);
   const statusOrder = useMemo(() => new Map(statuses.map((status) => [status.id, status.displayOrder])), [statuses]);
   const assignees = useMemo(() => {
     const byId = new Map<number, string>();
@@ -71,7 +71,7 @@ export function ProjectTaskTable({ tasks, statuses, today, onOpen }: { tasks: Pr
     {tasks.length === 0 ? <p className="px-6 py-10 text-center text-sm text-secondary">No tasks in this Project yet.</p>
       : rows.length === 0 ? <p className="px-6 py-10 text-center text-sm text-secondary">No tasks match the selected filters.</p>
       : <div className="overflow-x-auto"><table className="w-full min-w-[920px] text-sm"><thead className="bg-background text-xs text-secondary"><tr>{header("id", "#")}{header("title", "Task")}{header("status", "Status")}{header("priority", "Priority")}{header("assignee", "Assignee")}{header("workType", "Work Type")}{header("startDate", "Start date")}{header("dueDate", "Due date")}</tr></thead>
-        <tbody>{rows.map((task) => { const state = taskDueState(task, completed, today); return <tr key={task.id} onClick={() => onOpen(task.id)} className={`cursor-pointer border-t border-divider hover:bg-nav-hover ${state === "overdue" ? "bg-[#FFF8F7]" : ""}`}>
+        <tbody>{rows.map((task) => { const state = taskDueState(task, statusSets, today); return <tr key={task.id} onClick={() => onOpen(task.id)} className={`cursor-pointer border-t border-divider hover:bg-nav-hover ${state === "overdue" ? "bg-[#FFF8F7]" : ""}`}>
           <td className="px-4 py-3 text-secondary">{task.id}</td>
           <td className="max-w-xs px-4 py-3"><button type="button" onClick={(event) => { event.stopPropagation(); onOpen(task.id); }} className="block max-w-full truncate text-start font-semibold hover:text-accent" data-i18n-skip title={task.title}>{task.title}</button></td>
           <td className="px-4 py-3"><span data-i18n-skip className="rounded-full bg-nav-active px-2.5 py-1 text-xs font-semibold text-accent">{statusLabel(task)}</span></td>

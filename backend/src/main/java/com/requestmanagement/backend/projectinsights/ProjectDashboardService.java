@@ -29,12 +29,22 @@ import java.util.Map;
  * Project's own Counts-as-Completed statuses; status names are never hardcoded. Overdue and
  * upcoming follow the Stage 4 rule with dates in the planning time zone (Asia/Riyadh).
  * Readable for archived Projects.
+ *
+ * <p>Tasks in the status column tagged with the system REJECTED key are "closed but not completed":
+ * they are left out of open, workload, overdue and upcoming and reported as a separate count.
+ * If an Admin turned Counts as Completed on for that column, the setting wins and they count as completed.
+ * The tag lives in {@code project_status_columns.semantic_key}; renaming keeps it, and deleting the
+ * column retires it only after its tasks were moved or deleted, so no task stays in a retired REJECTED column.
  */
 @Service
 public class ProjectDashboardService {
     public static final int UPCOMING_WINDOW_DAYS = 7;
     static final int LIST_LIMIT = 10;
     static final int ACTIVITY_LIMIT = 15;
+
+    /** Open = not completed and not in the (non-completed) REJECTED column. Used with the alias {@code s}. */
+    static final String OPEN_STATUS = "NOT s.counts_as_completed AND s.semantic_key IS DISTINCT FROM 'REJECTED'";
+    static final String REJECTED_STATUS = "NOT s.counts_as_completed AND s.semantic_key = 'REJECTED'";
 
     private static final String ROOT_TASKS = """
               FROM requests r
@@ -48,8 +58,7 @@ public class ProjectDashboardService {
               FROM requests r
               JOIN project_status_columns s ON s.status_id = r.project_status_id
               LEFT JOIN users u ON u.user_id = r.assigned_to
-             WHERE r.project_id = :project AND r.parent_request_id IS NULL AND NOT s.counts_as_completed
-            """;
+             WHERE r.project_id = :project AND r.parent_request_id IS NULL AND\s""" + OPEN_STATUS + "\n";
 
     private static final String ACTIVITY_SQL = """
             SELECT * FROM (
@@ -140,12 +149,18 @@ public class ProjectDashboardService {
                 .addValue("limit", ACTIVITY_LIMIT);
 
         ProjectDashboardDtos.Completion completion = jdbc.queryForObject("""
-                SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE s.counts_as_completed) AS completed
+                SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE s.counts_as_completed) AS completed,
+                       COUNT(*) FILTER (WHERE\s""" + REJECTED_STATUS + """
+                ) AS rejected
                 """ + ROOT_TASKS, params, (rs, row) -> {
             long total = rs.getLong("total");
             long completed = rs.getLong("completed");
-            int percentage = total == 0 ? 0 : (int) Math.round(completed * 100.0 / total);
-            return new ProjectDashboardDtos.Completion(total, completed, total - completed, percentage);
+            long rejected = rs.getLong("rejected");
+            // completed / (all root tasks - rejected). Rejected = REJECTED-tagged column with Counts as Completed
+            // off. No tasks, or only rejected ones, gives 0% without dividing by zero.
+            long considered = total - rejected;
+            int percentage = considered <= 0 ? 0 : (int) Math.round(completed * 100.0 / considered);
+            return new ProjectDashboardDtos.Completion(total, completed, total - completed - rejected, rejected, percentage);
         });
 
         List<ProjectDashboardDtos.StatusCount> statuses = jdbc.query("""
@@ -196,7 +211,7 @@ public class ProjectDashboardService {
                     SELECT r.assigned_to, r.due_date
                       FROM requests r
                       JOIN project_status_columns s ON s.status_id = r.project_status_id
-                     WHERE r.project_id = :project AND r.parent_request_id IS NULL AND NOT s.counts_as_completed
+                     WHERE r.project_id = :project AND r.parent_request_id IS NULL AND\s""" + OPEN_STATUS + """
                 ), people AS (
                     SELECT m.employee_id AS user_id FROM project_memberships m WHERE m.project_id = :project
                     UNION
@@ -217,8 +232,7 @@ public class ProjectDashboardService {
                   FROM requests r
                   JOIN project_status_columns s ON s.status_id = r.project_status_id
                  WHERE r.project_id = :project AND r.parent_request_id IS NULL
-                   AND NOT s.counts_as_completed AND r.assigned_to IS NULL
-                """, params, rs -> {
+                   AND r.assigned_to IS NULL AND\s""" + OPEN_STATUS + "\n", params, rs -> {
             rows.add(new ProjectDashboardDtos.Workload(null, null, rs.getLong("open_tasks"), rs.getLong("overdue_tasks")));
         });
         return rows;

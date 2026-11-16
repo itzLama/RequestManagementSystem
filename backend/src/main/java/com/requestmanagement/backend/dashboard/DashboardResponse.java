@@ -11,6 +11,8 @@ public record DashboardResponse(
         long totalRequests,
         long openRequests,
         long completedRequests,
+        /** Closed but not completed; open + completed + rejected = total. */
+        long rejectedRequests,
         List<StatusCount> requestsByStatus,
         List<LatestRequest> latestRequests
 ) {

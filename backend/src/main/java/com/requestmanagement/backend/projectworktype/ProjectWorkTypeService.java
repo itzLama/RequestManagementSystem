@@ -18,6 +18,9 @@ import com.requestmanagement.backend.tasktemplate.ProjectTaskTemplateRepository;
 @Service
 @RequiredArgsConstructor
 public class ProjectWorkTypeService {
+    static final String RETIRED_NAME_MESSAGE = "A retired Work Type with this name exists. Restore it instead.";
+    static final String RETIRED_ARABIC_NAME_MESSAGE = "A retired Work Type with this Arabic name exists. Restore it instead.";
+
     private final ProjectWorkTypeRepository repository;
     private final ProjectRepository projectRepository;
     private final ProjectAccessService projectAccessService;
@@ -96,6 +99,20 @@ public class ProjectWorkTypeService {
         }
     }
 
+    /**
+     * Re-activates a retired Work Type in place (same ID), so existing Tasks, Templates, rules and history stay
+     * linked. Names are unique per Project including retired rows, so restoring can never create a duplicate.
+     * Restoring an already active Work Type is a no-op that returns it unchanged.
+     */
+    @Transactional
+    public ProjectWorkTypeResponse restore(Long projectId, Long workTypeId) {
+        requireActiveProject(projectId);
+        ProjectWorkType type = requireOwned(projectId, workTypeId);
+        if (type.isActive()) return ProjectWorkTypeResponse.from(type);
+        type.restore();
+        return ProjectWorkTypeResponse.from(repository.saveAndFlush(type));
+    }
+
     @Transactional(readOnly = true)
     public ProjectWorkType requireActiveForProject(Long projectId, Long workTypeId) {
         return repository.findByIdAndProject_IdAndActiveTrue(workTypeId, projectId)
@@ -139,19 +156,23 @@ public class ProjectWorkTypeService {
     }
 
     private void requireUnique(Long projectId, String name, Long excludedId) {
-        boolean exists = excludedId == null
-                ? repository.existsByProject_IdAndNameIgnoreCase(projectId, name)
-                : repository.existsByProject_IdAndNameIgnoreCaseAndIdNot(projectId, name, excludedId);
-        if (exists) throw duplicate(null);
+        List<ProjectWorkType> clashes = others(repository.findByProject_IdAndNameIgnoreCase(projectId, name), excludedId);
+        if (clashes.isEmpty()) return;
+        if (clashes.stream().anyMatch(ProjectWorkType::isActive)) throw duplicate(null);
+        throw new ResponseStatusException(HttpStatus.CONFLICT, RETIRED_NAME_MESSAGE);
     }
 
     private void requireUniqueArabic(Long projectId, String nameAr, Long excludedId) {
         if (nameAr == null) return;
-        boolean exists = excludedId == null
-                ? repository.existsByProject_IdAndNameArIgnoreCase(projectId, nameAr)
-                : repository.existsByProject_IdAndNameArIgnoreCaseAndIdNot(projectId, nameAr, excludedId);
-        if (exists) throw new ResponseStatusException(HttpStatus.CONFLICT,
+        List<ProjectWorkType> clashes = others(repository.findByProject_IdAndNameArIgnoreCase(projectId, nameAr), excludedId);
+        if (clashes.isEmpty()) return;
+        if (clashes.stream().anyMatch(ProjectWorkType::isActive)) throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "A Work Type with this Arabic name already exists in the Project.");
+        throw new ResponseStatusException(HttpStatus.CONFLICT, RETIRED_ARABIC_NAME_MESSAGE);
+    }
+
+    private static List<ProjectWorkType> others(List<ProjectWorkType> matches, Long excludedId) {
+        return matches.stream().filter(type -> excludedId == null || !excludedId.equals(type.getId())).toList();
     }
 
     private ResponseStatusException duplicate(Throwable cause) {

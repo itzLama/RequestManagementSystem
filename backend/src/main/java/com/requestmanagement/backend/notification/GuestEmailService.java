@@ -41,14 +41,7 @@ public class GuestEmailService {
 
     private String body(GuestEmailNotificationEvent event) {
         return switch (event.getCategory()) {
-            case REQUEST_STATUS_CHANGED -> !event.isProjectTrackingAvailable()
-                    ? String.format(Locale.ROOT,
-                            "Hello %s,%n%nThe status of Request #%d has changed to %s.%n%nMasar",
-                            event.getGuestName(), event.getRequestId(), event.getStatus())
-                    : String.format(Locale.ROOT,
-                            "Hello %s,%n%nThe status of Request #%d has changed to %s.%n%n%s%n%nMasar",
-                            event.getGuestName(), event.getRequestId(), event.getStatus(),
-                            TRACKING_INSTRUCTION);
+            case REQUEST_STATUS_CHANGED -> statusChangedBody(event);
             case MESSAGE_SENT -> !event.isProjectTrackingAvailable()
                     ? String.format(Locale.ROOT,
                             "Hello %s,%n%nThere is a new message for Request #%d:%n%n%s%n%nMasar",
@@ -63,5 +56,28 @@ public class GuestEmailService {
                     "Hello %s,%n%nYour Masar verification code is %s.%nIt expires in 10 minutes. Do not share this code.%n%n%s%n%nMasar",
                     event.getGuestName(), event.getVerificationCode(), TRACKING_INSTRUCTION);
         };
+    }
+
+    /**
+     * English only, in the original layout, with the human status label (never an enum value). Change notes are
+     * never included. The email is plain text, so dynamic values are made safe by removing control and
+     * bidirectional-override characters (no line breaks or direction tricks via the guest name or a status name).
+     */
+    private String statusChangedBody(GuestEmailNotificationEvent event) {
+        String name = plain(event.getGuestName());
+        String status = plain(event.getStatus());
+        return !event.isProjectTrackingAvailable()
+                ? String.format(Locale.ROOT,
+                        "Hello %s,%n%nThe status of Request #%d has changed to %s.%n%nMasar",
+                        name, event.getRequestId(), status)
+                : String.format(Locale.ROOT,
+                        "Hello %s,%n%nThe status of Request #%d has changed to %s.%n%n%s%n%nMasar",
+                        name, event.getRequestId(), status, TRACKING_INSTRUCTION);
+    }
+
+    /** Removes control characters (incl. line breaks) and bidirectional overrides from a plain-text value. */
+    static String plain(String value) {
+        if (value == null) return "";
+        return value.replaceAll("[\\p{Cntrl}\\u2028\\u2029\\u202A-\\u202E\\u2066-\\u2069]+", " ").trim();
     }
 }

@@ -6,6 +6,8 @@ import com.requestmanagement.backend.request.RequestStatus;
 import com.requestmanagement.backend.request.RequestStatusService;
 import com.requestmanagement.backend.user.User;
 import com.requestmanagement.backend.user.UserRepository;
+import com.requestmanagement.backend.guesttracking.GuestTrackingCrypto;
+import com.requestmanagement.backend.guesttracking.GuestTrackingTestSupport;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +51,7 @@ class GuestStatusEmailIntegrationTests {
     @Autowired RequestStatusService requestStatusService;
     @Autowired RequestRepository requestRepository;
     @Autowired UserRepository userRepository;
+    @Autowired GuestTrackingCrypto guestCrypto;
 
     @MockitoBean JavaMailSender mailSender;
 
@@ -65,6 +68,10 @@ class GuestStatusEmailIntegrationTests {
                 """, PREFIX + "%");
         jdbc.update("""
                 DELETE FROM comments WHERE request_id IN
+                (SELECT request_id FROM requests WHERE title LIKE ?)
+                """, PREFIX + "%");
+        jdbc.update("""
+                DELETE FROM guest_tracking_sessions WHERE request_id IN
                 (SELECT request_id FROM requests WHERE title LIKE ?)
                 """, PREFIX + "%");
         jdbc.update("""
@@ -88,13 +95,64 @@ class GuestStatusEmailIntegrationTests {
     }
 
     @Test
+    void adminRejectionNoteIsSavedInHistoryButNeverReachesTheGuest() throws Exception {
+        long requestId = guestGeneralRequest(title("admin-reject-note"), "NEW", null);
+        String note = "Internal rejection reason 7731";
+
+        Session admin = login("sara.saad@example.com");
+        String details = mvc.perform(patch("/api/requests/admin/{id}", requestId)
+                        .session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json")
+                        .content("{\"status\":\"REJECTED\",\"assignedToId\":null,\"changeNote\":\"" + note + "\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(details).contains(note);
+        assertThat(jdbc.queryForObject("""
+                SELECT change_note FROM status_history WHERE request_id=? AND new_status='REJECTED'
+                """, String.class, requestId)).isEqualTo(note);
+
+        // Email: bilingual human labels, no raw enum, no note.
+        org.mockito.ArgumentCaptor<SimpleMailMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getText()).contains("has changed to Rejected.").doesNotContainPattern("[\\u0600-\\u06FF]")
+                .doesNotContain("REJECTED").doesNotContain(note);
+
+        // Guest endpoints never expose the note.
+        String token = UUID.randomUUID().toString();
+        jdbc.update("""
+                INSERT INTO guest_tracking_sessions(session_id,token_digest,request_id,last_activity_at,expires_at)
+                VALUES (?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP + INTERVAL '30 minutes')
+                """, UUID.randomUUID(), GuestTrackingTestSupport.sessionDigest(guestCrypto, token), requestId);
+        Cookie guest = new Cookie("MASAR_GUEST_TRACKING", token);
+        for (String path : new String[]{"/api/guest/tracking/request", "/api/guest/tracking/communications"}) {
+            String body = mvc.perform(get(path).cookie(guest)).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+            assertThat(body).doesNotContain(note).doesNotContain("changeNote").doesNotContain("timeline");
+        }
+    }
+
+    @Test
+    void projectGuestStatusEmailUsesTheColumnNameInEnglishOnly() throws Exception {
+        long projectId = activeProject(title("project-labels"));
+        long taskId = guestProjectTask(title("project-labels-task"), projectId, "NEW");
+
+        updateAdminProject(projectId, taskId, login("sara.saad@example.com"), "REJECTED").andExpect(status().isOk());
+        org.mockito.ArgumentCaptor<SimpleMailMessage> captor =
+                org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getText()).contains("changed to Rejected.").doesNotContainPattern("[\\u0600-\\u06FF]")
+                .doesNotContain("REJECTED");
+    }
+
+    @Test
     void adminGeneralGuestStatusChangeSendsExactlyOneEmailAfterCommit() throws Exception {
         long requestId = guestGeneralRequest(title("admin-general"), "NEW", null);
 
         updateAdminGeneral(requestId, login("sara.saad@example.com"),
                 "IN_PROGRESS", null).andExpect(status().isOk());
 
-        assertOneStatusEmail(requestId, "IN_PROGRESS");
+        assertOneStatusEmail(requestId, "In Progress");
         assertPersistedTransition(requestId, "IN_PROGRESS", 1);
     }
 
@@ -106,7 +164,7 @@ class GuestStatusEmailIntegrationTests {
         updateAssignedGeneral(requestId, login("nora.ahmed@example.com"), "WAITING_USER")
                 .andExpect(status().isOk());
 
-        assertOneStatusEmail(requestId, "WAITING_USER");
+        assertOneStatusEmail(requestId, "Waiting User");
         assertPersistedTransition(requestId, "WAITING_USER", 1);
     }
 
@@ -255,7 +313,7 @@ class GuestStatusEmailIntegrationTests {
             updateAdminGeneral(requestId, admin, "IN_PROGRESS", null)
                     .andExpect(status().isOk());
 
-            assertOneStatusEmail(requestId, "IN_PROGRESS");
+            assertOneStatusEmail(requestId, "In Progress");
             assertPersistedTransition(requestId, "IN_PROGRESS", 1);
         }
     }
@@ -269,7 +327,8 @@ class GuestStatusEmailIntegrationTests {
         assertThat(email.getSubject()).isEqualTo(
                 "[Masar] Request #" + requestId + " status updated");
         assertThat(email.getText()).contains(statusValue)
-                .doesNotContain("localhost", "http://", "https://", "/track-request");
+                .doesNotContain("localhost", "http://", "https://", "/track-request")
+                .doesNotContain("IN_PROGRESS", "WAITING_USER", "COMPLETED", "REJECTED");
     }
 
     private void assertPersistedTransition(long requestId, String statusValue, long historyCount) {

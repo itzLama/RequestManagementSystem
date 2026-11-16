@@ -51,12 +51,22 @@ export function invalidDateRange(startDate: string | null | undefined, dueDate: 
 export type DueState = "overdue" | "upcoming" | "completed" | null;
 
 /**
+ * True for the status column carrying the system REJECTED tag while its Counts as Completed setting is off.
+ * Such tasks are closed but not completed (same rule as Project Insights). When Counts as Completed is on,
+ * the setting wins and the task is treated as completed instead.
+ */
+export function isRejectedStatus(semanticKey: string | null | undefined, countsAsCompleted: boolean): boolean {
+  return semanticKey === "REJECTED" && !countsAsCompleted;
+}
+
+/**
  * Overdue: due before today and NOT in a status that counts as completed.
  * Upcoming: not completed and due between today and today + 7 days (inclusive).
+ * Rejected tasks (see {@link isRejectedStatus}) are closed: never overdue or upcoming.
  */
-export function dueState(dueDate: string | null, completed: boolean, today: string): DueState {
+export function dueState(dueDate: string | null, completed: boolean, today: string, rejected = false): DueState {
   if (completed) return dueDate ? "completed" : null;
-  if (!dueDate) return null;
+  if (rejected || !dueDate) return null;
   if (dueDate < today) return "overdue";
   if (dueDate <= addDaysToIso(today, UPCOMING_WINDOW_DAYS)) return "upcoming";
   return null;

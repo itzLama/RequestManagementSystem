@@ -212,6 +212,101 @@ class ProjectWorkTypeIntegrationTests {
         }
     }
 
+    @Test
+    void adminRestoresRetiredTypeInPlaceAndItIsSelectableAgain() throws Exception {
+        long nora = userId("nora.ahmed@example.com");
+        long project = project("Restore Types", "ACTIVE");
+        jdbc.update("INSERT INTO project_memberships(project_id,employee_id) VALUES (?,?)", project, nora);
+        Session admin = login("sara.saad@example.com");
+        createType(admin, project, "Keeper");
+        long retired = createBilingualType(admin, project, "Task", "مهمة");
+        long historical = task(project, retired);
+        retire(admin, project, retired);
+
+        // Adding the same name (any case, either language) points to Restore instead of creating a duplicate.
+        mvc.perform(post("/api/projects/{project}/work-types", project).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content("{\"name\":\" task \",\"nameAr\":\"مهمة جديدة\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(ProjectWorkTypeService.RETIRED_NAME_MESSAGE));
+        mvc.perform(post("/api/projects/{project}/work-types", project).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content("{\"name\":\"Other Task\",\"nameAr\":\"مهمة\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(ProjectWorkTypeService.RETIRED_ARABIC_NAME_MESSAGE));
+
+        restore(admin, project, retired).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(retired)).andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.name").value("Task")).andExpect(jsonPath("$.nameAr").value("مهمة"));
+        // Idempotent: restoring an active type is a no-op.
+        restore(admin, project, retired).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(retired)).andExpect(jsonPath("$.active").value(true));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM project_work_types WHERE project_id=? AND LOWER(work_type_name)='task'",
+                Long.class, project)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT project_work_type_id FROM requests WHERE request_id=?", Long.class, historical))
+                .isEqualTo(retired);
+
+        // Duplicate names are still rejected once the type is active again (existing message).
+        mvc.perform(post("/api/projects/{project}/work-types", project).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content("{\"name\":\"TASK\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A Work Type with this name already exists in the Project."));
+
+        // Selectable again: member list, Create Task and Task Templates.
+        Session employee = login("nora.ahmed@example.com");
+        mvc.perform(get("/api/projects/mine/{project}/work-types", project).session(employee.session()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == " + retired + ")]").exists());
+        mvc.perform(post("/api/projects/{project}/tasks", project).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content(taskBody("Restored type task", retired, nora)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.workTypeId").value(retired));
+        mvc.perform(post("/api/projects/{project}/task-templates", project).session(admin.session()).cookie(admin.csrf())
+                        .header("X-XSRF-TOKEN", admin.csrf().getValue()).contentType("application/json")
+                        .content("{\"name\":\"Restored Template\",\"nameAr\":\"قالب\",\"workTypeId\":" + retired
+                                + ",\"priority\":\"LOW\",\"defaultTitle\":\"From template\",\"descriptionDocument\":"
+                                + "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"x\"}]}]}"
+                                + ",\"dueOffsetDays\":null}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.workTypeId").value(retired));
+    }
+
+    @Test
+    void restoreRequiresAdminCsrfOwnedTypeAndActiveProject() throws Exception {
+        long nora = userId("nora.ahmed@example.com");
+        long project = project("Restore Rules", "ACTIVE");
+        long other = project("Restore Other", "ACTIVE");
+        jdbc.update("INSERT INTO project_memberships(project_id,employee_id) VALUES (?,?)", project, nora);
+        Session admin = login("sara.saad@example.com");
+        createType(admin, project, "Keeper");
+        long retired = createType(admin, project, "Retired One");
+        task(project, retired);
+        retire(admin, project, retired);
+
+        Session employee = login("nora.ahmed@example.com");
+        restore(employee, project, retired).andExpect(status().isForbidden());
+        mvc.perform(post("/api/projects/{project}/work-types/{type}/restore", project, retired).session(admin.session()))
+                .andExpect(status().isForbidden());
+        restore(admin, other, retired).andExpect(status().isNotFound());
+
+        jdbc.update("UPDATE projects SET status='ARCHIVED' WHERE project_id=?", project);
+        entityManager.clear();
+        restore(admin, project, retired).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT is_active FROM project_work_types WHERE work_type_id=?", Boolean.class, retired)).isFalse();
+    }
+
+    private org.springframework.test.web.servlet.ResultActions restore(Session session, long project, long type) throws Exception {
+        return mvc.perform(post("/api/projects/{project}/work-types/{type}/restore", project, type)
+                .session(session.session()).cookie(session.csrf()).header("X-XSRF-TOKEN", session.csrf().getValue()));
+    }
+
+    private long createBilingualType(Session admin, long project, String name, String nameAr) throws Exception {
+        MvcResult result = mvc.perform(post("/api/projects/{project}/work-types", project)
+                        .session(admin.session()).cookie(admin.csrf()).header("X-XSRF-TOKEN", admin.csrf().getValue())
+                        .contentType("application/json").content("{\"name\":\"" + name + "\",\"nameAr\":\"" + nameAr + "\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        return ((Number) com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.id")).longValue();
+    }
+
     private long project(String name, String status) {
         Long id = jdbc.queryForObject("INSERT INTO projects(project_name,status) VALUES (?,?) RETURNING project_id",
                 Long.class, name, status);

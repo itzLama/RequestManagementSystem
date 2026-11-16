@@ -3,7 +3,7 @@
 import { CalendarDays, Columns3, GanttChart, LayoutDashboard, Table2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ProjectStatusColumn, ProjectTask } from "@/lib/project-api";
-import { dueState, type DueState } from "@/lib/task-dates";
+import { dueState, isRejectedStatus, type DueState } from "@/lib/task-dates";
 
 export type ProjectView = "kanban" | "table" | "calendar" | "roadmap" | "dashboard";
 const VIEWS: { id: ProjectView; label: string; icon: typeof Columns3 }[] = [
@@ -35,12 +35,18 @@ export function ProjectViewSwitcher({ view, onChange }: { view: ProjectView; onC
   </div>;
 }
 
-export function completedStatusIds(statuses: ProjectStatusColumn[]): Set<number> {
-  return new Set(statuses.filter((status) => status.countsAsCompleted).map((status) => status.id));
+/** Status IDs that count as completed, and those that are rejected (closed, not completed). */
+export type PlanningStatusSets = { completed: Set<number>; rejected: Set<number> };
+
+export function planningStatusSets(statuses: ProjectStatusColumn[]): PlanningStatusSets {
+  return {
+    completed: new Set(statuses.filter((status) => status.countsAsCompleted).map((status) => status.id)),
+    rejected: new Set(statuses.filter((status) => isRejectedStatus(status.semanticKey, status.countsAsCompleted)).map((status) => status.id)),
+  };
 }
 
-export function taskDueState(task: ProjectTask, completed: Set<number>, today: string): DueState {
-  return dueState(task.dueDate, completed.has(task.statusId), today);
+export function taskDueState(task: ProjectTask, sets: PlanningStatusSets, today: string): DueState {
+  return dueState(task.dueDate, sets.completed.has(task.statusId), today, sets.rejected.has(task.statusId));
 }
 
 export const DUE_TONES: Record<Exclude<DueState, null> | "default", { bar: string; badge: string; color: string; border: string; text: string }> = {

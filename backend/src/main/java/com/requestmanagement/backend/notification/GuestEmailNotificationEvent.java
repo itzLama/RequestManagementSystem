@@ -12,6 +12,7 @@ public final class GuestEmailNotificationEvent {
     private final String recipientEmail;
     private final Long requestId;
     private final String guestName;
+    /** Human English status label (never a raw enum value). */
     private final String status;
     private final String message;
     private final boolean projectTrackingAvailable;
@@ -36,12 +37,14 @@ public final class GuestEmailNotificationEvent {
 
     public static GuestEmailNotificationEvent statusChanged(Request request) {
         validateGuestRequest(request);
+        // The label is resolved now (inside the transaction); the email itself is sent after commit.
+        String status = GuestStatusLabels.english(request);
         return new GuestEmailNotificationEvent(
                 GuestEmailNotificationCategory.REQUEST_STATUS_CHANGED,
                 request.getGuestEmail(),
                 request.getId(),
                 request.getGuestName(),
-                request.statusDisplayName(),
+                status,
                 null, true, null);
     }
 

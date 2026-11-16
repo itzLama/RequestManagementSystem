@@ -67,4 +67,10 @@ public class ProjectWorkType {
         this.active = false;
         this.updatedAt = LocalDateTime.now();
     }
+
+    /** Re-activates this same record so every Task, Template, rule and history row stays linked to it. */
+    public void restore() {
+        this.active = true;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

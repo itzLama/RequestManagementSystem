@@ -59,6 +59,7 @@ class ProjectDashboardIntegrationTests {
                 .andExpect(jsonPath("$.completion.totalTasks").value(6))
                 .andExpect(jsonPath("$.completion.completedTasks").value(2))
                 .andExpect(jsonPath("$.completion.openTasks").value(4))
+                .andExpect(jsonPath("$.completion.rejectedTasks").value(0))
                 .andExpect(jsonPath("$.completion.percentage").value(33))
                 .andExpect(jsonPath("$.statuses[?(@.statusName == 'New')].count").value(contains(3)))
                 .andExpect(jsonPath("$.statuses[?(@.statusName == 'In Progress')].count").value(contains(1)))
@@ -74,6 +75,82 @@ class ProjectDashboardIntegrationTests {
                 .andExpect(jsonPath("$.overdueTasks[0].taskId").value(overdue))
                 .andExpect(jsonPath("$.upcomingCount").value(2))
                 .andExpect(jsonPath("$.upcomingTasks[0].taskId").value(upcoming));
+    }
+
+    @Test
+    void rejectedTasksAreClosedNotOpenUnlessTheColumnCountsAsCompleted() throws Exception {
+        LocalDate today = service.today();
+        long nora = userId("nora.ahmed@example.com");
+        long project = project("Dashboard rejected " + System.nanoTime()); member(project, nora);
+        long openOverdue = task(project, nora, null, "NEW", "HIGH", today.minusDays(2));
+        task(project, nora, null, "REJECTED", "HIGH", today.minusDays(3));           // rejected + past due
+        task(project, null, null, "REJECTED", "LOW", today.plusDays(2));             // rejected + due soon, unassigned
+        task(project, nora, null, "COMPLETED", "MEDIUM", null);
+        // Renaming keeps the system REJECTED tag.
+        jdbc.update("UPDATE project_status_columns SET status_name='Declined' WHERE project_id=? AND semantic_key='REJECTED'", project);
+
+        Session admin = login("sara.saad@example.com");
+        mvc.perform(get("/api/projects/" + project + "/dashboard").session(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completion.totalTasks").value(4))
+                .andExpect(jsonPath("$.completion.completedTasks").value(1))
+                .andExpect(jsonPath("$.completion.rejectedTasks").value(2))
+                .andExpect(jsonPath("$.completion.openTasks").value(1))
+                .andExpect(jsonPath("$.completion.percentage").value(50))     // 1 / (4 - 2 rejected)
+                .andExpect(jsonPath("$.statuses[?(@.statusName == 'Declined')].count").value(contains(2)))
+                .andExpect(jsonPath("$.workload[?(@.assigneeId == " + nora + ")].openTasks").value(contains(1)))
+                .andExpect(jsonPath("$.workload[?(@.assigneeId == " + nora + ")].overdueTasks").value(contains(1)))
+                .andExpect(jsonPath("$.workload[?(@.assigneeId == null)].openTasks").value(contains(0)))
+                .andExpect(jsonPath("$.overdueCount").value(1))
+                .andExpect(jsonPath("$.overdueTasks[0].taskId").value(openOverdue))
+                .andExpect(jsonPath("$.upcomingCount").value(0));
+
+        // The Counts as Completed setting wins over the REJECTED tag.
+        jdbc.update("UPDATE project_status_columns SET counts_as_completed=true WHERE project_id=? AND semantic_key='REJECTED'", project);
+        mvc.perform(get("/api/projects/" + project + "/dashboard").session(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completion.completedTasks").value(3))
+                .andExpect(jsonPath("$.completion.rejectedTasks").value(0))
+                .andExpect(jsonPath("$.completion.openTasks").value(1))
+                .andExpect(jsonPath("$.completion.percentage").value(75))
+                .andExpect(jsonPath("$.overdueCount").value(1))
+                .andExpect(jsonPath("$.upcomingCount").value(0));
+    }
+
+    @Test
+    void completionRateLeavesRejectedTasksOutOfTheDenominator() throws Exception {
+        Session admin = login("sara.saad@example.com");
+
+        // 8 completed + 2 rejected -> 8 / (10 - 2) = 100%.
+        long full = project("Dashboard rate full " + System.nanoTime());
+        for (int i = 0; i < 8; i++) task(full, null, null, "COMPLETED", "LOW", null);
+        for (int i = 0; i < 2; i++) task(full, null, null, "REJECTED", "LOW", null);
+        mvc.perform(get("/api/projects/" + full + "/dashboard").session(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completion.totalTasks").value(10))
+                .andExpect(jsonPath("$.completion.completedTasks").value(8))
+                .andExpect(jsonPath("$.completion.rejectedTasks").value(2))
+                .andExpect(jsonPath("$.completion.openTasks").value(0))
+                .andExpect(jsonPath("$.completion.percentage").value(100));
+
+        // Only rejected tasks -> denominator 0 -> 0%, no division by zero.
+        long allRejected = project("Dashboard rate rejected " + System.nanoTime());
+        for (int i = 0; i < 3; i++) task(allRejected, null, null, "REJECTED", "LOW", null);
+        mvc.perform(get("/api/projects/" + allRejected + "/dashboard").session(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completion.totalTasks").value(3))
+                .andExpect(jsonPath("$.completion.completedTasks").value(0))
+                .andExpect(jsonPath("$.completion.rejectedTasks").value(3))
+                .andExpect(jsonPath("$.completion.openTasks").value(0))
+                .andExpect(jsonPath("$.completion.percentage").value(0));
+
+        // No tasks at all -> 0% (unchanged empty-project behaviour).
+        long empty = project("Dashboard rate empty " + System.nanoTime());
+        mvc.perform(get("/api/projects/" + empty + "/dashboard").session(admin.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completion.totalTasks").value(0))
+                .andExpect(jsonPath("$.completion.rejectedTasks").value(0))
+                .andExpect(jsonPath("$.completion.percentage").value(0));
     }
 
     @Test
