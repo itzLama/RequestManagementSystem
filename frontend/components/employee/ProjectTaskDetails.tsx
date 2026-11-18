@@ -6,8 +6,9 @@ import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
 import { projectApi, type ProjectStatusColumn, type ProjectTaskMember, type ProjectWorkType, type SubtaskSummary } from "@/lib/project-api";
-import { formatRequestDateTime as formatDateTime, projectStatusDisplayName, REQUEST_PRIORITY_LABELS, UNASSIGNED_LABEL, type RequestPriority } from "@/lib/request-display";
+import { formatRequestDateTime as formatDateTime, isAutoStatusNote, projectStatusDisplayName, REQUEST_PRIORITY_LABELS, statusChangeSentence, statusNoteDisplay, UNASSIGNED_LABEL, type RequestPriority } from "@/lib/request-display";
 import { GuestBadge } from "@/components/GuestBadge";
+import { ShowEarlierButton, useShowEarlier } from "@/components/ShowEarlierToggle";
 import { GuestCommunicationPanel } from "@/components/GuestCommunicationPanel";
 import { localizedRecordLabel, useI18n } from "@/lib/i18n";
 import { DeleteConfirmationDialog } from "@/components/admin/DeleteConfirmationDialog";
@@ -202,8 +203,8 @@ export function ProjectTaskDetails({ projectId, taskId, access = "employee", onU
         <LinkedWorkSection projectId={projectId} taskId={task.id} access={access} readOnly={readOnly} onOpen={setSelectedLinkedTaskId} />
         {task.guest && task.guestAnswers.length > 0 && <AdditionalInformation answers={task.guestAnswers} locale={locale} />}
         <ActivitySection task={task} statusLabels={statusLabels} locale={locale} />
-        <Conversation title="Comments" items={task.comments} empty="No comments yet." initialVisibleCount={5} composer={!readOnly ? <Composer value={comment} onChange={setComment} busy={commentBusy} error={commentError} placeholder="Add a comment..." onSubmit={addComment} /> : null} />
-        {access === "admin" && <Conversation title="Internal Notes (Admin Only)" items={task.internalNotes ?? []} empty="No internal notes yet." initialVisibleCount={5} composer={!readOnly ? <Composer value={internalNote} onChange={setInternalNote} busy={internalBusy} error={internalError} placeholder="Add an internal note..." onSubmit={addInternalNote} /> : null} />}
+        <Conversation title="Comments" items={task.comments} empty="No comments yet." initialVisibleCount={5} singular="comment" plural="comments" composer={!readOnly ? <Composer value={comment} onChange={setComment} busy={commentBusy} error={commentError} placeholder="Add a comment..." onSubmit={addComment} /> : null} />
+        {access === "admin" && <Conversation title="Internal Notes (Admin Only)" items={task.internalNotes ?? []} empty="No internal notes yet." initialVisibleCount={5} singular="note" plural="notes" composer={!readOnly ? <Composer value={internalNote} onChange={setInternalNote} busy={internalBusy} error={internalError} placeholder="Add an internal note..." onSubmit={addInternalNote} /> : null} />}
       </main>
       <aside className="min-w-0 space-y-6">
         <section className={card}><h2 className="text-lg font-semibold">Task Details</h2><dl className="mt-5 space-y-5"><div><dt className="text-xs text-secondary">Assignee</dt>{readOnly ? <dd className="mt-1 break-words text-sm font-semibold">{task.assignedToName ?? UNASSIGNED_LABEL}</dd> : <dd className="mt-2"><select value={task.assignedToId ?? ""} disabled={assigneeBusy} onChange={(event) => reassign(Number(event.target.value))} className={control}><option value="" disabled>Unassigned</option>{activeMembers.map((member) => <option key={member.employeeId} value={member.employeeId}>{member.fullName}</option>)}</select>{assigneeError && <p role="alert" className="mt-2 text-xs text-[#B42318]">{assigneeError}</p>}</dd>}</div><TaskDatesEditor key={`${task.id}:${task.startDate}:${task.dueDate}`} task={task} readOnly={readOnly} locale={locale} onSave={saveDates} /><Detail label="Priority" value={REQUEST_PRIORITY_LABELS[task.priority]} /><Detail label="Work Type" value={workTypeLabel} dynamic /><div><dt className="text-xs text-secondary">Created by</dt><dd className="mt-1 flex min-w-0 items-center gap-2 break-words text-sm font-semibold"><UserRound size={16} className="shrink-0 text-accent" />{task.createdByName ?? task.requesterName}</dd>{task.guest && <dd className="mt-1 break-all text-xs text-secondary">{task.requesterEmail}</dd>}</div><div><dt className="text-xs text-secondary">Created at</dt><dd className="mt-1 flex items-center gap-2 text-sm font-semibold"><CalendarDays size={16} className="shrink-0 text-accent" />{formatRequestDateTime(task.createdAt)}</dd></div><Detail label="Project" value={task.projectName} dynamic /></dl></section>
@@ -247,12 +248,17 @@ function AdditionalInformation({ answers, locale }: { answers: GuestAnswer[]; lo
 
 function ActivitySection({ task, statusLabels, locale }: { task: TaskDetails; statusLabels: Record<number, string>; locale: "en" | "ar" }) {
   const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
-  const [showAll, setShowAll] = useState(false);
+  const { expanded, toggle, anchorRef } = useShowEarlier();
+  const latestCount = 5;
+  // Oldest → newest: "Task created" first, newest status change last (next to Comments).
   const eventCount = task.timeline.length + 1;
-  const limited = eventCount > 5 && !showAll;
-  const visibleTimeline = limited ? task.timeline.slice(-5) : task.timeline;
-  const showCreated = !limited;
-  return <section className={card}><h2 className="flex items-center gap-2 text-lg font-semibold"><Activity size={19} className="text-accent" />Activity</h2><ol className="mt-5">{showCreated && <li className="grid grid-cols-[14px_minmax(0,1fr)] gap-3"><TimelineNode connected={visibleTimeline.length > 0} /><div className="min-w-0 pb-5"><p className="text-sm font-semibold">Task created</p><time className="text-xs text-secondary">{formatRequestDateTime(task.createdAt)}</time><p className="mt-1 break-words text-xs text-secondary">Created by {task.createdByName ?? task.requesterName}</p></div></li>}{visibleTimeline.map((entry, index) => <li key={`${entry.changedAt}-${index}`} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3"><TimelineNode connected={index < visibleTimeline.length - 1} /><div className="min-w-0 pb-5"><p data-i18n-skip className="break-words text-sm font-semibold">{projectTransition(entry, statusLabels, locale)}</p><time className="text-xs text-secondary">{formatRequestDateTime(entry.changedAt)}</time>{entry.changeNote && <p data-i18n-skip className="mt-1 whitespace-pre-wrap break-words text-xs text-secondary">{projectNote(entry, locale)}</p>}{entry.automationRuleName ? <p data-i18n-skip className="mt-1 break-words text-xs text-secondary">{locale === "ar" ? `بواسطة قاعدة الأتمتة «${entry.automationRuleNameAr?.trim() ? entry.automationRuleNameAr : entry.automationRuleName}»` : `By automation rule "${entry.automationRuleName}"`}</p> : <p className="mt-1 break-words text-xs text-secondary">Changed by {entry.changedByName}</p>}</div></li>)}</ol>{eventCount > 5 && <button type="button" onClick={() => setShowAll((value) => !value)} aria-expanded={showAll} className="text-sm font-medium text-accent hover:underline">{showAll ? "Show less" : `View all ${eventCount} events`}</button>}</section>;
+  const hiddenCount = Math.max(0, eventCount - latestCount);
+  const limited = hiddenCount > 0 && !expanded;
+  const firstVisibleIndex = limited ? task.timeline.length - latestCount : 0;
+  // The oldest item visible in both states keeps its place when earlier items are shown or hidden.
+  const anchorIndex = hiddenCount > 0 ? task.timeline.length - latestCount : -1;
+  const visibleTimeline = task.timeline.slice(firstVisibleIndex);
+  return <section className={card}><h2 className="flex items-center gap-2 text-lg font-semibold"><Activity size={19} className="text-accent" />Activity</h2>{hiddenCount > 0 && <ShowEarlierButton expanded={expanded} hiddenCount={hiddenCount} singular="event" plural="events" onToggle={toggle} className="mt-4" />}<ol className="mt-5">{!limited && <li className="grid grid-cols-[14px_minmax(0,1fr)] gap-3"><TimelineNode connected={visibleTimeline.length > 0} /><div className="min-w-0 pb-5"><p className="text-sm font-semibold">Task created</p><time className="text-xs text-secondary">{formatRequestDateTime(task.createdAt)}</time><p className="mt-1 break-words text-xs text-secondary">Created by {task.createdByName ?? task.requesterName}</p></div></li>}{visibleTimeline.map((entry, offset) => { const index = firstVisibleIndex + offset; const note = projectNote(entry, statusLabels, locale); return <li key={`${entry.changedAt}-${index}`} ref={index === anchorIndex ? anchorRef : undefined} className="grid grid-cols-[14px_minmax(0,1fr)] gap-3"><TimelineNode connected={offset < visibleTimeline.length - 1} /><div className="min-w-0 pb-5"><p data-i18n-skip className="break-words text-sm font-semibold">{projectTransition(entry, statusLabels, locale)}</p><time className="text-xs text-secondary">{formatRequestDateTime(entry.changedAt)}</time>{note && <p data-i18n-skip className="mt-1 whitespace-pre-wrap break-words text-xs text-secondary">{note}</p>}{entry.automationRuleName ? <p data-i18n-skip className="mt-1 break-words text-xs text-secondary">{locale === "ar" ? `بواسطة قاعدة الأتمتة «${entry.automationRuleNameAr?.trim() ? entry.automationRuleNameAr : entry.automationRuleName}»` : `By automation rule "${entry.automationRuleName}"`}</p> : <p className="mt-1 break-words text-xs text-secondary">Changed by {entry.changedByName}</p>}</div></li>; })}</ol></section>;
 }
 
 function projectStatusNames(entry: TimelineEntry, labels: Record<string | number, string>, locale: "en" | "ar") {
@@ -267,24 +273,29 @@ function projectTransition(entry: TimelineEntry, labels: Record<string | number,
   return locale === "ar" ? `${oldName} ← ${newName}` : `${oldName} → ${newName}`;
 }
 
-function projectNote(entry: TimelineEntry, locale: "en" | "ar") {
-  if (locale !== "ar" || !entry.changeNote) return entry.changeNote;
-  const storedOldName = entry.oldProjectStatusName;
-  const storedNewName = entry.newProjectStatusName;
-  if (storedOldName && storedNewName && entry.changeNote === `Status changed from ${storedOldName} to ${storedNewName}.`) {
-    const oldName = projectStatusDisplayName(storedOldName, entry.oldProjectStatusSemantic, locale);
-    const newName = projectStatusDisplayName(storedNewName, entry.newProjectStatusSemantic, locale);
-    return `تغيّرت الحالة من ${oldName} إلى ${newName}.`;
+/**
+ * The description uses the same name source as the title. A server-generated note
+ * ("Status changed from X to Y.") stores the column names as text at the time of the change and can
+ * go stale after a rename, so it is rebuilt from the stored status IDs (current column names).
+ * Rows without status IDs fall back to the stored text (legacy raw keys shown as human labels).
+ * Notes typed by a person are shown unchanged.
+ */
+function projectNote(entry: TimelineEntry, labels: Record<string | number, string>, locale: "en" | "ar") {
+  if (!entry.changeNote) return null;
+  if (entry.newProjectStatusId != null && isAutoStatusNote(entry.changeNote)) {
+    const { oldName, newName } = projectStatusNames(entry, labels, locale);
+    return statusChangeSentence(oldName, newName, locale);
   }
-  return entry.changeNote;
+  return statusNoteDisplay(entry.changeNote, locale);
 }
 
-function Conversation({ title, items, empty, composer, initialVisibleCount }: { title: string; items: Comment[]; empty: string; composer: ReactNode; initialVisibleCount: number }) {
+function Conversation({ title, items, empty, composer, initialVisibleCount, singular, plural }: { title: string; items: Comment[]; empty: string; composer: ReactNode; initialVisibleCount: number; singular: string; plural: string }) {
   const { locale } = useI18n(); const formatRequestDateTime = (value: string) => formatDateTime(value, locale);
-  const [showAll, setShowAll] = useState(false);
+  const { expanded, toggle, anchorRef } = useShowEarlier();
   const hiddenCount = Math.max(0, items.length - initialVisibleCount);
-  const visibleItems = showAll ? items : items.slice(-initialVisibleCount);
-  return <section className={card}><h2 className="text-lg font-semibold">{title}</h2><div className="mt-4 divide-y divide-divider">{items.length === 0 && <p className="py-4 text-sm text-secondary">{empty}</p>}{visibleItems.map((item) => <article key={item.id} className="flex min-w-0 gap-3 py-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.authorName.trim().charAt(0) || "?"}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p data-i18n-skip className="break-words text-sm font-semibold">{item.authorName}</p><time className="text-xs text-secondary">{formatRequestDateTime(item.createdAt)}</time></div><p data-i18n-skip className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.text}</p></div></article>)}</div>{hiddenCount > 0 && <button type="button" onClick={() => setShowAll((value) => !value)} aria-expanded={showAll} className="mt-3 text-sm font-medium text-accent hover:underline">{showAll ? "Show less" : `View ${hiddenCount} older ${hiddenCount === 1 ? "comment" : "comments"}`}</button>}{composer}</section>;
+  const visibleItems = expanded ? items : items.slice(hiddenCount);
+  const anchorId = hiddenCount > 0 ? items[hiddenCount].id : null;
+  return <section className={card}><h2 className="text-lg font-semibold">{title}</h2>{hiddenCount > 0 && <ShowEarlierButton expanded={expanded} hiddenCount={hiddenCount} singular={singular} plural={plural} onToggle={toggle} className="mt-3" />}<div className="mt-4 divide-y divide-divider">{items.length === 0 && <p className="py-4 text-sm text-secondary">{empty}</p>}{visibleItems.map((item) => <article key={item.id} ref={item.id === anchorId ? anchorRef : undefined} className="flex min-w-0 gap-3 py-4"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.authorName.trim().charAt(0) || "?"}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap justify-between gap-2"><p data-i18n-skip className="break-words text-sm font-semibold">{item.authorName}</p><time className="text-xs text-secondary">{formatRequestDateTime(item.createdAt)}</time></div><p data-i18n-skip className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.text}</p></div></article>)}</div>{composer}</section>;
 }
 
 function Composer({ value, onChange, busy, error, placeholder, onSubmit }: { value: string; onChange: (value: string) => void; busy: boolean; error: string; placeholder: string; onSubmit: (event: FormEvent) => void }) { return <form onSubmit={onSubmit} className="mt-4"><div className="flex min-w-0 gap-3"><textarea rows={2} maxLength={10000} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`${control} min-h-11 min-w-0 flex-1 resize-y py-3`} /><button type="submit" disabled={busy} aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[9px] bg-accent text-white disabled:opacity-60"><Send size={18} /></button></div>{error && <p role="alert" className="mt-2 text-sm text-[#B42318]">{error}</p>}</form>; }

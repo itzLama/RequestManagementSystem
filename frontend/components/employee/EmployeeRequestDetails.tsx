@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getApiErrorMessage } from "@/lib/api-client";
-import { formatRequestDateTime as formatDateTime, formatTimelineDate as formatTimeline, REQUEST_PRIORITY_LABELS, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
+import { formatRequestDateTime as formatDateTime, formatTimelineDate as formatTimeline, REQUEST_PRIORITY_LABELS, statusNoteDisplay, REQUEST_STATUSES, REQUEST_STATUS_LABELS, UNASSIGNED_LABEL, type RequestPriority, type RequestStatus } from "@/lib/request-display";
 import { GuestBadge } from "@/components/GuestBadge";
 import { GuestCommunicationPanel } from "@/components/GuestCommunicationPanel";
 import { useI18n } from "@/lib/i18n";
@@ -21,14 +21,14 @@ function StatusTimeline({ details }: { details: Details }) {
     ...details.timeline.map((entry) => ({
       label: `${entry.oldStatus ? `${REQUEST_STATUS_LABELS[entry.oldStatus]} → ` : ""}${REQUEST_STATUS_LABELS[entry.newStatus]}`,
       timestamp: entry.changedAt,
-      note: entry.changeNote,
+      note: statusNoteDisplay(entry.changeNote, locale),
       actor: entry.changedByName,
     })),
   ];
   return <ol aria-label="Status activity" className="space-y-0">
     {events.map((event, index) => <li key={`${event.timestamp}-${index}`} className="grid grid-cols-[16px_minmax(0,1fr)] gap-4">
       <div aria-hidden="true" className="flex flex-col items-center"><span className="block h-4 w-4 shrink-0 rounded-full border-[3px] border-[#4D7FE6] bg-[#4D7FE6]" />{index < events.length - 1 && <span className="min-h-10 w-0.5 flex-1 bg-[#AFC4F2]" />}</div>
-      <div className={index < events.length - 1 ? "pb-6" : "pb-1"}><p className="text-sm font-semibold text-foreground">{event.label}</p><time className="mt-1 block text-xs text-secondary">{formatTimelineDate(event.timestamp)}</time>{event.note && <p className="mt-1 break-words text-xs leading-5 text-secondary">{event.note}</p>}{event.actor && <p className="mt-1 text-xs text-secondary">Changed by {event.actor}</p>}</div>
+      <div className={index < events.length - 1 ? "pb-6" : "pb-1"}><p className="text-sm font-semibold text-foreground">{event.label}</p><time className="mt-1 block text-xs text-secondary">{formatTimelineDate(event.timestamp)}</time>{event.note && <p data-i18n-skip={event.note === "Request created" ? undefined : true} className="mt-1 break-words text-xs leading-5 text-secondary">{event.note}</p>}{event.actor && <p className="mt-1 text-xs text-secondary">Changed by {event.actor}</p>}</div>
     </li>)}
   </ol>;
 }

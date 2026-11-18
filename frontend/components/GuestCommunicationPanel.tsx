@@ -11,6 +11,7 @@ import {
 } from "@/lib/guest-communication-api";
 import { formatRequestDateTime as formatDateTime } from "@/lib/request-display";
 import { useI18n } from "@/lib/i18n";
+import { ShowEarlierButton, useShowEarlier } from "@/components/ShowEarlierToggle";
 
 const card = "rounded-xl border border-divider bg-surface p-6";
 
@@ -42,7 +43,7 @@ export function GuestCommunicationPanel({
   const [sendError, setSendError] = useState("");
   const [success, setSuccess] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [showAllHistory, setShowAllHistory] = useState(false);
+  const { expanded: showAllHistory, toggle: toggleHistory, anchorRef } = useShowEarlier();
   const dialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendingRef = useRef(false);
@@ -157,10 +158,10 @@ export function GuestCommunicationPanel({
     setSendError("");
   }
 
-  const visibleHistory = initialVisibleCount && !showAllHistory
-    ? history.slice(-initialVisibleCount)
-    : history;
+  // Oldest → newest; only the latest messages are shown until the earlier ones are expanded above them.
   const hiddenMessageCount = Math.max(0, history.length - (initialVisibleCount ?? history.length));
+  const visibleHistory = showAllHistory ? history : history.slice(hiddenMessageCount);
+  const anchorMessageId = hiddenMessageCount > 0 ? history[hiddenMessageCount].id : null;
 
   return <>
     <section className={card} aria-labelledby={`guest-communication-${target.requestId}`}>
@@ -181,15 +182,16 @@ export function GuestCommunicationPanel({
 
       {loading ? <p role="status" className="py-8 text-center text-sm text-secondary">Loading communication history...</p>
         : loadError ? <div role="alert" className="py-7 text-center"><p className="text-sm text-[#B42318]">{loadError}</p><button type="button" onClick={() => setReload((value) => value + 1)} className="mt-3 text-sm font-medium text-accent underline">Retry</button></div>
-          : <div className="mt-5 divide-y divide-divider border-y border-divider">
+          : <>
+          {hiddenMessageCount > 0 && <ShowEarlierButton expanded={showAllHistory} hiddenCount={hiddenMessageCount} singular="message" plural="messages" onToggle={toggleHistory} className="mt-5" />}
+          <div className="mt-5 divide-y divide-divider border-y border-divider">
             {history.length === 0 && <p className="py-6 text-sm text-secondary">No messages have been sent to this Guest yet.</p>}
-            {visibleHistory.map((item) => <article key={item.id} className="flex gap-3 py-5">
+            {visibleHistory.map((item) => <article key={item.id} ref={item.id === anchorMessageId ? anchorRef : undefined} className="flex gap-3 py-5">
               <div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-avatar text-xs font-semibold text-secondary">{item.senderName.trim().charAt(0).toUpperCase() || "?"}</div>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><p className="text-sm font-semibold"><span data-i18n-skip>{item.senderName}</span> <span className="font-normal text-secondary">({item.senderType === "GUEST" ? "Guest" : item.senderRole === "ADMIN" ? "Administrator" : "Employee"})</span></p><time className="text-xs text-secondary">{formatRequestDateTime(item.sentAt)}</time></div><p data-i18n-skip className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{item.message}</p></div>
             </article>)}
-          </div>}
-
-      {!loading && !loadError && hiddenMessageCount > 0 && <button type="button" onClick={() => setShowAllHistory((value) => !value)} aria-expanded={showAllHistory} className="mt-4 text-sm font-medium text-accent hover:underline">{showAllHistory ? "Show less" : `View ${hiddenMessageCount} older ${hiddenMessageCount === 1 ? "message" : "messages"}`}</button>}
+          </div>
+          </>}
 
       {readOnly && <p className="mt-5 rounded-[9px] bg-background px-4 py-3 text-sm text-secondary">This Project is archived. Existing Guest Communication remains available, but new messages cannot be sent.</p>}
     </section>

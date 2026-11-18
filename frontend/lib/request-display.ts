@@ -33,6 +33,36 @@ export function projectStatusDisplayName(name: string, semanticKey: string | nul
   return name === predefined.en ? predefined[locale] : name;
 }
 
+/** Human label for a built-in status key (e.g. IN_PROGRESS → "In Progress" / "قيد التنفيذ"). */
+export function requestStatusLabel(status: RequestStatus, locale: "en" | "ar") {
+  return PROJECT_STATUS_NAMES[status][locale];
+}
+
+/** The sentence the server writes when a status changes without a user note. */
+export function statusChangeSentence(oldName: string, newName: string, locale: "en" | "ar") {
+  return locale === "ar" ? `تغيّرت الحالة من ${oldName} إلى ${newName}.` : `Status changed from ${oldName} to ${newName}.`;
+}
+
+const AUTO_STATUS_NOTE = /^Status changed from [\s\S]+ to [\s\S]+\.$/;
+const RAW_STATUS_NOTE = /^Status changed from (NEW|IN_PROGRESS|WAITING_USER|COMPLETED|REJECTED) to (NEW|IN_PROGRESS|WAITING_USER|COMPLETED|REJECTED)\.$/;
+
+/** True for the server-generated "Status changed from X to Y." note (as opposed to a note a person typed). */
+export function isAutoStatusNote(note: string | null | undefined): note is string {
+  return note != null && AUTO_STATUS_NOTE.test(note);
+}
+
+/**
+ * Display text for a stored status-change note. Legacy rows stored raw status keys
+ * ("Status changed from NEW to IN_PROGRESS."); those are shown with the human labels.
+ * Any other note (typed by a person) is returned unchanged.
+ */
+export function statusNoteDisplay(note: string | null | undefined, locale: "en" | "ar") {
+  if (!note) return null;
+  const raw = RAW_STATUS_NOTE.exec(note);
+  if (!raw) return note;
+  return statusChangeSentence(requestStatusLabel(raw[1] as RequestStatus, locale), requestStatusLabel(raw[2] as RequestStatus, locale), locale);
+}
+
 function currentLocale(locale?: "en" | "ar") {
   const active = locale ?? (typeof document !== "undefined" && document.documentElement.lang === "ar" ? "ar" : "en");
   return active === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US";
